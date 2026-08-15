@@ -1,0 +1,80 @@
+:root {
+  color-scheme: light dark;
+
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --border: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #1a1a19;
+    --ink: #ffffff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.app-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+#error {
+  padding: 0 1.5rem;
+}
+
+#error:empty {
+  display: none;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  align-items: start;
+}
+
+.editor-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.editor-column section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.editor-column h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+}
+
+#diagram {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 480px;
+}
+
+#diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}

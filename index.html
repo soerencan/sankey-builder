@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sankey Builder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Sankey Builder</h1>
+  </header>
+
+  <div id="error" role="status" aria-live="polite"></div>
+
+  <main class="app-layout">
+    <aside class="editor-column">
+      <section id="node-editor" aria-labelledby="node-editor-heading">
+        <h2 id="node-editor-heading">Nodes</h2>
+      </section>
+
+      <section id="link-editor" aria-labelledby="link-editor-heading">
+        <h2 id="link-editor-heading">Links</h2>
+      </section>
+
+      <section id="controls" aria-labelledby="controls-heading">
+        <h2 id="controls-heading">Diagram controls</h2>
+      </section>
+    </aside>
+
+    <section id="diagram" aria-label="Sankey diagram"></section>
+  </main>
+
+  <script src="vendor/d3.min.js"></script>
+  <script src="vendor/d3-sankey.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
