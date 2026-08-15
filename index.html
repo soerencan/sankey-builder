@@ -26,11 +26,22 @@
       <section id="controls" aria-labelledby="controls-heading">
         <h2 id="controls-heading">Diagram controls</h2>
         <div class="control-row">
+          <label for="palette">Palette</label>
+          <select id="palette" data-action="update-palette">
+            <option value="observable10">Observable 10</option>
+            <option value="tableau10">Tableau 10</option>
+            <option value="category10">Category 10</option>
+            <option value="set2">Set 2</option>
+            <option value="dark2">Dark 2</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+        <div class="control-row">
           <label for="link-color">Link color</label>
           <select id="link-color" data-action="update-link-color">
             <option value="source">Source</option>
             <option value="target">Target</option>
-            <option value="source-target" selected>Source → target</option>
+            <option value="source-target">Source → target</option>
             <option value="static">Static</option>
           </select>
         </div>
@@ -40,7 +51,7 @@
             <option value="left">Left</option>
             <option value="right">Right</option>
             <option value="center">Center</option>
-            <option value="justify" selected>Justify</option>
+            <option value="justify">Justify</option>
           </select>
         </div>
       </section>

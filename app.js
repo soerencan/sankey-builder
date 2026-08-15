@@ -72,23 +72,70 @@ function deleteNode(id) {
   validateAndRender();
 }
 
+const PALETTES = {
+  observable10: d3.schemeObservable10,
+  tableau10: d3.schemeTableau10,
+  category10: d3.schemeCategory10,
+  set2: d3.schemeSet2,
+  dark2: d3.schemeDark2,
+};
+
+/**
+ * @param {string} key
+ * @returns {readonly string[]}
+ */
+function activePalette(key) {
+  return PALETTES[key] ?? PALETTES.observable10;
+}
+
 /** @returns {d3.ScaleOrdinal<string, string>} */
 function colorScale() {
   // Explicit domain (current node ids) so colors stay deterministic and
   // don't reshuffle as nodes are added/removed/renamed.
   return d3.scaleOrdinal(
     state.nodes.map((n) => n.id),
-    d3.schemeObservable10
+    activePalette(state.settings.palette)
   );
 }
 
 /**
- * Single seam for palette switching (Step 5) — everything else calls this
- * instead of touching colorScale()/state.settings.palette directly.
+ * Rebuilt once per render pass (by validateAndRender) and reused by both
+ * editors and the diagram, rather than rebuilding an O(n) ordinal scale on
+ * every single node/link color lookup.
+ * @type {d3.ScaleOrdinal<string, string> | null}
+ */
+let currentColorScale = null;
+
+/**
+ * Single seam for palette switching — everything else calls this instead of
+ * touching currentColorScale/state.settings.palette directly.
  * @param {Node} node
  */
 function nodeColor(node) {
-  return colorScale()(node.id);
+  return (state.settings.colorMode === "manual" && node.color) || currentColorScale(node.id);
+}
+
+/**
+ * Seeds `color` only for nodes lacking one, from their current computed
+ * color, so nothing visually jumps and colors hand-picked in a previous
+ * manual session (kept-but-ignored while a named palette was active) are
+ * restored rather than re-seeded.
+ */
+function enterManualMode() {
+  currentColorScale = colorScale();
+  for (const node of state.nodes) {
+    if (!node.color) node.color = nodeColor(node);
+  }
+  state.settings.colorMode = "manual";
+}
+
+/**
+ * @param {string} id
+ * @param {string} color
+ */
+function updateNodeColor(id, color) {
+  const node = state.nodes.find((n) => n.id === id);
+  if (node) node.color = color;
 }
 
 /**
@@ -210,6 +257,7 @@ function validate(state) {
  *   a value field).
  */
 function validateAndRender(rebuildNodeEditor = true, rebuildLinkEditor = true) {
+  currentColorScale = colorScale();
   const result = validate(state);
   const errorEl = d3.select("#error");
   errorEl.text(result.ok ? "" : result.error);
@@ -235,13 +283,15 @@ function renderNodeEditor() {
     .attr("data-action", "add-node")
     .text("Add node");
 
+  const manual = state.settings.colorMode === "manual";
+
   const row = root
     .append("div")
     .attr("class", "node-rows")
     .selectAll(".node-row")
     .data(state.nodes, (d) => d.id)
     .join("div")
-    .attr("class", "node-row");
+    .attr("class", `node-row${manual ? " manual" : ""}`);
 
   row
     .append("span")
@@ -256,6 +306,17 @@ function renderNodeEditor() {
     .attr("data-id", (d) => d.id)
     .attr("aria-label", (d) => `Name for ${d.name}`)
     .property("value", (d) => d.name);
+
+  if (manual) {
+    row
+      .append("input")
+      .attr("type", "color")
+      .attr("class", "node-color")
+      .attr("data-action", "update-node-color")
+      .attr("data-id", (d) => d.id)
+      .attr("aria-label", (d) => `Color for ${d.name}`)
+      .property("value", (d) => d.color ?? nodeColor(d));
+  }
 
   row
     .append("button")
@@ -373,15 +434,26 @@ function setupNodeEditor() {
       // Keep the row's name-derived aria-labels in sync without touching
       // the input itself, since a full rebuild here would steal focus/caret.
       event.target.setAttribute("aria-label", `Name for ${event.target.value}`);
-      const deleteButton = event.target
-        .closest(".node-row")
-        ?.querySelector(".node-delete");
+      const row = event.target.closest(".node-row");
+      const deleteButton = row?.querySelector(".node-delete");
       deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
+      const colorInput = row?.querySelector(".node-color");
+      colorInput?.setAttribute("aria-label", `Color for ${event.target.value}`);
       // Skip the node editor's own rebuild (would reset this input's
       // focus/caret mid-keystroke) but still rebuild the link editor, whose
       // source/target <select> options show node names and would otherwise
       // go stale.
       validateAndRender(false);
+    } else if (action === "update-node-color") {
+      updateNodeColor(id, event.target.value);
+      // Update this row's swatch directly rather than rebuilding: a color
+      // picker fires many 'input' events while dragging, and a rebuild
+      // mid-drag would tear down the input the user is actively using.
+      const swatch = event.target.closest(".node-row")?.querySelector(".node-swatch");
+      if (swatch) swatch.style.backgroundColor = event.target.value;
+      // Skip both editor rebuilds; still re-render the diagram so the
+      // color change is visible live while dragging.
+      validateAndRender(false, false);
     }
   });
 }
@@ -452,6 +524,10 @@ function setupControls() {
   // attributes that could drift out of sync.
   root.querySelector("#link-color").value = state.settings.linkColor;
   root.querySelector("#alignment").value = state.settings.alignment;
+  // "Manual" is a colorMode flip, not a palette value — settings.palette
+  // keeps the last named palette underneath it as the fallback scale.
+  root.querySelector("#palette").value =
+    state.settings.colorMode === "manual" ? "manual" : state.settings.palette;
 
   root.addEventListener("change", (event) => {
     const { action } = event.target.dataset;
@@ -460,6 +536,14 @@ function setupControls() {
       validateAndRender();
     } else if (action === "update-alignment") {
       state.settings.alignment = event.target.value;
+      validateAndRender();
+    } else if (action === "update-palette") {
+      if (event.target.value === "manual") {
+        enterManualMode();
+      } else {
+        state.settings.palette = event.target.value;
+        state.settings.colorMode = "auto";
+      }
       validateAndRender();
     }
   });

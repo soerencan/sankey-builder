@@ -134,6 +134,10 @@ select {
   gap: 0.5rem;
 }
 
+.node-row.manual {
+  grid-template-columns: auto 1fr auto auto;
+}
+
 .node-swatch {
   width: 0.9rem;
   height: 0.9rem;
@@ -143,6 +147,30 @@ select {
 
 .node-name {
   min-width: 0;
+}
+
+.node-color {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.node-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.node-color::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.node-color::-moz-color-swatch {
+  border: none;
+  border-radius: 3px;
 }
 
 .node-delete {
