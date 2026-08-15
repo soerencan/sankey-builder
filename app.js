@@ -429,21 +429,75 @@ function setupLinkEditor() {
 }
 
 /**
+ * @param {string} name
+ * @returns {(node: object) => number}
+ */
+function alignFn(name) {
+  return (
+    { left: d3.sankeyLeft, right: d3.sankeyRight, center: d3.sankeyCenter }[name] ??
+    d3.sankeyJustify
+  );
+}
+
+/**
+ * Delegated change listener on #controls, mirroring the node/link editors'
+ * setup functions. Settings are simple string fields, so this writes
+ * straight into state.settings rather than going through per-field setters.
+ */
+function setupControls() {
+  const root = document.getElementById("controls");
+
+  // Sync the static <select> markup to state on load, so the defaults live
+  // in one place (defaultState()) rather than duplicated as `selected`
+  // attributes that could drift out of sync.
+  root.querySelector("#link-color").value = state.settings.linkColor;
+  root.querySelector("#alignment").value = state.settings.alignment;
+
+  root.addEventListener("change", (event) => {
+    const { action } = event.target.dataset;
+    if (action === "update-link-color") {
+      state.settings.linkColor = event.target.value;
+      validateAndRender();
+    } else if (action === "update-alignment") {
+      state.settings.alignment = event.target.value;
+      validateAndRender();
+    }
+  });
+}
+
+/**
  * Runs d3-sankey layout on a copy of the graph, since d3-sankey mutates
  * whatever it's given.
  * @param {{nodes:Node[], links:Link[]}} graph
+ * @param {Settings} settings
  */
-function layout(graph) {
+function layout(graph, settings) {
   const { nodes, links } = structuredClone(graph);
   return d3
     .sankey()
     .nodeId((d) => d.id)
+    .nodeAlign(alignFn(settings.alignment))
     .nodeWidth(15)
     .nodePadding(10)
     .extent([
       [1, 5],
       [DIAGRAM_WIDTH - 1, DIAGRAM_HEIGHT - 5],
     ])({ nodes, links });
+}
+
+/**
+ * Per-link stroke accessor for the given link-color mode. `source-target`
+ * returns a gradient url referencing the per-link <linearGradient> that
+ * renderDiagram appends (its id is keyed by d3-sankey's own `link.index`,
+ * so it can't collide within a render).
+ * @param {string} mode
+ * @returns {(d: {source: Node, target: Node, index: number}) => string}
+ */
+function linkStroke(mode) {
+  if (mode === "source") return (d) => nodeColor(d.source);
+  if (mode === "target") return (d) => nodeColor(d.target);
+  if (mode === "static") return () => "#aaa";
+  return (d) => `url(#link-grad-${d.index})`;
 }
 
 /** @param {State} state */
@@ -455,22 +509,45 @@ function renderDiagram(state) {
   // empty node list, throwing RangeError before it ever gets to layout.
   if (state.nodes.length === 0) return;
 
-  const { nodes, links } = layout({ nodes: state.nodes, links: state.links });
+  const { nodes, links } = layout(
+    { nodes: state.nodes, links: state.links },
+    state.settings
+  );
 
   const svg = container
     .append("svg")
     .attr("viewBox", `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
 
   // Paint order matches the reference example: link ribbons under node rects.
-  svg
+  // Each link gets its own <g> so the source-target mode can nest a
+  // per-link <linearGradient> alongside its <path> (id-referenced by url()).
+  const linkGroup = svg
     .append("g")
     .attr("fill", "none")
     .attr("stroke-opacity", 0.5)
-    .selectAll("path")
+    .selectAll("g")
     .data(links)
-    .join("path")
+    .join("g");
+
+  if (state.settings.linkColor === "source-target") {
+    linkGroup
+      .append("linearGradient")
+      .attr("id", (d) => `link-grad-${d.index}`)
+      .attr("gradientUnits", "userSpaceOnUse")
+      .attr("x1", (d) => d.source.x1)
+      .attr("x2", (d) => d.target.x0)
+      .call((g) =>
+        g.append("stop").attr("offset", "0%").attr("stop-color", (d) => nodeColor(d.source))
+      )
+      .call((g) =>
+        g.append("stop").attr("offset", "100%").attr("stop-color", (d) => nodeColor(d.target))
+      );
+  }
+
+  linkGroup
+    .append("path")
     .attr("d", d3.sankeyLinkHorizontal())
-    .attr("stroke", (d) => nodeColor(d.source))
+    .attr("stroke", linkStroke(state.settings.linkColor))
     .attr("stroke-width", (d) => Math.max(1, d.width));
 
   svg
@@ -503,6 +580,7 @@ function init() {
   state = defaultState();
   setupNodeEditor();
   setupLinkEditor();
+  setupControls();
   validateAndRender();
 }
 

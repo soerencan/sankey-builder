@@ -181,6 +181,26 @@ select {
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
 }
 
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.control-row + .control-row {
+  margin-top: 0.5rem;
+}
+
+.control-row label {
+  flex: 0 0 auto;
+  min-width: 5rem;
+}
+
+.control-row select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 #diagram {
   border: 1px solid var(--border);
   border-radius: 8px;
