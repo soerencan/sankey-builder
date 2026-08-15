@@ -37,7 +37,10 @@ body {
 }
 
 #error {
-  padding: 0 1.5rem;
+  /* Dark-mode contrast polish deferred to Step 6. */
+  padding: 0.75rem 1.5rem;
+  color: var(--danger);
+  font-weight: 600;
 }
 
 #error:empty {
@@ -70,7 +73,9 @@ body {
 }
 
 button,
-input[type="text"] {
+input[type="text"],
+input[type="number"],
+select {
   font: inherit;
   accent-color: var(--accent);
 }
@@ -88,7 +93,18 @@ button:hover {
   background: var(--border);
 }
 
-input[type="text"] {
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  background: transparent;
+}
+
+input[type="text"],
+input[type="number"],
+select {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.35rem 0.5rem;
@@ -130,6 +146,37 @@ input[type="text"] {
 }
 
 .node-delete {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.add-link {
+  margin-bottom: 0.75rem;
+}
+
+.link-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.link-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.link-source,
+.link-target {
+  min-width: 0;
+}
+
+.link-value {
+  width: 4.5rem;
+}
+
+.link-delete {
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
 }

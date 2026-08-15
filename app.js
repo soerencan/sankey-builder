@@ -92,28 +92,134 @@ function nodeColor(node) {
 }
 
 /**
- * Passthrough until Step 3 adds real checks (cycles, self-links, values).
- * @param {State} _state
+ * @param {number} index
+ * @param {Partial<Link>} patch
+ */
+function updateLink(index, patch) {
+  const link = state.links[index];
+  if (link) Object.assign(link, patch);
+}
+
+/**
+ * Defaults to the first two distinct nodes and value 1; no-ops when fewer
+ * than two nodes exist (the Add-link button is disabled in that case too —
+ * this is just a defensive backstop for the state mutation itself).
+ */
+function addLink() {
+  if (state.nodes.length < 2) return;
+  const [source, target] = state.nodes;
+  state.links.push({ source: source.id, target: target.id, value: 1 });
+  validateAndRender();
+}
+
+/** @param {number} index */
+function deleteLink(index) {
+  state.links.splice(index, 1);
+  validateAndRender();
+}
+
+/**
+ * Pre-validates the graph so d3-sankey's failure modes (hard throws on
+ * cycles/self-links, silent NaN geometry on bad values) never reach layout.
+ * @param {State} state
  * @returns {{ok: boolean, error?: string}}
  */
-function validate(_state) {
+function validate(state) {
+  const nameById = new Map(state.nodes.map((n) => [n.id, n.name]));
+
+  for (const [index, link] of state.links.entries()) {
+    if (link.source === link.target) {
+      // Safety net only — the link-editor selects already make a self-link
+      // impossible to choose.
+      return {
+        ok: false,
+        error: `A link cannot connect ${nameById.get(link.source) ?? link.source} to itself.`,
+      };
+    }
+    if (!Number.isFinite(link.value) || link.value <= 0) {
+      // d3-sankey doesn't throw on NaN/zero values — it silently produces
+      // NaN geometry, so this has to be caught here rather than at layout.
+      // The row number disambiguates duplicate links between the same pair.
+      const sourceName = nameById.get(link.source) ?? link.source;
+      const targetName = nameById.get(link.target) ?? link.target;
+      return {
+        ok: false,
+        error: `Link ${index + 1} (${sourceName} to ${targetName}) needs a value greater than 0.`,
+      };
+    }
+  }
+
+  const adjacency = new Map();
+  for (const link of state.links) {
+    if (!adjacency.has(link.source)) adjacency.set(link.source, []);
+    adjacency.get(link.source).push(link.target);
+  }
+
+  // Standard DFS cycle detection with an explicit path stack: `pathIndex`
+  // tracks nodes currently on the stack (gray), `visited` tracks nodes
+  // fully explored (black). Hitting a gray node means the stack from that
+  // point on IS the cycle, which we return directly for the error message.
+  const visited = new Set();
+  const path = [];
+  const pathIndex = new Map();
+
+  function visit(id) {
+    path.push(id);
+    pathIndex.set(id, path.length - 1);
+    visited.add(id);
+
+    for (const next of adjacency.get(id) ?? []) {
+      if (pathIndex.has(next)) {
+        return [...path.slice(pathIndex.get(next)), next].map(
+          (nodeId) => nameById.get(nodeId) ?? nodeId
+        );
+      }
+      if (!visited.has(next)) {
+        const cycle = visit(next);
+        if (cycle) return cycle;
+      }
+    }
+
+    path.pop();
+    pathIndex.delete(id);
+    return null;
+  }
+
+  for (const node of state.nodes) {
+    if (!visited.has(node.id)) {
+      const cycle = visit(node.id);
+      if (cycle) {
+        return { ok: false, error: `This link would create a cycle: ${cycle.join(" → ")}` };
+      }
+    }
+  }
+
   return { ok: true };
 }
 
 /**
  * The single re-render entry point — every mutation routes through this.
- * @param {boolean} [rebuildEditor] Skip the node-editor DOM rebuild for
+ * The two rebuild flags are independent because a focus-preserving edit in
+ * one editor (e.g. typing a node name) still needs the *other* editor to
+ * pick up the change — the link editor's selects show node names, so a
+ * rename must rebuild it even while skipping the node editor's own rebuild.
+ * @param {boolean} [rebuildNodeEditor] Skip the node-editor DOM rebuild for
  *   events (like typing in a name field) where the row markup already
  *   reflects the change and rebuilding would steal focus/caret position.
+ * @param {boolean} [rebuildLinkEditor] Same, for the link editor (typing in
+ *   a value field).
  */
-function validateAndRender(rebuildEditor = true) {
+function validateAndRender(rebuildNodeEditor = true, rebuildLinkEditor = true) {
   const result = validate(state);
-  if (!result.ok) {
-    // Step 3 will surface result.error and bail here, keeping the last
-    // good diagram on screen.
-    return;
-  }
-  if (rebuildEditor) renderNodeEditor();
+  const errorEl = d3.select("#error");
+  errorEl.text(result.ok ? "" : result.error);
+
+  if (rebuildNodeEditor) renderNodeEditor();
+  if (rebuildLinkEditor) renderLinkEditor();
+  // Bail before the diagram rebuild so the last good render stays on
+  // screen; the editors above still rebuild (when requested) so the user
+  // can see and fix the offending row.
+  if (!result.ok) return;
   renderDiagram(state);
 }
 
@@ -162,6 +268,89 @@ function renderNodeEditor() {
 }
 
 /**
+ * Populates a source/target <select> with all nodes, disabling the one
+ * chosen in the other select of the same row — makes a self-link
+ * impossible to select rather than merely rejecting it after the fact.
+ * @param {HTMLSelectElement} selectEl
+ * @param {string} selectedId
+ * @param {string} excludedId
+ */
+function renderLinkOptions(selectEl, selectedId, excludedId) {
+  d3.select(selectEl)
+    .selectAll("option")
+    .data(state.nodes)
+    .join("option")
+    .attr("value", (n) => n.id)
+    .property("disabled", (n) => n.id === excludedId)
+    .property("selected", (n) => n.id === selectedId)
+    .text((n) => n.name);
+}
+
+/** Rebuilds #link-editor from state — same full-rebuild approach as the node editor. */
+function renderLinkEditor() {
+  const root = d3.select("#link-editor");
+  root.html("");
+  root.append("h2").attr("id", "link-editor-heading").text("Links");
+
+  root
+    .append("button")
+    .attr("type", "button")
+    .attr("class", "add-link")
+    .attr("data-action", "add-link")
+    // A link needs two distinct nodes to default into.
+    .property("disabled", state.nodes.length < 2)
+    .text("Add link");
+
+  const row = root
+    .append("div")
+    .attr("class", "link-rows")
+    .selectAll(".link-row")
+    .data(state.links)
+    .join("div")
+    .attr("class", "link-row");
+
+  row
+    .append("select")
+    .attr("class", "link-source")
+    .attr("data-action", "update-link-source")
+    .attr("data-index", (d, i) => i)
+    .attr("aria-label", (d, i) => `Source for link ${i + 1}`)
+    .each(function (d) {
+      renderLinkOptions(this, d.source, d.target);
+    });
+
+  row
+    .append("select")
+    .attr("class", "link-target")
+    .attr("data-action", "update-link-target")
+    .attr("data-index", (d, i) => i)
+    .attr("aria-label", (d, i) => `Target for link ${i + 1}`)
+    .each(function (d) {
+      renderLinkOptions(this, d.target, d.source);
+    });
+
+  row
+    .append("input")
+    .attr("type", "number")
+    .attr("class", "link-value")
+    .attr("data-action", "update-link-value")
+    .attr("data-index", (d, i) => i)
+    .attr("min", "0")
+    .attr("step", "any")
+    .attr("aria-label", (d, i) => `Value for link ${i + 1}`)
+    .property("value", (d) => d.value);
+
+  row
+    .append("button")
+    .attr("type", "button")
+    .attr("class", "link-delete")
+    .attr("data-action", "delete-link")
+    .attr("data-index", (d, i) => i)
+    .attr("aria-label", (d, i) => `Delete link ${i + 1}`)
+    .text("Delete");
+}
+
+/**
  * Delegated listeners on the editor root — one handler per event type
  * rather than per-row handlers, since rows get rebuilt wholesale.
  */
@@ -188,9 +377,53 @@ function setupNodeEditor() {
         .closest(".node-row")
         ?.querySelector(".node-delete");
       deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
-      // Re-render the diagram only; rebuilding the editor row here would
-      // reset the input's focus/caret mid-keystroke.
+      // Skip the node editor's own rebuild (would reset this input's
+      // focus/caret mid-keystroke) but still rebuild the link editor, whose
+      // source/target <select> options show node names and would otherwise
+      // go stale.
       validateAndRender(false);
+    }
+  });
+}
+
+/**
+ * Delegated listeners on the link-editor root, mirroring setupNodeEditor.
+ * Select changes do a full rebuild (focus loss on a <select> after
+ * choosing a value is normal browser behavior); the value input follows
+ * the same focus-preserving path as node renames.
+ */
+function setupLinkEditor() {
+  const root = document.getElementById("link-editor");
+
+  root.addEventListener("click", (event) => {
+    const { action, index } = event.target.dataset;
+    if (action === "add-link") {
+      addLink();
+    } else if (action === "delete-link") {
+      deleteLink(Number(index));
+    }
+  });
+
+  root.addEventListener("change", (event) => {
+    const { action, index } = event.target.dataset;
+    if (action === "update-link-source") {
+      updateLink(Number(index), { source: event.target.value });
+      validateAndRender();
+    } else if (action === "update-link-target") {
+      updateLink(Number(index), { target: event.target.value });
+      validateAndRender();
+    }
+  });
+
+  root.addEventListener("input", (event) => {
+    const { action, index } = event.target.dataset;
+    if (action === "update-link-value") {
+      // valueAsNumber is NaN on an empty/invalid field, which validate()
+      // rejects rather than letting it reach d3-sankey as bad geometry.
+      updateLink(Number(index), { value: event.target.valueAsNumber });
+      // Skip both editor rebuilds: the node editor is unaffected, and
+      // rebuilding the link editor here would steal focus mid-keystroke.
+      validateAndRender(false, false);
     }
   });
 }
@@ -269,6 +502,7 @@ function renderDiagram(state) {
 function init() {
   state = defaultState();
   setupNodeEditor();
+  setupLinkEditor();
   validateAndRender();
 }
 
