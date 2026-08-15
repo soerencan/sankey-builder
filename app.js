@@ -1,911 +1,575 @@
 "use strict";
-
-/** @typedef {{id:string, name:string, color?:string}} Node */
-/** @typedef {{source:string, target:string, value:number}} Link */
-/** @typedef {{palette:string, colorMode:"auto"|"manual", linkColor:string, alignment:string, theme:"auto"|"light"|"dark"}} Settings */
-/** @typedef {{nodes:Node[], links:Link[], settings:Settings}} State */
-
-const DIAGRAM_WIDTH = 960;
-const DIAGRAM_HEIGHT = 480;
-const STORAGE_KEY = "sankey-builder";
-// d3-sankey's relaxation passes multiply a y-coordinate (up to ~475) by a
-// link's value; above ~Number.MAX_VALUE/475 (~3.8e305) that product overflows
-// to Infinity and cascades into NaN geometry — even though the value itself
-// is finite. Capped many orders of magnitude below that, with room to spare
-// even after column sums of several such links.
-const MAX_LINK_VALUE = 1e15;
-
-/** @type {State} */
-let state;
-
-/** @returns {State} */
-function defaultState() {
-  return {
-    nodes: [
-      { id: "n1", name: "Coal" },
-      { id: "n2", name: "Gas" },
-      { id: "n3", name: "Electricity" },
-      { id: "n4", name: "Homes" },
-    ],
-    links: [
-      { source: "n1", target: "n3", value: 10 },
-      { source: "n2", target: "n3", value: 6 },
-      { source: "n3", target: "n4", value: 14 },
-    ],
-    settings: {
-      palette: "observable10",
-      colorMode: "auto",
-      linkColor: "source-target",
-      alignment: "justify",
-      theme: "auto",
-    },
+(() => {
+  // src/colors.ts
+  var PALETTES = {
+    observable10: () => d3.schemeObservable10,
+    tableau10: () => d3.schemeTableau10,
+    category10: () => d3.schemeCategory10,
+    set2: () => d3.schemeSet2,
+    dark2: () => d3.schemeDark2
   };
-}
-
-/**
- * Next stable node id, derived from the current max numeric suffix rather
- * than a persisted counter — so ids stay correct after localStorage
- * hydration (Step 6) without any extra bookkeeping.
- * @returns {string}
- */
-function nextNodeId() {
-  const maxSuffix = state.nodes.reduce((max, n) => {
-    const match = /^n(\d+)$/.exec(n.id);
-    return match ? Math.max(max, Number(match[1])) : max;
-  }, 0);
-  return `n${maxSuffix + 1}`;
-}
-
-function addNode() {
-  const id = nextNodeId();
-  state.nodes.push({ id, name: `Node ${id.slice(1)}` });
-  validateAndRender();
-}
-
-/**
- * @param {string} id
- * @param {string} name
- */
-function renameNode(id, name) {
-  const node = state.nodes.find((n) => n.id === id);
-  if (node) node.name = name;
-}
-
-/** @param {string} id */
-function deleteNode(id) {
-  state.nodes = state.nodes.filter((n) => n.id !== id);
-  // Cascade-prune links referencing the node now: d3-sankey throws
-  // Error("missing: <id>") on a dangling reference during layout.
-  state.links = state.links.filter((l) => l.source !== id && l.target !== id);
-  validateAndRender();
-}
-
-const PALETTES = {
-  observable10: d3.schemeObservable10,
-  tableau10: d3.schemeTableau10,
-  category10: d3.schemeCategory10,
-  set2: d3.schemeSet2,
-  dark2: d3.schemeDark2,
-};
-
-/**
- * @param {string} key
- * @returns {readonly string[]}
- */
-function activePalette(key) {
-  return Object.hasOwn(PALETTES, key) ? PALETTES[key] : PALETTES.observable10;
-}
-
-const LINK_COLOR_MODES = new Set(["source", "target", "source-target", "static"]);
-const ALIGNMENTS = new Set(["left", "right", "center", "justify"]);
-const THEMES = new Set(["auto", "light", "dark"]);
-// Same shape input[type=color] accepts; anything else (named colors, rgb(),
-// short hex, etc.) renders as black in the picker, so it's dropped instead.
-const NODE_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
-
-/**
- * @param {unknown} settings
- * @returns {Settings}
- */
-function normalizeSettings(settings) {
-  const s = settings && typeof settings === "object" ? settings : {};
-  return {
-    palette: Object.hasOwn(PALETTES, s.palette) ? s.palette : "observable10",
-    colorMode: s.colorMode === "manual" ? "manual" : "auto",
-    // An unrecognized linkColor would otherwise render as url() references
-    // to gradients that don't exist — invisible links — so it falls back
-    // rather than passing through like alignment/palette do downstream.
-    linkColor: LINK_COLOR_MODES.has(s.linkColor) ? s.linkColor : "source-target",
-    alignment: ALIGNMENTS.has(s.alignment) ? s.alignment : "justify",
-    theme: THEMES.has(s.theme) ? s.theme : "auto",
-  };
-}
-
-/**
- * Shape-validates a hydrated localStorage payload, dropping individual
- * malformed rows rather than failing the whole hydration — an in-progress
- * link with a blank (NaN) value should survive a reload so the user doesn't
- * lose typing, but a link referencing a node id that no longer exists would
- * crash d3-sankey layout and gets dropped instead.
- * @param {unknown} parsed
- * @returns {State}
- */
-function normalizeState(parsed) {
-  if (
-    !parsed ||
-    typeof parsed !== "object" ||
-    !Array.isArray(parsed.nodes) ||
-    !Array.isArray(parsed.links)
-  ) {
-    return defaultState();
+  function isPaletteKey(key) {
+    return typeof key === "string" && Object.hasOwn(PALETTES, key);
+  }
+  function activePalette(key) {
+    return (isPaletteKey(key) ? PALETTES[key] : PALETTES.observable10)();
+  }
+  function createNodeColorResolver(state2) {
+    const scale = d3.scaleOrdinal(
+      state2.nodes.map((n) => n.id),
+      activePalette(state2.settings.palette)
+    );
+    return (node) => state2.settings.colorMode === "manual" && node.color || scale(node.id);
+  }
+  function enterManualMode(state2) {
+    const resolve = createNodeColorResolver(state2);
+    for (const node of state2.nodes) {
+      if (!node.color) node.color = resolve(node);
+    }
+    state2.settings.colorMode = "manual";
   }
 
-  const nodes = parsed.nodes
-    .filter((n) => n && typeof n.id === "string" && typeof n.name === "string")
-    .map((n) => {
+  // src/controls.ts
+  function setupControls(state2, actions) {
+    const root = document.getElementById("controls");
+    if (!root) return;
+    const linkColorSelect = root.querySelector("#link-color");
+    if (linkColorSelect) linkColorSelect.value = state2.settings.linkColor;
+    const alignmentSelect = root.querySelector("#alignment");
+    if (alignmentSelect) alignmentSelect.value = state2.settings.alignment;
+    const themeSelect = root.querySelector("#theme");
+    if (themeSelect) themeSelect.value = state2.settings.theme;
+    const paletteSelect = root.querySelector("#palette");
+    if (paletteSelect) {
+      paletteSelect.value = state2.settings.colorMode === "manual" ? "manual" : state2.settings.palette;
+    }
+    root.addEventListener("change", (event) => {
+      if (!(event.target instanceof HTMLSelectElement)) return;
+      const { action } = event.target.dataset;
+      if (action === "update-link-color") {
+        actions.setLinkColor(event.target.value);
+      } else if (action === "update-alignment") {
+        actions.setAlignment(event.target.value);
+      } else if (action === "update-palette") {
+        actions.selectPalette(event.target.value);
+      } else if (action === "update-theme") {
+        actions.setTheme(event.target.value);
+      }
+    });
+  }
+
+  // src/link-editor.ts
+  function renderLinkOptions(selectEl, nodes, selectedId, excludedId) {
+    d3.select(selectEl).selectAll("option").data(nodes).join("option").attr("value", (n) => n.id).property("disabled", (n) => n.id === excludedId).property("selected", (n) => n.id === selectedId).text((n) => n.name);
+  }
+  function renderLinkEditor(state2) {
+    const root = d3.select("#link-editor");
+    root.html("");
+    root.append("h2").attr("id", "link-editor-heading").text("Links");
+    const row = root.append("div").attr("class", "link-rows").selectAll(".link-row").data(state2.links).join("div").attr("class", "link-row");
+    row.append("select").attr("class", "link-source").attr("data-action", "update-link-source").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Source for link ${i + 1}`).each(function(d) {
+      renderLinkOptions(this, state2.nodes, d.source, d.target);
+    });
+    row.append("select").attr("class", "link-target").attr("data-action", "update-link-target").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Target for link ${i + 1}`).each(function(d) {
+      renderLinkOptions(this, state2.nodes, d.target, d.source);
+    });
+    row.append("input").attr("type", "number").attr("class", "link-value").attr("data-action", "update-link-value").attr("data-index", (_d, i) => i).attr("min", "0").attr("step", "any").attr("aria-label", (_d, i) => `Value for link ${i + 1}`).property("value", (d) => d.value);
+    row.append("button").attr("type", "button").attr("class", "link-delete").attr("data-action", "delete-link").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Delete link ${i + 1}`).text("Delete");
+    root.append("button").attr("type", "button").attr("class", "add-link").attr("data-action", "add-link").property("disabled", state2.nodes.length < 2).text("Add link");
+  }
+  function setupLinkEditor(actions) {
+    const root = document.getElementById("link-editor");
+    if (!root) return;
+    root.addEventListener("click", (event) => {
+      if (!(event.target instanceof HTMLElement)) return;
+      const { action, index } = event.target.dataset;
+      if (action === "add-link") {
+        actions.addLink();
+      } else if (action === "delete-link" && index !== void 0) {
+        actions.deleteLink(Number(index));
+      }
+    });
+    root.addEventListener("change", (event) => {
+      if (!(event.target instanceof HTMLSelectElement)) return;
+      const { action, index } = event.target.dataset;
+      if (index === void 0) return;
+      if (action === "update-link-source") {
+        actions.updateLinkSource(Number(index), event.target.value);
+      } else if (action === "update-link-target") {
+        actions.updateLinkTarget(Number(index), event.target.value);
+      }
+    });
+    root.addEventListener("input", (event) => {
+      if (!(event.target instanceof HTMLInputElement)) return;
+      const { action, index } = event.target.dataset;
+      if (action === "update-link-value" && index !== void 0) {
+        actions.updateLinkValue(Number(index), event.target.valueAsNumber);
+      }
+    });
+  }
+
+  // src/node-editor.ts
+  function renderNodeEditor(state2, nodeColor) {
+    const root = d3.select("#node-editor");
+    root.html("");
+    root.append("h2").attr("id", "node-editor-heading").text("Nodes");
+    const manual = state2.settings.colorMode === "manual";
+    const row = root.append("div").attr("class", "node-rows").selectAll(".node-row").data(state2.nodes, (d) => d.id).join("div").attr("class", `node-row${manual ? " manual" : ""}`);
+    row.append("span").attr("class", "node-swatch").style("background-color", (d) => nodeColor(d));
+    row.append("input").attr("type", "text").attr("class", "node-name").attr("data-action", "rename-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Name for ${d.name}`).property("value", (d) => d.name);
+    if (manual) {
+      row.append("input").attr("type", "color").attr("class", "node-color").attr("data-action", "update-node-color").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Color for ${d.name}`).property("value", (d) => d.color ?? nodeColor(d));
+    }
+    row.append("button").attr("type", "button").attr("class", "node-delete").attr("data-action", "delete-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Delete ${d.name}`).text("Delete");
+    root.append("button").attr("type", "button").attr("class", "add-node").attr("data-action", "add-node").text("Add node");
+  }
+  function setupNodeEditor(actions) {
+    const root = document.getElementById("node-editor");
+    if (!root) return;
+    root.addEventListener("click", (event) => {
+      if (!(event.target instanceof HTMLElement)) return;
+      const { action, id } = event.target.dataset;
+      if (action === "add-node") {
+        actions.addNode();
+      } else if (action === "delete-node" && id) {
+        actions.deleteNode(id);
+      }
+    });
+    root.addEventListener("input", (event) => {
+      if (!(event.target instanceof HTMLInputElement)) return;
+      const { action, id } = event.target.dataset;
+      if (action === "rename-node" && id) {
+        actions.renameNode(id, event.target.value);
+        event.target.setAttribute("aria-label", `Name for ${event.target.value}`);
+        const row = event.target.closest(".node-row");
+        const deleteButton = row?.querySelector(".node-delete");
+        deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
+        const colorInput = row?.querySelector(".node-color");
+        colorInput?.setAttribute("aria-label", `Color for ${event.target.value}`);
+      } else if (action === "update-node-color" && id) {
+        actions.updateNodeColor(id, event.target.value);
+        const swatch = event.target.closest(".node-row")?.querySelector(".node-swatch");
+        if (swatch) swatch.style.backgroundColor = event.target.value;
+      }
+    });
+  }
+
+  // src/state.ts
+  function defaultState() {
+    return {
+      nodes: [
+        { id: "n1", name: "Coal" },
+        { id: "n2", name: "Gas" },
+        { id: "n3", name: "Electricity" },
+        { id: "n4", name: "Homes" }
+      ],
+      links: [
+        { source: "n1", target: "n3", value: 10 },
+        { source: "n2", target: "n3", value: 6 },
+        { source: "n3", target: "n4", value: 14 }
+      ],
+      settings: {
+        palette: "observable10",
+        colorMode: "auto",
+        linkColor: "source-target",
+        alignment: "justify",
+        theme: "auto"
+      }
+    };
+  }
+  function nextNodeId(state2) {
+    const maxSuffix = state2.nodes.reduce((max, n) => {
+      const match = /^n(\d+)$/.exec(n.id);
+      return match ? Math.max(max, Number(match[1])) : max;
+    }, 0);
+    return `n${maxSuffix + 1}`;
+  }
+  function addNode(state2) {
+    const id = nextNodeId(state2);
+    state2.nodes.push({ id, name: `Node ${id.slice(1)}` });
+  }
+  function renameNode(state2, id, name) {
+    const node = state2.nodes.find((n) => n.id === id);
+    if (node) node.name = name;
+  }
+  function deleteNode(state2, id) {
+    state2.nodes = state2.nodes.filter((n) => n.id !== id);
+    state2.links = state2.links.filter((l) => l.source !== id && l.target !== id);
+  }
+  function updateNodeColor(state2, id, color) {
+    const node = state2.nodes.find((n) => n.id === id);
+    if (node) node.color = color;
+  }
+  function updateLink(state2, index, patch) {
+    const link = state2.links[index];
+    if (link) Object.assign(link, patch);
+  }
+  function addLink(state2) {
+    if (state2.nodes.length < 2) return;
+    const [source, target] = state2.nodes;
+    state2.links.push({ source: source.id, target: target.id, value: 1 });
+  }
+  function deleteLink(state2, index) {
+    state2.links.splice(index, 1);
+  }
+
+  // src/persist.ts
+  var STORAGE_KEY = "sankey-builder";
+  var LINK_COLOR_MODES = /* @__PURE__ */ new Set([
+    "source",
+    "target",
+    "source-target",
+    "static"
+  ]);
+  var ALIGNMENTS = /* @__PURE__ */ new Set(["left", "right", "center", "justify"]);
+  var THEMES = /* @__PURE__ */ new Set(["auto", "light", "dark"]);
+  var NODE_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+  function isLinkColorMode(value) {
+    return typeof value === "string" && LINK_COLOR_MODES.has(value);
+  }
+  function isAlignment(value) {
+    return typeof value === "string" && ALIGNMENTS.has(value);
+  }
+  function isTheme(value) {
+    return typeof value === "string" && THEMES.has(value);
+  }
+  function normalizeSettings(settings) {
+    const s = settings && typeof settings === "object" ? settings : {};
+    return {
+      palette: isPaletteKey(s.palette) ? s.palette : "observable10",
+      colorMode: s.colorMode === "manual" ? "manual" : "auto",
+      // An unrecognized linkColor would otherwise render as url() references
+      // to gradients that don't exist — invisible links — so it falls back
+      // rather than passing through like alignment/palette do downstream.
+      linkColor: isLinkColorMode(s.linkColor) ? s.linkColor : "source-target",
+      alignment: isAlignment(s.alignment) ? s.alignment : "justify",
+      theme: isTheme(s.theme) ? s.theme : "auto"
+    };
+  }
+  function isRawState(value) {
+    if (!value || typeof value !== "object") return false;
+    const v = value;
+    return Array.isArray(v.nodes) && Array.isArray(v.links);
+  }
+  function isRawNode(value) {
+    if (!value || typeof value !== "object") return false;
+    const v = value;
+    return typeof v.id === "string" && typeof v.name === "string";
+  }
+  function isRawLink(value) {
+    return Boolean(value) && typeof value === "object";
+  }
+  function normalizeState(parsed) {
+    if (!isRawState(parsed)) return defaultState();
+    const nodes = parsed.nodes.filter(isRawNode).map((n) => {
       const node = { id: n.id, name: n.name };
       if (typeof n.color === "string" && NODE_COLOR_RE.test(n.color)) node.color = n.color;
       return node;
     });
-
-  const nodeIds = new Set(nodes.map((n) => n.id));
-  const links = parsed.links
-    .filter(
-      (l) =>
-        l &&
-        nodeIds.has(l.source) &&
-        nodeIds.has(l.target) &&
-        // JSON.stringify serializes NaN as null, so an in-progress row
-        // (blank value input) round-trips through localStorage as
-        // "value": null — accepted here and restored as NaN below so the
-        // row survives reload; validate() will flag it again as before.
-        (typeof l.value === "number" || l.value === null)
-    )
-    .map((l) => ({
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const links = parsed.links.filter(isRawLink).filter(
+      (l) => nodeIds.has(l.source) && nodeIds.has(l.target) && // JSON.stringify serializes NaN as null, so an in-progress row
+      // (blank value input) round-trips through localStorage as
+      // "value": null — accepted here and restored as NaN below so the
+      // row survives reload; validate() will flag it again as before.
+      (typeof l.value === "number" || l.value === null)
+    ).map((l) => ({
       source: l.source,
       target: l.target,
-      value: typeof l.value === "number" ? l.value : NaN,
+      value: typeof l.value === "number" ? l.value : Number.NaN
     }));
-
-  return { nodes, links, settings: normalizeSettings(parsed.settings) };
-}
-
-/** @returns {State} */
-function load() {
-  let raw = null;
-  try {
-    raw = localStorage.getItem(STORAGE_KEY);
-  } catch {
-    // Unavailable (file://, private mode) — fall back to the default graph.
-    return defaultState();
+    return { nodes, links, settings: normalizeSettings(parsed.settings) };
   }
-  if (!raw) return defaultState();
-  try {
-    return normalizeState(JSON.parse(raw));
-  } catch {
-    return defaultState();
-  }
-}
-
-const STORAGE_NOTICE =
-  "Changes can't be saved in this browser right now (storage may be full or unavailable). " +
-  "The diagram keeps working, but edits won't survive closing or reloading this tab — " +
-  "try freeing up space or leaving private/incognito mode.";
-
-/** @param {State} state */
-function save(state) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    // Storage may recover (e.g. quota freed up elsewhere) — clear a
-    // previously shown notice rather than leaving it stuck once saves work again.
-    d3.select("#storage-notice").text("");
-  } catch {
-    // Best-effort: quota exceeded, private mode, or file:// with storage
-    // disabled shouldn't break the app — surface it once instead of failing silently.
-    d3.select("#storage-notice").text(STORAGE_NOTICE);
-  }
-}
-
-/** @returns {d3.ScaleOrdinal<string, string>} */
-function colorScale() {
-  // Explicit domain (current node ids) so colors stay deterministic and
-  // don't reshuffle as nodes are added/removed/renamed.
-  return d3.scaleOrdinal(
-    state.nodes.map((n) => n.id),
-    activePalette(state.settings.palette)
-  );
-}
-
-/**
- * Rebuilt once per render pass (by validateAndRender) and reused by both
- * editors and the diagram, rather than rebuilding an O(n) ordinal scale on
- * every single node/link color lookup.
- * @type {d3.ScaleOrdinal<string, string> | null}
- */
-let currentColorScale = null;
-
-/**
- * Single seam for palette switching — everything else calls this instead of
- * touching currentColorScale/state.settings.palette directly.
- * @param {Node} node
- */
-function nodeColor(node) {
-  return (state.settings.colorMode === "manual" && node.color) || currentColorScale(node.id);
-}
-
-/**
- * Seeds `color` only for nodes lacking one, from their current computed
- * color, so nothing visually jumps and colors hand-picked in a previous
- * manual session (kept-but-ignored while a named palette was active) are
- * restored rather than re-seeded.
- */
-function enterManualMode() {
-  currentColorScale = colorScale();
-  for (const node of state.nodes) {
-    if (!node.color) node.color = nodeColor(node);
-  }
-  state.settings.colorMode = "manual";
-}
-
-/**
- * @param {string} id
- * @param {string} color
- */
-function updateNodeColor(id, color) {
-  const node = state.nodes.find((n) => n.id === id);
-  if (node) node.color = color;
-}
-
-/**
- * @param {number} index
- * @param {Partial<Link>} patch
- */
-function updateLink(index, patch) {
-  const link = state.links[index];
-  if (link) Object.assign(link, patch);
-}
-
-/**
- * Defaults to the first two distinct nodes and value 1; no-ops when fewer
- * than two nodes exist (the Add-link button is disabled in that case too —
- * this is just a defensive backstop for the state mutation itself).
- */
-function addLink() {
-  if (state.nodes.length < 2) return;
-  const [source, target] = state.nodes;
-  state.links.push({ source: source.id, target: target.id, value: 1 });
-  validateAndRender();
-}
-
-/** @param {number} index */
-function deleteLink(index) {
-  state.links.splice(index, 1);
-  validateAndRender();
-}
-
-/**
- * Pre-validates the graph so d3-sankey's failure modes (hard throws on
- * cycles/self-links, silent NaN geometry on bad values) never reach layout.
- * @param {State} state
- * @returns {{ok: boolean, error?: string}}
- */
-function validate(state) {
-  const nameById = new Map(state.nodes.map((n) => [n.id, n.name]));
-
-  for (const [index, link] of state.links.entries()) {
-    if (link.source === link.target) {
-      // Safety net only — the link-editor selects already make a self-link
-      // impossible to choose.
-      return {
-        ok: false,
-        error: `A link cannot connect ${nameById.get(link.source) ?? link.source} to itself.`,
-      };
+  function loadState() {
+    let raw = null;
+    try {
+      raw = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return defaultState();
     }
-    if (!Number.isFinite(link.value) || link.value <= 0) {
-      // d3-sankey doesn't throw on NaN/zero values — it silently produces
-      // NaN geometry, so this has to be caught here rather than at layout.
-      // The row number disambiguates duplicate links between the same pair.
-      const sourceName = nameById.get(link.source) ?? link.source;
-      const targetName = nameById.get(link.target) ?? link.target;
-      return {
-        ok: false,
-        error: `Link ${index + 1} (${sourceName} to ${targetName}) needs a value greater than 0.`,
-      };
+    if (!raw) return defaultState();
+    try {
+      return normalizeState(JSON.parse(raw));
+    } catch {
+      return defaultState();
     }
-    if (link.value > MAX_LINK_VALUE) {
-      const sourceName = nameById.get(link.source) ?? link.source;
-      const targetName = nameById.get(link.target) ?? link.target;
-      return {
-        ok: false,
-        error: `Link ${index + 1} (${sourceName} to ${targetName}) value is too large (maximum ${MAX_LINK_VALUE}).`,
-      };
+  }
+  function saveState(state2) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state2));
+      return true;
+    } catch {
+      return false;
     }
   }
 
-  const adjacency = new Map();
-  for (const link of state.links) {
-    if (!adjacency.has(link.source)) adjacency.set(link.source, []);
-    adjacency.get(link.source).push(link.target);
+  // src/render.ts
+  var DIAGRAM_WIDTH = 960;
+  var DIAGRAM_HEIGHT = 480;
+  function alignFn(name) {
+    const table = {
+      left: d3.sankeyLeft,
+      right: d3.sankeyRight,
+      center: d3.sankeyCenter
+    };
+    return table[name] ?? d3.sankeyJustify;
   }
-
-  // Standard DFS cycle detection with an explicit path stack: `pathIndex`
-  // tracks nodes currently on the stack (gray), `visited` tracks nodes
-  // fully explored (black). Hitting a gray node means the stack from that
-  // point on IS the cycle, which we return directly for the error message.
-  const visited = new Set();
-  const path = [];
-  const pathIndex = new Map();
-
-  function visit(id) {
-    path.push(id);
-    pathIndex.set(id, path.length - 1);
-    visited.add(id);
-
-    for (const next of adjacency.get(id) ?? []) {
-      if (pathIndex.has(next)) {
-        return [...path.slice(pathIndex.get(next)), next].map(
-          (nodeId) => nameById.get(nodeId) ?? nodeId
-        );
-      }
-      if (!visited.has(next)) {
-        const cycle = visit(next);
-        if (cycle) return cycle;
-      }
+  function layout(state2) {
+    const { nodes, links } = structuredClone({ nodes: state2.nodes, links: state2.links });
+    const graph = d3.sankey().nodeId((d) => d.id).nodeAlign(alignFn(state2.settings.alignment)).nodeWidth(15).nodePadding(10).extent([
+      [1, 5],
+      [DIAGRAM_WIDTH - 1, DIAGRAM_HEIGHT - 5]
+    ])({ nodes, links });
+    return graph;
+  }
+  function linkStroke(mode, nodeColor) {
+    if (mode === "source") return (d) => nodeColor(d.source);
+    if (mode === "target") return (d) => nodeColor(d.target);
+    if (mode === "static") return () => "#aaa";
+    return (d) => `url(#link-grad-${d.index})`;
+  }
+  function renderDiagram(state2, nodeColor) {
+    const container = d3.select("#diagram");
+    container.html("");
+    if (state2.nodes.length === 0) return;
+    if (state2.links.length === 0) return;
+    const { nodes, links } = layout(state2);
+    const svg = container.append("svg").attr("viewBox", `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
+    const linkGroup = svg.append("g").attr("fill", "none").attr("stroke-opacity", 0.5).selectAll("g").data(links).join("g");
+    if (state2.settings.linkColor === "source-target") {
+      linkGroup.append("linearGradient").attr("id", (d) => `link-grad-${d.index}`).attr("gradientUnits", "userSpaceOnUse").attr("x1", (d) => d.source.x1).attr("x2", (d) => d.target.x0).call(
+        (g) => g.append("stop").attr("offset", "0%").attr("stop-color", (d) => nodeColor(d.source))
+      ).call(
+        (g) => g.append("stop").attr("offset", "100%").attr("stop-color", (d) => nodeColor(d.target))
+      );
     }
-
-    path.pop();
-    pathIndex.delete(id);
-    return null;
+    linkGroup.append("path").attr("d", d3.sankeyLinkHorizontal()).attr("stroke", linkStroke(state2.settings.linkColor, nodeColor)).attr("stroke-width", (d) => Math.max(1, d.width));
+    svg.append("g").selectAll("rect").data(nodes).join("rect").attr("x", (d) => d.x0).attr("y", (d) => d.y0).attr("width", (d) => d.x1 - d.x0).attr("height", (d) => Math.max(1, d.y1 - d.y0)).attr("fill", (d) => nodeColor(d));
+    svg.append("g").attr("font-family", "system-ui, sans-serif").attr("font-size", 10).selectAll("text").data(nodes).join("text").attr("x", (d) => d.x0 < DIAGRAM_WIDTH / 2 ? d.x1 + 6 : d.x0 - 6).attr("y", (d) => (d.y0 + d.y1) / 2).attr("dy", "0.35em").attr("text-anchor", (d) => d.x0 < DIAGRAM_WIDTH / 2 ? "start" : "end").attr("fill", "currentColor").text((d) => d.name);
   }
 
-  for (const node of state.nodes) {
-    if (!visited.has(node.id)) {
-      const cycle = visit(node.id);
-      if (cycle) {
-        return { ok: false, error: `This link would create a cycle: ${cycle.join(" → ")}` };
-      }
+  // src/resizer.ts
+  var EDITOR_COLUMN_MIN_WIDTH = 240;
+  var EDITOR_COLUMN_MAX_WIDTH = 640;
+  var EDITOR_COLUMN_ARROW_STEP = 16;
+  function setupResizer() {
+    const dividerEl = document.getElementById("resizer");
+    const editorColumnEl = document.querySelector(".editor-column");
+    if (!dividerEl || !editorColumnEl) return;
+    const divider = dividerEl;
+    const editorColumn = editorColumnEl;
+    function clamp(width) {
+      return Math.min(EDITOR_COLUMN_MAX_WIDTH, Math.max(EDITOR_COLUMN_MIN_WIDTH, width));
     }
-  }
-
-  return { ok: true };
-}
-
-/**
- * The single re-render entry point — every mutation routes through this.
- * The two rebuild flags are independent because a focus-preserving edit in
- * one editor (e.g. typing a node name) still needs the *other* editor to
- * pick up the change — the link editor's selects show node names, so a
- * rename must rebuild it even while skipping the node editor's own rebuild.
- * @param {boolean} [rebuildNodeEditor] Skip the node-editor DOM rebuild for
- *   events (like typing in a name field) where the row markup already
- *   reflects the change and rebuilding would steal focus/caret position.
- * @param {boolean} [rebuildLinkEditor] Same, for the link editor (typing in
- *   a value field).
- */
-function validateAndRender(rebuildNodeEditor = true, rebuildLinkEditor = true) {
-  currentColorScale = colorScale();
-  const result = validate(state);
-  const errorEl = d3.select("#error");
-  errorEl.text(result.ok ? "" : result.error);
-
-  // Always persist, even when invalid: an in-progress row (e.g. a blank
-  // value mid-edit) must survive a reload so the user doesn't lose typing —
-  // there's no "last-good state" to fall back to here, only the last-good
-  // *diagram*, which stays on screen without needing its own storage.
-  save(state);
-
-  if (rebuildNodeEditor) renderNodeEditor();
-  if (rebuildLinkEditor) renderLinkEditor();
-  // Bail before the diagram rebuild so the last good render stays on
-  // screen; the editors above still rebuild (when requested) so the user
-  // can see and fix the offending row.
-  if (!result.ok) return;
-  renderDiagram(state);
-}
-
-/** Rebuilds #node-editor from state — same full-rebuild approach as the diagram. */
-function renderNodeEditor() {
-  const root = d3.select("#node-editor");
-  root.html("");
-  root.append("h2").attr("id", "node-editor-heading").text("Nodes");
-
-  const manual = state.settings.colorMode === "manual";
-
-  const row = root
-    .append("div")
-    .attr("class", "node-rows")
-    .selectAll(".node-row")
-    .data(state.nodes, (d) => d.id)
-    .join("div")
-    .attr("class", `node-row${manual ? " manual" : ""}`);
-
-  row
-    .append("span")
-    .attr("class", "node-swatch")
-    .style("background-color", (d) => nodeColor(d));
-
-  row
-    .append("input")
-    .attr("type", "text")
-    .attr("class", "node-name")
-    .attr("data-action", "rename-node")
-    .attr("data-id", (d) => d.id)
-    .attr("aria-label", (d) => `Name for ${d.name}`)
-    .property("value", (d) => d.name);
-
-  if (manual) {
-    row
-      .append("input")
-      .attr("type", "color")
-      .attr("class", "node-color")
-      .attr("data-action", "update-node-color")
-      .attr("data-id", (d) => d.id)
-      .attr("aria-label", (d) => `Color for ${d.name}`)
-      .property("value", (d) => d.color ?? nodeColor(d));
-  }
-
-  row
-    .append("button")
-    .attr("type", "button")
-    .attr("class", "node-delete")
-    .attr("data-action", "delete-node")
-    .attr("data-id", (d) => d.id)
-    .attr("aria-label", (d) => `Delete ${d.name}`)
-    .text("Delete");
-
-  root
-    .append("button")
-    .attr("type", "button")
-    .attr("class", "add-node")
-    .attr("data-action", "add-node")
-    .text("Add node");
-}
-
-/**
- * Populates a source/target <select> with all nodes, disabling the one
- * chosen in the other select of the same row — makes a self-link
- * impossible to select rather than merely rejecting it after the fact.
- * @param {HTMLSelectElement} selectEl
- * @param {string} selectedId
- * @param {string} excludedId
- */
-function renderLinkOptions(selectEl, selectedId, excludedId) {
-  d3.select(selectEl)
-    .selectAll("option")
-    .data(state.nodes)
-    .join("option")
-    .attr("value", (n) => n.id)
-    .property("disabled", (n) => n.id === excludedId)
-    .property("selected", (n) => n.id === selectedId)
-    .text((n) => n.name);
-}
-
-/** Rebuilds #link-editor from state — same full-rebuild approach as the node editor. */
-function renderLinkEditor() {
-  const root = d3.select("#link-editor");
-  root.html("");
-  root.append("h2").attr("id", "link-editor-heading").text("Links");
-
-  const row = root
-    .append("div")
-    .attr("class", "link-rows")
-    .selectAll(".link-row")
-    .data(state.links)
-    .join("div")
-    .attr("class", "link-row");
-
-  row
-    .append("select")
-    .attr("class", "link-source")
-    .attr("data-action", "update-link-source")
-    .attr("data-index", (d, i) => i)
-    .attr("aria-label", (d, i) => `Source for link ${i + 1}`)
-    .each(function (d) {
-      renderLinkOptions(this, d.source, d.target);
+    function setWidth(width) {
+      const clamped = clamp(width);
+      editorColumn.style.width = `${clamped}px`;
+      divider.setAttribute("aria-valuenow", String(Math.round(clamped)));
+    }
+    divider.setAttribute("aria-valuemin", String(EDITOR_COLUMN_MIN_WIDTH));
+    divider.setAttribute("aria-valuemax", String(EDITOR_COLUMN_MAX_WIDTH));
+    divider.setAttribute(
+      "aria-valuenow",
+      String(Math.round(editorColumn.getBoundingClientRect().width))
+    );
+    let startX = 0;
+    let startWidth = 0;
+    function onPointerMove(event) {
+      setWidth(startWidth + (event.clientX - startX));
+    }
+    function onPointerUp(event) {
+      divider.releasePointerCapture(event.pointerId);
+      divider.removeEventListener("pointermove", onPointerMove);
+      divider.removeEventListener("pointerup", onPointerUp);
+      divider.removeEventListener("pointercancel", onPointerUp);
+      divider.classList.remove("is-dragging");
+      document.body.classList.remove("resizing");
+    }
+    divider.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      divider.focus();
+      startX = event.clientX;
+      startWidth = editorColumn.getBoundingClientRect().width;
+      divider.setPointerCapture(event.pointerId);
+      divider.classList.add("is-dragging");
+      document.body.classList.add("resizing");
+      divider.addEventListener("pointermove", onPointerMove);
+      divider.addEventListener("pointerup", onPointerUp);
+      divider.addEventListener("pointercancel", onPointerUp);
+      event.preventDefault();
     });
-
-  row
-    .append("select")
-    .attr("class", "link-target")
-    .attr("data-action", "update-link-target")
-    .attr("data-index", (d, i) => i)
-    .attr("aria-label", (d, i) => `Target for link ${i + 1}`)
-    .each(function (d) {
-      renderLinkOptions(this, d.target, d.source);
+    divider.addEventListener("keydown", (event) => {
+      const current = editorColumn.getBoundingClientRect().width;
+      if (event.key === "ArrowLeft") {
+        setWidth(current - EDITOR_COLUMN_ARROW_STEP);
+        event.preventDefault();
+      } else if (event.key === "ArrowRight") {
+        setWidth(current + EDITOR_COLUMN_ARROW_STEP);
+        event.preventDefault();
+      }
     });
-
-  row
-    .append("input")
-    .attr("type", "number")
-    .attr("class", "link-value")
-    .attr("data-action", "update-link-value")
-    .attr("data-index", (d, i) => i)
-    .attr("min", "0")
-    .attr("step", "any")
-    .attr("aria-label", (d, i) => `Value for link ${i + 1}`)
-    .property("value", (d) => d.value);
-
-  row
-    .append("button")
-    .attr("type", "button")
-    .attr("class", "link-delete")
-    .attr("data-action", "delete-link")
-    .attr("data-index", (d, i) => i)
-    .attr("aria-label", (d, i) => `Delete link ${i + 1}`)
-    .text("Delete");
-
-  root
-    .append("button")
-    .attr("type", "button")
-    .attr("class", "add-link")
-    .attr("data-action", "add-link")
-    // A link needs two distinct nodes to default into.
-    .property("disabled", state.nodes.length < 2)
-    .text("Add link");
-}
-
-/**
- * Delegated listeners on the editor root — one handler per event type
- * rather than per-row handlers, since rows get rebuilt wholesale.
- */
-function setupNodeEditor() {
-  const root = document.getElementById("node-editor");
-
-  root.addEventListener("click", (event) => {
-    const { action, id } = event.target.dataset;
-    if (action === "add-node") {
-      addNode();
-    } else if (action === "delete-node") {
-      deleteNode(id);
-    }
-  });
-
-  root.addEventListener("input", (event) => {
-    const { action, id } = event.target.dataset;
-    if (action === "rename-node") {
-      renameNode(id, event.target.value);
-      // Keep the row's name-derived aria-labels in sync without touching
-      // the input itself, since a full rebuild here would steal focus/caret.
-      event.target.setAttribute("aria-label", `Name for ${event.target.value}`);
-      const row = event.target.closest(".node-row");
-      const deleteButton = row?.querySelector(".node-delete");
-      deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
-      const colorInput = row?.querySelector(".node-color");
-      colorInput?.setAttribute("aria-label", `Color for ${event.target.value}`);
-      // Skip the node editor's own rebuild (would reset this input's
-      // focus/caret mid-keystroke) but still rebuild the link editor, whose
-      // source/target <select> options show node names and would otherwise
-      // go stale.
-      validateAndRender(false);
-    } else if (action === "update-node-color") {
-      updateNodeColor(id, event.target.value);
-      // Update this row's swatch directly rather than rebuilding: a color
-      // picker fires many 'input' events while dragging, and a rebuild
-      // mid-drag would tear down the input the user is actively using.
-      const swatch = event.target.closest(".node-row")?.querySelector(".node-swatch");
-      if (swatch) swatch.style.backgroundColor = event.target.value;
-      // Skip both editor rebuilds; still re-render the diagram so the
-      // color change is visible live while dragging.
-      validateAndRender(false, false);
-    }
-  });
-}
-
-/**
- * Delegated listeners on the link-editor root, mirroring setupNodeEditor.
- * Select changes do a full rebuild (focus loss on a <select> after
- * choosing a value is normal browser behavior); the value input follows
- * the same focus-preserving path as node renames.
- */
-function setupLinkEditor() {
-  const root = document.getElementById("link-editor");
-
-  root.addEventListener("click", (event) => {
-    const { action, index } = event.target.dataset;
-    if (action === "add-link") {
-      addLink();
-    } else if (action === "delete-link") {
-      deleteLink(Number(index));
-    }
-  });
-
-  root.addEventListener("change", (event) => {
-    const { action, index } = event.target.dataset;
-    if (action === "update-link-source") {
-      updateLink(Number(index), { source: event.target.value });
-      validateAndRender();
-    } else if (action === "update-link-target") {
-      updateLink(Number(index), { target: event.target.value });
-      validateAndRender();
-    }
-  });
-
-  root.addEventListener("input", (event) => {
-    const { action, index } = event.target.dataset;
-    if (action === "update-link-value") {
-      // valueAsNumber is NaN on an empty/invalid field, which validate()
-      // rejects rather than letting it reach d3-sankey as bad geometry.
-      updateLink(Number(index), { value: event.target.valueAsNumber });
-      // Skip both editor rebuilds: the node editor is unaffected, and
-      // rebuilding the link editor here would steal focus mid-keystroke.
-      validateAndRender(false, false);
-    }
-  });
-}
-
-/**
- * @param {string} name
- * @returns {(node: object) => number}
- */
-function alignFn(name) {
-  return (
-    { left: d3.sankeyLeft, right: d3.sankeyRight, center: d3.sankeyCenter }[name] ??
-    d3.sankeyJustify
-  );
-}
-
-/**
- * Reflects the theme setting onto <html> for style.css to key off. "auto"
- * removes the attribute entirely so the prefers-color-scheme media query
- * (rather than an empty/"auto" attribute value) drives the styling.
- * @param {"auto"|"light"|"dark"} theme
- */
-function applyTheme(theme) {
-  if (theme === "auto") {
-    document.documentElement.removeAttribute("data-theme");
-  } else {
-    document.documentElement.setAttribute("data-theme", theme);
   }
-}
 
-/**
- * Delegated change listener on #controls, mirroring the node/link editors'
- * setup functions. Settings are simple string fields, so this writes
- * straight into state.settings rather than going through per-field setters.
- */
-function setupControls() {
-  const root = document.getElementById("controls");
+  // src/theme.ts
+  function applyTheme(theme) {
+    if (theme === "auto") {
+      document.documentElement.removeAttribute("data-theme");
+    } else {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+  }
 
-  // Sync the static <select> markup to state on load, so the defaults live
-  // in one place (defaultState()) rather than duplicated as `selected`
-  // attributes that could drift out of sync.
-  root.querySelector("#link-color").value = state.settings.linkColor;
-  root.querySelector("#alignment").value = state.settings.alignment;
-  root.querySelector("#theme").value = state.settings.theme;
-  // "Manual" is a colorMode flip, not a palette value — settings.palette
-  // keeps the last named palette underneath it as the fallback scale.
-  root.querySelector("#palette").value =
-    state.settings.colorMode === "manual" ? "manual" : state.settings.palette;
+  // src/validate.ts
+  var MAX_LINK_VALUE = 1e15;
+  function validate(state2) {
+    const nameById = new Map(state2.nodes.map((n) => [n.id, n.name]));
+    for (const [index, link] of state2.links.entries()) {
+      if (link.source === link.target) {
+        return {
+          ok: false,
+          error: `A link cannot connect ${nameById.get(link.source) ?? link.source} to itself.`
+        };
+      }
+      if (!Number.isFinite(link.value) || link.value <= 0) {
+        const sourceName = nameById.get(link.source) ?? link.source;
+        const targetName = nameById.get(link.target) ?? link.target;
+        return {
+          ok: false,
+          error: `Link ${index + 1} (${sourceName} to ${targetName}) needs a value greater than 0.`
+        };
+      }
+      if (link.value > MAX_LINK_VALUE) {
+        const sourceName = nameById.get(link.source) ?? link.source;
+        const targetName = nameById.get(link.target) ?? link.target;
+        return {
+          ok: false,
+          error: `Link ${index + 1} (${sourceName} to ${targetName}) value is too large (maximum ${MAX_LINK_VALUE}).`
+        };
+      }
+    }
+    const adjacency = /* @__PURE__ */ new Map();
+    for (const link of state2.links) {
+      if (!adjacency.has(link.source)) adjacency.set(link.source, []);
+      adjacency.get(link.source)?.push(link.target);
+    }
+    const visited = /* @__PURE__ */ new Set();
+    const path = [];
+    const pathIndex = /* @__PURE__ */ new Map();
+    function visit(id) {
+      path.push(id);
+      pathIndex.set(id, path.length - 1);
+      visited.add(id);
+      for (const next of adjacency.get(id) ?? []) {
+        const nextIndex = pathIndex.get(next);
+        if (nextIndex !== void 0) {
+          return [...path.slice(nextIndex), next].map((nodeId) => nameById.get(nodeId) ?? nodeId);
+        }
+        if (!visited.has(next)) {
+          const cycle = visit(next);
+          if (cycle) return cycle;
+        }
+      }
+      path.pop();
+      pathIndex.delete(id);
+      return null;
+    }
+    for (const node of state2.nodes) {
+      if (!visited.has(node.id)) {
+        const cycle = visit(node.id);
+        if (cycle) {
+          return { ok: false, error: `This link would create a cycle: ${cycle.join(" \u2192 ")}` };
+        }
+      }
+    }
+    return { ok: true };
+  }
 
-  root.addEventListener("change", (event) => {
-    const { action } = event.target.dataset;
-    if (action === "update-link-color") {
-      state.settings.linkColor = event.target.value;
-      validateAndRender();
-    } else if (action === "update-alignment") {
-      state.settings.alignment = event.target.value;
-      validateAndRender();
-    } else if (action === "update-palette") {
-      if (event.target.value === "manual") {
-        enterManualMode();
+  // src/main.ts
+  var STORAGE_NOTICE = "Changes can't be saved in this browser right now (storage may be full or unavailable). The diagram keeps working, but edits won't survive closing or reloading this tab \u2014 try freeing up space or leaving private/incognito mode.";
+  var state;
+  function refresh({ rebuildNodes = true, rebuildLinks = true } = {}) {
+    const nodeColor = createNodeColorResolver(state);
+    const result = validate(state);
+    d3.select("#error").text(result.ok ? "" : result.error ?? "");
+    const saved = saveState(state);
+    d3.select("#storage-notice").text(saved ? "" : STORAGE_NOTICE);
+    if (rebuildNodes) renderNodeEditor(state, nodeColor);
+    if (rebuildLinks) renderLinkEditor(state);
+    if (!result.ok) return;
+    renderDiagram(state, nodeColor);
+  }
+  var nodeEditorActions = {
+    addNode() {
+      addNode(state);
+      refresh();
+    },
+    deleteNode(id) {
+      deleteNode(state, id);
+      refresh();
+    },
+    renameNode(id, name) {
+      renameNode(state, id, name);
+      refresh({ rebuildNodes: false });
+    },
+    updateNodeColor(id, color) {
+      updateNodeColor(state, id, color);
+      refresh({ rebuildNodes: false, rebuildLinks: false });
+    }
+  };
+  var linkEditorActions = {
+    addLink() {
+      addLink(state);
+      refresh();
+    },
+    deleteLink(index) {
+      deleteLink(state, index);
+      refresh();
+    },
+    updateLinkSource(index, id) {
+      updateLink(state, index, { source: id });
+      refresh();
+    },
+    updateLinkTarget(index, id) {
+      updateLink(state, index, { target: id });
+      refresh();
+    },
+    updateLinkValue(index, value) {
+      updateLink(state, index, { value });
+      refresh({ rebuildNodes: false, rebuildLinks: false });
+    }
+  };
+  var controlsActions = {
+    setLinkColor(value) {
+      state.settings.linkColor = value;
+      refresh();
+    },
+    setAlignment(value) {
+      state.settings.alignment = value;
+      refresh();
+    },
+    selectPalette(raw) {
+      if (raw === "manual") {
+        enterManualMode(state);
       } else {
-        state.settings.palette = event.target.value;
+        state.settings.palette = raw;
         state.settings.colorMode = "auto";
       }
-      validateAndRender();
-    } else if (action === "update-theme") {
-      state.settings.theme = event.target.value;
-      applyTheme(state.settings.theme);
-      // Theme doesn't affect graph validity or editor markup — skip both
-      // editor rebuilds, same as the color-drag path above.
-      validateAndRender(false, false);
+      refresh();
+    },
+    setTheme(value) {
+      state.settings.theme = value;
+      applyTheme(value);
+      refresh({ rebuildNodes: false, rebuildLinks: false });
     }
-  });
-}
-
-/**
- * Runs d3-sankey layout on a copy of the graph, since d3-sankey mutates
- * whatever it's given.
- * @param {{nodes:Node[], links:Link[]}} graph
- * @param {Settings} settings
- */
-function layout(graph, settings) {
-  const { nodes, links } = structuredClone(graph);
-  return d3
-    .sankey()
-    .nodeId((d) => d.id)
-    .nodeAlign(alignFn(settings.alignment))
-    .nodeWidth(15)
-    .nodePadding(10)
-    .extent([
-      [1, 5],
-      [DIAGRAM_WIDTH - 1, DIAGRAM_HEIGHT - 5],
-    ])({ nodes, links });
-}
-
-/**
- * Per-link stroke accessor for the given link-color mode. `source-target`
- * returns a gradient url referencing the per-link <linearGradient> that
- * renderDiagram appends (its id is keyed by d3-sankey's own `link.index`,
- * so it can't collide within a render).
- * @param {string} mode
- * @returns {(d: {source: Node, target: Node, index: number}) => string}
- */
-function linkStroke(mode) {
-  if (mode === "source") return (d) => nodeColor(d.source);
-  if (mode === "target") return (d) => nodeColor(d.target);
-  if (mode === "static") return () => "#aaa";
-  return (d) => `url(#link-grad-${d.index})`;
-}
-
-/** @param {State} state */
-function renderDiagram(state) {
-  const container = d3.select("#diagram");
-  container.html("");
-
-  // d3-sankey's internal bin-by-column step does `new Array(-1)` on an
-  // empty node list, throwing RangeError before it ever gets to layout.
-  if (state.nodes.length === 0) return;
-  // Zero links collapses every node into a single column with zero value,
-  // which d3-sankey turns into NaN geometry (0 * Infinity) rather than a
-  // throw — nothing meaningful to draw anyway, so bail the same way.
-  if (state.links.length === 0) return;
-
-  const { nodes, links } = layout(
-    { nodes: state.nodes, links: state.links },
-    state.settings
-  );
-
-  const svg = container
-    .append("svg")
-    .attr("viewBox", `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
-
-  // Paint order matches the reference example: link ribbons under node rects.
-  // Each link gets its own <g> so the source-target mode can nest a
-  // per-link <linearGradient> alongside its <path> (id-referenced by url()).
-  const linkGroup = svg
-    .append("g")
-    .attr("fill", "none")
-    .attr("stroke-opacity", 0.5)
-    .selectAll("g")
-    .data(links)
-    .join("g");
-
-  if (state.settings.linkColor === "source-target") {
-    linkGroup
-      .append("linearGradient")
-      .attr("id", (d) => `link-grad-${d.index}`)
-      .attr("gradientUnits", "userSpaceOnUse")
-      .attr("x1", (d) => d.source.x1)
-      .attr("x2", (d) => d.target.x0)
-      .call((g) =>
-        g.append("stop").attr("offset", "0%").attr("stop-color", (d) => nodeColor(d.source))
-      )
-      .call((g) =>
-        g.append("stop").attr("offset", "100%").attr("stop-color", (d) => nodeColor(d.target))
-      );
+  };
+  function init() {
+    state = loadState();
+    applyTheme(state.settings.theme);
+    setupNodeEditor(nodeEditorActions);
+    setupLinkEditor(linkEditorActions);
+    setupControls(state, controlsActions);
+    setupResizer();
+    refresh();
   }
-
-  linkGroup
-    .append("path")
-    .attr("d", d3.sankeyLinkHorizontal())
-    .attr("stroke", linkStroke(state.settings.linkColor))
-    .attr("stroke-width", (d) => Math.max(1, d.width));
-
-  svg
-    .append("g")
-    .selectAll("rect")
-    .data(nodes)
-    .join("rect")
-    .attr("x", (d) => d.x0)
-    .attr("y", (d) => d.y0)
-    .attr("width", (d) => d.x1 - d.x0)
-    .attr("height", (d) => Math.max(1, d.y1 - d.y0))
-    .attr("fill", (d) => nodeColor(d));
-
-  svg
-    .append("g")
-    .attr("font-family", "system-ui, sans-serif")
-    .attr("font-size", 10)
-    .selectAll("text")
-    .data(nodes)
-    .join("text")
-    .attr("x", (d) => (d.x0 < DIAGRAM_WIDTH / 2 ? d.x1 + 6 : d.x0 - 6))
-    .attr("y", (d) => (d.y0 + d.y1) / 2)
-    .attr("dy", "0.35em")
-    .attr("text-anchor", (d) => (d.x0 < DIAGRAM_WIDTH / 2 ? "start" : "end"))
-    .attr("fill", "currentColor")
-    .text((d) => d.name);
-}
-
-const EDITOR_COLUMN_MIN_WIDTH = 240;
-const EDITOR_COLUMN_MAX_WIDTH = 640;
-const EDITOR_COLUMN_ARROW_STEP = 16;
-
-/**
- * Drives the editor column's width from the divider between it and the
- * diagram — pure UI chrome (not app state), so it manipulates the DOM
- * directly rather than routing through validateAndRender()/state. Width
- * isn't persisted; it resets to the CSS default (320px) on reload.
- */
-function setupResizer() {
-  const divider = document.getElementById("resizer");
-  const editorColumn = document.querySelector(".editor-column");
-  if (!divider || !editorColumn) return;
-
-  /** @param {number} width */
-  function clamp(width) {
-    return Math.min(EDITOR_COLUMN_MAX_WIDTH, Math.max(EDITOR_COLUMN_MIN_WIDTH, width));
-  }
-
-  /** @param {number} width */
-  function setWidth(width) {
-    const clamped = clamp(width);
-    editorColumn.style.width = `${clamped}px`;
-    divider.setAttribute("aria-valuenow", String(Math.round(clamped)));
-  }
-
-  divider.setAttribute("aria-valuemin", String(EDITOR_COLUMN_MIN_WIDTH));
-  divider.setAttribute("aria-valuemax", String(EDITOR_COLUMN_MAX_WIDTH));
-  divider.setAttribute(
-    "aria-valuenow",
-    String(Math.round(editorColumn.getBoundingClientRect().width))
-  );
-
-  let startX = 0;
-  let startWidth = 0;
-
-  function onPointerMove(event) {
-    setWidth(startWidth + (event.clientX - startX));
-  }
-
-  function onPointerUp(event) {
-    divider.releasePointerCapture(event.pointerId);
-    divider.removeEventListener("pointermove", onPointerMove);
-    divider.removeEventListener("pointerup", onPointerUp);
-    divider.removeEventListener("pointercancel", onPointerUp);
-    divider.classList.remove("is-dragging");
-    document.body.classList.remove("resizing");
-  }
-
-  divider.addEventListener("pointerdown", (event) => {
-    // Left mouse button only; touch/pen report button -1 and should proceed.
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    // preventDefault() below (to stop text selection while dragging) also
-    // suppresses the browser's default focus-on-pointerdown behavior — focus
-    // explicitly so the arrow-key path still works right after a drag.
-    divider.focus();
-    startX = event.clientX;
-    startWidth = editorColumn.getBoundingClientRect().width;
-    divider.setPointerCapture(event.pointerId);
-    divider.classList.add("is-dragging");
-    document.body.classList.add("resizing");
-    divider.addEventListener("pointermove", onPointerMove);
-    divider.addEventListener("pointerup", onPointerUp);
-    divider.addEventListener("pointercancel", onPointerUp);
-    event.preventDefault();
-  });
-
-  divider.addEventListener("keydown", (event) => {
-    const current = editorColumn.getBoundingClientRect().width;
-    if (event.key === "ArrowLeft") {
-      setWidth(current - EDITOR_COLUMN_ARROW_STEP);
-      event.preventDefault();
-    } else if (event.key === "ArrowRight") {
-      setWidth(current + EDITOR_COLUMN_ARROW_STEP);
-      event.preventDefault();
-    }
-  });
-}
-
-function init() {
-  state = load();
-  applyTheme(state.settings.theme);
-  setupNodeEditor();
-  setupLinkEditor();
-  setupControls();
-  setupResizer();
-  validateAndRender();
-}
-
-init();
+  init();
+})();

@@ -6,7 +6,11 @@
 		"lint": "biome check .",
 		"format": "biome check --write .",
 		"check": "tsc --noEmit",
-		"test": "vitest run"
+		"build": "esbuild src/main.ts --bundle --format=iife --outfile=app.js",
+		"watch": "esbuild src/main.ts --bundle --format=iife --outfile=app.js --watch",
+		"test": "vitest run",
+		"test:unit": "vitest run --exclude tests/smoke.test.ts",
+		"test:smoke": "vitest run tests/smoke.test.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.0",
