@@ -11,7 +11,7 @@ the affected behavior.
 - [ ] Renaming a node updates its label in the diagram and its name everywhere it appears in the link editor's source/target dropdowns, without changing its color.
 - [ ] Deleting a node removes its row, its rect from the diagram, and cascade-removes any links referencing it (their rows and ribbons disappear too, no error).
 - [ ] Deleting all nodes leaves an empty node editor and an empty diagram area — no console error, no crash.
-- [ ] Adding a node again after deleting all restores a working diagram.
+- [ ] Adding a node again after deleting all shows that node's row in the editor and an empty diagram area (no links yet, so nothing to draw) — no console error, no crash, no vanished/NaN-positioned rect.
 
 ## Link editor
 
@@ -23,6 +23,8 @@ the affected behavior.
 - [ ] Setting a link's value to a negative number shows the same inline error; diagram unchanged.
 - [ ] Clearing a link's value field (blank) shows the same inline error; diagram unchanged; the last valid diagram remains visible and correct.
 - [ ] Fixing the offending link's value clears the error and the diagram re-renders immediately.
+- [ ] Deleting the last remaining link empties the diagram area cleanly (no inline error, nodes still listed in the node editor) rather than leaving stray/invisible rects.
+- [ ] Entering an absurdly large value (e.g. `1e16` or `1e308`) in any single link's value field — even the first link edited — shows an immediate inline error naming that link and its maximum; the last-good diagram is retained on screen and never goes NaN/blank at any point.
 
 ## Link color modes
 

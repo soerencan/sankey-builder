@@ -8,6 +8,12 @@
 const DIAGRAM_WIDTH = 960;
 const DIAGRAM_HEIGHT = 480;
 const STORAGE_KEY = "sankey-builder";
+// d3-sankey's relaxation passes multiply a y-coordinate (up to ~475) by a
+// link's value; above ~Number.MAX_VALUE/475 (~3.8e305) that product overflows
+// to Infinity and cascades into NaN geometry — even though the value itself
+// is finite. Capped many orders of magnitude below that, with room to spare
+// even after column sums of several such links.
+const MAX_LINK_VALUE = 1e15;
 
 /** @type {State} */
 let state;
@@ -295,6 +301,14 @@ function validate(state) {
       return {
         ok: false,
         error: `Link ${index + 1} (${sourceName} to ${targetName}) needs a value greater than 0.`,
+      };
+    }
+    if (link.value > MAX_LINK_VALUE) {
+      const sourceName = nameById.get(link.source) ?? link.source;
+      const targetName = nameById.get(link.target) ?? link.target;
+      return {
+        ok: false,
+        error: `Link ${index + 1} (${sourceName} to ${targetName}) value is too large (maximum ${MAX_LINK_VALUE}).`,
       };
     }
   }
@@ -722,6 +736,10 @@ function renderDiagram(state) {
   // d3-sankey's internal bin-by-column step does `new Array(-1)` on an
   // empty node list, throwing RangeError before it ever gets to layout.
   if (state.nodes.length === 0) return;
+  // Zero links collapses every node into a single column with zero value,
+  // which d3-sankey turns into NaN geometry (0 * Infinity) rather than a
+  // throw — nothing meaningful to draw anyway, so bail the same way.
+  if (state.links.length === 0) return;
 
   const { nodes, links } = layout(
     { nodes: state.nodes, links: state.links },
