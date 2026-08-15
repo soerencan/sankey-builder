@@ -187,13 +187,22 @@ function load() {
   }
 }
 
+const STORAGE_NOTICE =
+  "Changes can't be saved in this browser right now (storage may be full or unavailable). " +
+  "The diagram keeps working, but edits won't survive closing or reloading this tab — " +
+  "try freeing up space or leaving private/incognito mode.";
+
 /** @param {State} state */
 function save(state) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    // Storage may recover (e.g. quota freed up elsewhere) — clear a
+    // previously shown notice rather than leaving it stuck once saves work again.
+    d3.select("#storage-notice").text("");
   } catch {
     // Best-effort: quota exceeded, private mode, or file:// with storage
-    // disabled shouldn't break the app, just skip persistence for this pass.
+    // disabled shouldn't break the app — surface it once instead of failing silently.
+    d3.select("#storage-notice").text(STORAGE_NOTICE);
   }
 }
 

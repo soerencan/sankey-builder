@@ -60,6 +60,7 @@ the affected behavior.
 - [ ] Leave the state invalid before reloading (e.g. a link with a blank/zero value, or an unsaved cycle-adjacent edit) → after reload, the same inline error reappears, the node/link editors show the in-progress rows (including the blank/invalid value) so it's fixable, and no diagram is rendered (there is no prior diagram to fall back to in a fresh page load).
 - [ ] Clear the app's localStorage entry (`sankey-builder`) and reload → the page loads the default four-node/three-link graph with no console error.
 - [ ] Corrupt the localStorage value directly (e.g. set it to `"not json"` via devtools) and reload → the app falls back to the default graph with no console error.
+- [ ] Simulate a storage failure — in the DevTools console, run `Storage.prototype.setItem = () => { throw new Error("quota") }` — then edit any node or link → a calm notice appears near the top of the page explaining that changes can't be saved and the diagram still works; the diagram itself keeps updating normally. (Alternatively, fill the quota by pasting a huge string into localStorage via the console.) Restore saving by reloading the page, then make another edit → the notice disappears.
 
 ## Theme
 
