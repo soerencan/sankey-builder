@@ -408,12 +408,6 @@ function renderNodeEditor() {
   const root = d3.select("#node-editor");
   root.html("");
   root.append("h2").attr("id", "node-editor-heading").text("Nodes");
-  root
-    .append("button")
-    .attr("type", "button")
-    .attr("class", "add-node")
-    .attr("data-action", "add-node")
-    .text("Add node");
 
   const manual = state.settings.colorMode === "manual";
 
@@ -458,6 +452,13 @@ function renderNodeEditor() {
     .attr("data-id", (d) => d.id)
     .attr("aria-label", (d) => `Delete ${d.name}`)
     .text("Delete");
+
+  root
+    .append("button")
+    .attr("type", "button")
+    .attr("class", "add-node")
+    .attr("data-action", "add-node")
+    .text("Add node");
 }
 
 /**
@@ -484,15 +485,6 @@ function renderLinkEditor() {
   const root = d3.select("#link-editor");
   root.html("");
   root.append("h2").attr("id", "link-editor-heading").text("Links");
-
-  root
-    .append("button")
-    .attr("type", "button")
-    .attr("class", "add-link")
-    .attr("data-action", "add-link")
-    // A link needs two distinct nodes to default into.
-    .property("disabled", state.nodes.length < 2)
-    .text("Add link");
 
   const row = root
     .append("div")
@@ -541,6 +533,15 @@ function renderLinkEditor() {
     .attr("data-index", (d, i) => i)
     .attr("aria-label", (d, i) => `Delete link ${i + 1}`)
     .text("Delete");
+
+  root
+    .append("button")
+    .attr("type", "button")
+    .attr("class", "add-link")
+    .attr("data-action", "add-link")
+    // A link needs two distinct nodes to default into.
+    .property("disabled", state.nodes.length < 2)
+    .text("Add link");
 }
 
 /**
@@ -817,12 +818,93 @@ function renderDiagram(state) {
     .text((d) => d.name);
 }
 
+const EDITOR_COLUMN_MIN_WIDTH = 240;
+const EDITOR_COLUMN_MAX_WIDTH = 640;
+const EDITOR_COLUMN_ARROW_STEP = 16;
+
+/**
+ * Drives the editor column's width from the divider between it and the
+ * diagram — pure UI chrome (not app state), so it manipulates the DOM
+ * directly rather than routing through validateAndRender()/state. Width
+ * isn't persisted; it resets to the CSS default (320px) on reload.
+ */
+function setupResizer() {
+  const divider = document.getElementById("resizer");
+  const editorColumn = document.querySelector(".editor-column");
+  if (!divider || !editorColumn) return;
+
+  /** @param {number} width */
+  function clamp(width) {
+    return Math.min(EDITOR_COLUMN_MAX_WIDTH, Math.max(EDITOR_COLUMN_MIN_WIDTH, width));
+  }
+
+  /** @param {number} width */
+  function setWidth(width) {
+    const clamped = clamp(width);
+    editorColumn.style.width = `${clamped}px`;
+    divider.setAttribute("aria-valuenow", String(Math.round(clamped)));
+  }
+
+  divider.setAttribute("aria-valuemin", String(EDITOR_COLUMN_MIN_WIDTH));
+  divider.setAttribute("aria-valuemax", String(EDITOR_COLUMN_MAX_WIDTH));
+  divider.setAttribute(
+    "aria-valuenow",
+    String(Math.round(editorColumn.getBoundingClientRect().width))
+  );
+
+  let startX = 0;
+  let startWidth = 0;
+
+  function onPointerMove(event) {
+    setWidth(startWidth + (event.clientX - startX));
+  }
+
+  function onPointerUp(event) {
+    divider.releasePointerCapture(event.pointerId);
+    divider.removeEventListener("pointermove", onPointerMove);
+    divider.removeEventListener("pointerup", onPointerUp);
+    divider.removeEventListener("pointercancel", onPointerUp);
+    divider.classList.remove("is-dragging");
+    document.body.classList.remove("resizing");
+  }
+
+  divider.addEventListener("pointerdown", (event) => {
+    // Left mouse button only; touch/pen report button -1 and should proceed.
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    // preventDefault() below (to stop text selection while dragging) also
+    // suppresses the browser's default focus-on-pointerdown behavior — focus
+    // explicitly so the arrow-key path still works right after a drag.
+    divider.focus();
+    startX = event.clientX;
+    startWidth = editorColumn.getBoundingClientRect().width;
+    divider.setPointerCapture(event.pointerId);
+    divider.classList.add("is-dragging");
+    document.body.classList.add("resizing");
+    divider.addEventListener("pointermove", onPointerMove);
+    divider.addEventListener("pointerup", onPointerUp);
+    divider.addEventListener("pointercancel", onPointerUp);
+    event.preventDefault();
+  });
+
+  divider.addEventListener("keydown", (event) => {
+    const current = editorColumn.getBoundingClientRect().width;
+    if (event.key === "ArrowLeft") {
+      setWidth(current - EDITOR_COLUMN_ARROW_STEP);
+      event.preventDefault();
+    } else if (event.key === "ArrowRight") {
+      setWidth(current + EDITOR_COLUMN_ARROW_STEP);
+      event.preventDefault();
+    }
+  });
+}
+
 function init() {
   state = load();
   applyTheme(state.settings.theme);
   setupNodeEditor();
   setupLinkEditor();
   setupControls();
+  setupResizer();
   validateAndRender();
 }
 

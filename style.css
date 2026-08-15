@@ -80,9 +80,11 @@ body {
 }
 
 .app-layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 1.5rem;
+  display: flex;
+  /* Half of the old 1.5rem gap on each side of the resizer — its own hit
+     area supplies the rest, so the column/diagram spacing reads about the
+     same as before. */
+  gap: 0.75rem;
   padding: 1.5rem;
   align-items: start;
 }
@@ -91,6 +93,63 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  /* flex-basis must stay "auto" (not a fixed length) so the flex algorithm
+     reads its main size from `width` — which is exactly what setupResizer()
+     mutates via pointer/keyboard drag. */
+  flex: 0 0 auto;
+  width: 320px;
+  min-width: 240px;
+  max-width: 640px;
+}
+
+/*
+ * Full-height vertical divider between the editor column and the diagram.
+ * align-self: stretch (rather than changing .app-layout's align-items)
+ * spans it to the tallest sibling's height without also stretching the
+ * diagram section, which should stay its own natural height.
+ */
+.resizer {
+  align-self: stretch;
+  flex: 0 0 auto;
+  width: 9px;
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resizer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--border);
+}
+
+.resizer:hover::before,
+.resizer.is-dragging::before {
+  background: var(--accent);
+}
+
+/* The hairline color swap above is the focus affordance for this element —
+   the default box outline (from the global :focus-visible rule) would draw
+   a rectangle around the 9px strip, and Chromium treats a pointerdown-driven
+   .focus() as focus-visible too, so it can't be left to the heuristic and
+   must be suppressed outright rather than merely deferred to :focus-visible. */
+.resizer:focus {
+  outline: none;
+}
+
+.resizer:focus-visible::before {
+  background: var(--accent);
+}
+
+/* Suppresses selection-highlight flicker while dragging the divider across
+   text-bearing siblings (labels, inputs). */
+body.resizing {
+  user-select: none;
 }
 
 .editor-column section {
@@ -150,7 +209,7 @@ select {
 }
 
 .add-node {
-  margin-bottom: 0.75rem;
+  margin-top: 0.75rem;
 }
 
 .node-rows {
@@ -211,7 +270,7 @@ select {
 }
 
 .add-link {
-  margin-bottom: 0.75rem;
+  margin-top: 0.75rem;
 }
 
 .link-rows {
@@ -262,6 +321,11 @@ select {
 }
 
 #diagram {
+  flex: 1 1 auto;
+  /* Without this, a flex item's min-width defaults to its content size, which
+     for an SVG-filled box can resist shrinking below the diagram's natural
+     width — blocking the editor column from growing past its own basis. */
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   min-height: 480px;

@@ -75,3 +75,8 @@ the affected behavior.
 
 - [ ] Double-click `index.html` from disk (`file://`) with no prior localStorage entry → the default diagram renders, with zero errors or warnings in the browser console.
 - [ ] With a prior localStorage entry already saved (e.g. from a previous `file://` session in the same browser profile), double-clicking `index.html` again restores that state with zero console errors.
+
+## Layout
+
+- [ ] "Add node" and "Add link" render below their respective rows, not above.
+- [ ] Dragging the divider between the editor column and the diagram resizes the column within 240–640px and reflows the diagram live; with the divider focused, ArrowLeft/ArrowRight nudge the width the same way; add/rename/delete still work normally after resizing.
