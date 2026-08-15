@@ -2,11 +2,12 @@
 
 /** @typedef {{id:string, name:string, color?:string}} Node */
 /** @typedef {{source:string, target:string, value:number}} Link */
-/** @typedef {{palette:string, colorMode:"auto"|"manual", linkColor:string, alignment:string}} Settings */
+/** @typedef {{palette:string, colorMode:"auto"|"manual", linkColor:string, alignment:string, theme:"auto"|"light"|"dark"}} Settings */
 /** @typedef {{nodes:Node[], links:Link[], settings:Settings}} State */
 
 const DIAGRAM_WIDTH = 960;
 const DIAGRAM_HEIGHT = 480;
+const STORAGE_KEY = "sankey-builder";
 
 /** @type {State} */
 let state;
@@ -30,6 +31,7 @@ function defaultState() {
       colorMode: "auto",
       linkColor: "source-target",
       alignment: "justify",
+      theme: "auto",
     },
   };
 }
@@ -85,7 +87,108 @@ const PALETTES = {
  * @returns {readonly string[]}
  */
 function activePalette(key) {
-  return PALETTES[key] ?? PALETTES.observable10;
+  return Object.hasOwn(PALETTES, key) ? PALETTES[key] : PALETTES.observable10;
+}
+
+const LINK_COLOR_MODES = new Set(["source", "target", "source-target", "static"]);
+const ALIGNMENTS = new Set(["left", "right", "center", "justify"]);
+const THEMES = new Set(["auto", "light", "dark"]);
+// Same shape input[type=color] accepts; anything else (named colors, rgb(),
+// short hex, etc.) renders as black in the picker, so it's dropped instead.
+const NODE_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * @param {unknown} settings
+ * @returns {Settings}
+ */
+function normalizeSettings(settings) {
+  const s = settings && typeof settings === "object" ? settings : {};
+  return {
+    palette: Object.hasOwn(PALETTES, s.palette) ? s.palette : "observable10",
+    colorMode: s.colorMode === "manual" ? "manual" : "auto",
+    // An unrecognized linkColor would otherwise render as url() references
+    // to gradients that don't exist — invisible links — so it falls back
+    // rather than passing through like alignment/palette do downstream.
+    linkColor: LINK_COLOR_MODES.has(s.linkColor) ? s.linkColor : "source-target",
+    alignment: ALIGNMENTS.has(s.alignment) ? s.alignment : "justify",
+    theme: THEMES.has(s.theme) ? s.theme : "auto",
+  };
+}
+
+/**
+ * Shape-validates a hydrated localStorage payload, dropping individual
+ * malformed rows rather than failing the whole hydration — an in-progress
+ * link with a blank (NaN) value should survive a reload so the user doesn't
+ * lose typing, but a link referencing a node id that no longer exists would
+ * crash d3-sankey layout and gets dropped instead.
+ * @param {unknown} parsed
+ * @returns {State}
+ */
+function normalizeState(parsed) {
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !Array.isArray(parsed.nodes) ||
+    !Array.isArray(parsed.links)
+  ) {
+    return defaultState();
+  }
+
+  const nodes = parsed.nodes
+    .filter((n) => n && typeof n.id === "string" && typeof n.name === "string")
+    .map((n) => {
+      const node = { id: n.id, name: n.name };
+      if (typeof n.color === "string" && NODE_COLOR_RE.test(n.color)) node.color = n.color;
+      return node;
+    });
+
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const links = parsed.links
+    .filter(
+      (l) =>
+        l &&
+        nodeIds.has(l.source) &&
+        nodeIds.has(l.target) &&
+        // JSON.stringify serializes NaN as null, so an in-progress row
+        // (blank value input) round-trips through localStorage as
+        // "value": null — accepted here and restored as NaN below so the
+        // row survives reload; validate() will flag it again as before.
+        (typeof l.value === "number" || l.value === null)
+    )
+    .map((l) => ({
+      source: l.source,
+      target: l.target,
+      value: typeof l.value === "number" ? l.value : NaN,
+    }));
+
+  return { nodes, links, settings: normalizeSettings(parsed.settings) };
+}
+
+/** @returns {State} */
+function load() {
+  let raw = null;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    // Unavailable (file://, private mode) — fall back to the default graph.
+    return defaultState();
+  }
+  if (!raw) return defaultState();
+  try {
+    return normalizeState(JSON.parse(raw));
+  } catch {
+    return defaultState();
+  }
+}
+
+/** @param {State} state */
+function save(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Best-effort: quota exceeded, private mode, or file:// with storage
+    // disabled shouldn't break the app, just skip persistence for this pass.
+  }
 }
 
 /** @returns {d3.ScaleOrdinal<string, string>} */
@@ -261,6 +364,12 @@ function validateAndRender(rebuildNodeEditor = true, rebuildLinkEditor = true) {
   const result = validate(state);
   const errorEl = d3.select("#error");
   errorEl.text(result.ok ? "" : result.error);
+
+  // Always persist, even when invalid: an in-progress row (e.g. a blank
+  // value mid-edit) must survive a reload so the user doesn't lose typing —
+  // there's no "last-good state" to fall back to here, only the last-good
+  // *diagram*, which stays on screen without needing its own storage.
+  save(state);
 
   if (rebuildNodeEditor) renderNodeEditor();
   if (rebuildLinkEditor) renderLinkEditor();
@@ -512,6 +621,20 @@ function alignFn(name) {
 }
 
 /**
+ * Reflects the theme setting onto <html> for style.css to key off. "auto"
+ * removes the attribute entirely so the prefers-color-scheme media query
+ * (rather than an empty/"auto" attribute value) drives the styling.
+ * @param {"auto"|"light"|"dark"} theme
+ */
+function applyTheme(theme) {
+  if (theme === "auto") {
+    document.documentElement.removeAttribute("data-theme");
+  } else {
+    document.documentElement.setAttribute("data-theme", theme);
+  }
+}
+
+/**
  * Delegated change listener on #controls, mirroring the node/link editors'
  * setup functions. Settings are simple string fields, so this writes
  * straight into state.settings rather than going through per-field setters.
@@ -524,6 +647,7 @@ function setupControls() {
   // attributes that could drift out of sync.
   root.querySelector("#link-color").value = state.settings.linkColor;
   root.querySelector("#alignment").value = state.settings.alignment;
+  root.querySelector("#theme").value = state.settings.theme;
   // "Manual" is a colorMode flip, not a palette value — settings.palette
   // keeps the last named palette underneath it as the fallback scale.
   root.querySelector("#palette").value =
@@ -545,6 +669,12 @@ function setupControls() {
         state.settings.colorMode = "auto";
       }
       validateAndRender();
+    } else if (action === "update-theme") {
+      state.settings.theme = event.target.value;
+      applyTheme(state.settings.theme);
+      // Theme doesn't affect graph validity or editor markup — skip both
+      // editor rebuilds, same as the color-drag path above.
+      validateAndRender(false, false);
     }
   });
 }
@@ -661,7 +791,8 @@ function renderDiagram(state) {
 }
 
 function init() {
-  state = defaultState();
+  state = load();
+  applyTheme(state.settings.theme);
   setupNodeEditor();
   setupLinkEditor();
   setupControls();
