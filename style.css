@@ -328,6 +328,15 @@ select {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+/* An unconditional min-height here would outlive the SVG's own rendered
+   height once the section narrows below the viewBox's 960px intrinsic width
+   (the SVG scales to width/2 via its 2:1 viewBox, so the box would hang
+   below it) — :empty scopes the minimum to the no-nodes/no-links bail-out
+   in renderDiagram(), where nothing is appended and the section would
+   otherwise collapse to a stray sliver. */
+#diagram:empty {
   min-height: 480px;
 }
 
