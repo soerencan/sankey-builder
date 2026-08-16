@@ -5,29 +5,31 @@ import { defaultState } from "./state";
 export const STORAGE_KEY = "sankey-builder";
 
 // Sole consumers of these four are normalizeSettings/normalizeState below —
-// kept private rather than exported (app.js:99-104).
-const LINK_COLOR_MODES: ReadonlySet<string> = new Set([
+// kept private rather than exported (app.js:99-104). Typed as a set of the
+// state union itself (not ReadonlySet<string>) so a typo'd member fails to
+// compile instead of silently narrowing the set of accepted values.
+const LINK_COLOR_MODES: ReadonlySet<LinkColorMode> = new Set([
 	"source",
 	"target",
 	"source-target",
 	"static",
 ]);
-const ALIGNMENTS: ReadonlySet<string> = new Set(["left", "right", "center", "justify"]);
-const THEMES: ReadonlySet<string> = new Set(["auto", "light", "dark"]);
+const ALIGNMENTS: ReadonlySet<Alignment> = new Set(["left", "right", "center", "justify"]);
+const THEMES: ReadonlySet<Theme> = new Set(["auto", "light", "dark"]);
 // Same shape input[type=color] accepts; anything else (named colors, rgb(),
 // short hex, etc.) renders as black in the picker, so it's dropped instead.
 const NODE_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 function isLinkColorMode(value: unknown): value is LinkColorMode {
-	return typeof value === "string" && LINK_COLOR_MODES.has(value);
+	return typeof value === "string" && (LINK_COLOR_MODES as ReadonlySet<string>).has(value);
 }
 
 function isAlignment(value: unknown): value is Alignment {
-	return typeof value === "string" && ALIGNMENTS.has(value);
+	return typeof value === "string" && (ALIGNMENTS as ReadonlySet<string>).has(value);
 }
 
 function isTheme(value: unknown): value is Theme {
-	return typeof value === "string" && THEMES.has(value);
+	return typeof value === "string" && (THEMES as ReadonlySet<string>).has(value);
 }
 
 function normalizeSettings(settings: unknown): Settings {
