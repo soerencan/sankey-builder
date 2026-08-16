@@ -79,7 +79,7 @@ export function setupNodeEditor(actions: NodeEditorActions): void {
 		const { action, id } = event.target.dataset;
 		if (action === "add-node") {
 			actions.addNode();
-		} else if (action === "delete-node" && id) {
+		} else if (action === "delete-node" && id !== undefined) {
 			actions.deleteNode(id);
 		}
 	});
@@ -87,7 +87,7 @@ export function setupNodeEditor(actions: NodeEditorActions): void {
 	root.addEventListener("input", (event) => {
 		if (!(event.target instanceof HTMLInputElement)) return;
 		const { action, id } = event.target.dataset;
-		if (action === "rename-node" && id) {
+		if (action === "rename-node" && id !== undefined) {
 			actions.renameNode(id, event.target.value);
 			// Keep the row's name-derived aria-labels in sync without touching
 			// the input itself, since a full rebuild here would steal focus/caret.
@@ -97,7 +97,7 @@ export function setupNodeEditor(actions: NodeEditorActions): void {
 			deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
 			const colorInput = row?.querySelector(".node-color");
 			colorInput?.setAttribute("aria-label", `Color for ${event.target.value}`);
-		} else if (action === "update-node-color" && id) {
+		} else if (action === "update-node-color" && id !== undefined) {
 			actions.updateNodeColor(id, event.target.value);
 			// Update this row's swatch directly rather than rebuilding: a color
 			// picker fires many 'input' events while dragging, and a rebuild

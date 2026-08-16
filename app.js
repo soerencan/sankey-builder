@@ -131,14 +131,14 @@
       const { action, id } = event.target.dataset;
       if (action === "add-node") {
         actions.addNode();
-      } else if (action === "delete-node" && id) {
+      } else if (action === "delete-node" && id !== void 0) {
         actions.deleteNode(id);
       }
     });
     root.addEventListener("input", (event) => {
       if (!(event.target instanceof HTMLInputElement)) return;
       const { action, id } = event.target.dataset;
-      if (action === "rename-node" && id) {
+      if (action === "rename-node" && id !== void 0) {
         actions.renameNode(id, event.target.value);
         event.target.setAttribute("aria-label", `Name for ${event.target.value}`);
         const row = event.target.closest(".node-row");
@@ -146,7 +146,7 @@
         deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
         const colorInput = row?.querySelector(".node-color");
         colorInput?.setAttribute("aria-label", `Color for ${event.target.value}`);
-      } else if (action === "update-node-color" && id) {
+      } else if (action === "update-node-color" && id !== void 0) {
         actions.updateNodeColor(id, event.target.value);
         const swatch = event.target.closest(".node-row")?.querySelector(".node-swatch");
         if (swatch) swatch.style.backgroundColor = event.target.value;
