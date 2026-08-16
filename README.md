@@ -63,3 +63,16 @@ job (smoke test plus bundle-freshness check).
   and Dark 2).
 - **Two-node links** — with exactly two nodes, a link's direction can't be
   reversed (there's no second node to swap it with).
+
+## License
+
+Except for the third-party components listed below, this project is licensed
+under the [MIT License](LICENSE).
+
+The following vendored components retain their original copyright and license
+terms and are not relicensed under the MIT License:
+
+- `vendor/d3.min.js` — D3 7.9.0, ISC License
+  ([license](vendor/LICENSE-d3), [source](https://github.com/d3/d3))
+- `vendor/d3-sankey.min.js` — d3-sankey 0.12.3, BSD 3-Clause License
+  ([license](vendor/LICENSE-d3-sankey), [source](https://github.com/d3/d3-sankey))
