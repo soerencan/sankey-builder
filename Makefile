@@ -14,9 +14,10 @@ typecheck:
 
 # Build the committed app.js bundle from src/
 #
-# Must use the exact same esbuild option set as tests/smoke.test.ts
-# (bundle, format=iife, no minify, no extra flags) so the artifact the smoke
-# test exercises matches the one this target produces and commits.
+# The esbuild option set (bundle, format=iife, no minify, no extra flags)
+# lives once in package.json's "bundle" script; this target, watch,
+# freshness, and tests/smoke.test.ts all invoke it rather than repeating
+# the flags, so the artifact they build/check/exercise can't drift.
 build:
 	bun run build
 
@@ -28,7 +29,7 @@ watch:
 # clean worktree (no git diff — see PLAN.md "Committed bundle").
 freshness:
 	mkdir -p .scratch
-	bun x esbuild src/main.ts --bundle --format=iife --outfile=.scratch/app.js
+	bun run bundle --outfile=.scratch/app.js
 	cmp app.js .scratch/app.js || { echo "app.js is stale — run make build"; exit 1; }
 
 check: typecheck freshness

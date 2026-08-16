@@ -12,5 +12,5 @@
 		"forceConsistentCasingInFileNames": true,
 		"lib": ["ESNext", "DOM"]
 	},
-	"include": ["src", "tests", "types"]
+	"include": ["src", "tests", "types", "vitest.config.ts"]
 }

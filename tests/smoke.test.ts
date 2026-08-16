@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 
+import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { STORAGE_KEY } from "../src/persist";
 import { loadD3Global } from "./helpers/d3-global";
@@ -21,16 +21,12 @@ beforeAll(async () => {
 
 	// A fresh scratch build, never the committed app.js — the whole point of
 	// this test is to catch a stale/missing bundle that `make check`'s cmp
-	// guard hasn't run yet.
+	// guard hasn't run yet. Built via the same "bundle" script package.json's
+	// build/watch/freshness targets use, so the esbuild option set can't
+	// drift from what actually produced the committed artifact.
 	tempDir = await mkdtemp(join(tmpdir(), "sankey-builder-smoke-"));
 	const outfile = join(tempDir, "app.js");
-	await build({
-		entryPoints: [join(REPO_ROOT, "src/main.ts")],
-		bundle: true,
-		format: "iife",
-		minify: false,
-		outfile,
-	});
+	execFileSync("bun", ["run", "bundle", `--outfile=${outfile}`], { cwd: REPO_ROOT });
 	bundle = readFileSync(outfile, "utf8");
 
 	// Real markup, not a hand-rolled fixture, so the smoke test exercises the
