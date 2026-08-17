@@ -295,6 +295,14 @@ select {
   width: 4.5rem;
 }
 
+/* --danger carries its own light/dark variants, so the error ring reads in
+   both themes. The box-shadow stays visible under the accent :focus-visible
+   outline the field also gets while being typed in. */
+.link-value[aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px var(--danger);
+}
+
 .link-delete {
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));

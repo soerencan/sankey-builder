@@ -91,7 +91,7 @@ describe("artifact smoke test", () => {
 		expect(parsed.nodes.some((n: { id: string }) => n.id === "n5")).toBe(true);
 	});
 
-	it("keeps the last-good diagram and focus on an invalid edit, then recovers on fix", () => {
+	it("leaves state untouched on empty/invalid value edits and restores the text on blur", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;
 		globalEval(bundle);
@@ -104,40 +104,50 @@ describe("artifact smoke test", () => {
 		expect(valueInput).not.toBeNull();
 		if (!valueInput) throw new Error("unreachable");
 
+		// Emptying the field never reaches state: no error, no re-render, and
+		// the stored value stays at defaultState's 10.
 		valueInput.value = "";
 		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
 
-		expect(document.getElementById("error")?.textContent).toBe(
-			"Link 1 (Coal to Electricity) needs a value greater than 0.",
-		);
-
-		// Diagram untouched: same svg reference, still the last-good 4 rects —
-		// renderDiagram never ran (refresh bails before it on an invalid state).
+		expect(document.getElementById("error")?.textContent).toBe("");
+		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
-		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(4);
-
-		// Link editor untouched: updateLinkValue's refresh() call passes
-		// rebuildLinks: false, so the input the user is typing in survives —
-		// the same reference is still attached to the document.
 		expect(document.contains(valueInput)).toBe(true);
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(10);
 
-		// Still persisted despite being invalid — save-regardless-of-validity —
-		// and the blank value round-trips through JSON.stringify as null.
-		const midEditStored = localStorage.getItem(STORAGE_KEY);
-		expect(midEditStored).not.toBeNull();
-		const midEditParsed = JSON.parse(midEditStored ?? "{}");
-		expect(midEditParsed.links[0].value).toBeNull();
+		// An invalid string marks the field but still leaves state/storage alone.
+		valueInput.value = "abc";
+		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
 
-		valueInput.value = "10";
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		expect(document.getElementById("error")?.textContent).toBe("");
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(10);
+
+		// Blur restores the last committed value and clears the marker.
+		valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(valueInput.value).toBe("10");
+		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
+
+		// After a *valid* edit, blur must not rewrite the text — "5." parses to
+		// 5 but the trailing dot is preserved so the user can keep typing.
+		valueInput.value = "5.";
+		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(5);
+		valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(valueInput.value).toBe("5.");
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(5);
+
+		// A valid edit flows through to state, storage, and a fresh diagram.
+		valueInput.value = "20";
 		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
 
 		expect(document.getElementById("error")?.textContent).toBe("");
-		// renderDiagram clears #diagram and rebuilds from scratch, so the fixed
-		// state produces a fresh svg rather than reusing the old element.
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
 		expect(svgAfter).not.toBe(svgBefore);
 		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(4);
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(20);
 	});
 
 	it("surfaces a storage notice on save failure and clears it once saves recover", () => {

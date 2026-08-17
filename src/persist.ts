@@ -1,6 +1,7 @@
 import { isPaletteKey } from "./colors";
 import type { Alignment, Link, LinkColorMode, Node, Settings, State, Theme } from "./state";
 import { defaultState } from "./state";
+import { MAX_LINK_VALUE } from "./validate";
 
 export const STORAGE_KEY = "sankey-builder";
 
@@ -66,10 +67,11 @@ function isRawLink(value: unknown): value is Record<string, unknown> {
 
 /**
  * Shape-validates a hydrated localStorage payload, dropping individual
- * malformed rows rather than failing the whole hydration — an in-progress
- * link with a blank (NaN) value should survive a reload so the user doesn't
- * lose typing, but a link referencing a node id that no longer exists would
- * crash d3-sankey layout and gets dropped instead.
+ * malformed rows rather than failing the whole hydration — a link referencing
+ * a node id that no longer exists would crash d3-sankey layout and gets
+ * dropped. A malformed value (legacy `null`, negative, zero, out of range,
+ * non-number) is coerced to 1 rather than dropping the link, since the link's
+ * topology is still meaningful and the user can retype the value.
  */
 function normalizeState(parsed: unknown): State {
 	if (!isRawState(parsed)) return defaultState();
@@ -83,23 +85,19 @@ function normalizeState(parsed: unknown): State {
 	const nodeIds = new Set(nodes.map((n) => n.id));
 	const links: Link[] = parsed.links
 		.filter(isRawLink)
-		.filter(
-			(l) =>
-				nodeIds.has(l.source as string) &&
-				nodeIds.has(l.target as string) &&
-				// JSON.stringify serializes NaN as null, so an in-progress row
-				// (blank value input) round-trips through localStorage as
-				// "value": null — accepted here and restored as NaN below so the
-				// row survives reload; validate() will flag it again as before.
-				(typeof l.value === "number" || l.value === null),
-		)
+		.filter((l) => nodeIds.has(l.source as string) && nodeIds.has(l.target as string))
 		.map((l) => ({
 			source: l.source as string,
 			target: l.target as string,
-			value: typeof l.value === "number" ? l.value : Number.NaN,
+			value: normalizeLinkValue(l.value),
 		}));
 
 	return { nodes, links, settings: normalizeSettings(parsed.settings) };
+}
+
+/** State never holds NaN now; anything out of (0, MAX_LINK_VALUE] falls back to 1. */
+function normalizeLinkValue(value: unknown): number {
+	return typeof value === "number" && value > 0 && value <= MAX_LINK_VALUE ? value : 1;
 }
 
 export function loadState(): State {

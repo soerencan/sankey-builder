@@ -58,6 +58,85 @@
     });
   }
 
+  // src/validate.ts
+  var MAX_LINK_VALUE = 1e15;
+  var LINK_VALUE_RE = /^(\d+(\.\d*)?|\.\d+)$/;
+  var MAX_FRACTION_DIGITS = 4;
+  function parseLinkValue(raw) {
+    const trimmed = raw.trim();
+    if (trimmed === "") return { kind: "empty" };
+    if (!LINK_VALUE_RE.test(trimmed)) return { kind: "invalid" };
+    const dot = trimmed.indexOf(".");
+    if (dot !== -1 && trimmed.length - dot - 1 > MAX_FRACTION_DIGITS) {
+      return { kind: "invalid" };
+    }
+    const value = Number(trimmed);
+    if (!(value > 0) || value > MAX_LINK_VALUE) return { kind: "invalid" };
+    return { kind: "valid", value };
+  }
+  function validate(state2) {
+    const nameById = new Map(state2.nodes.map((n) => [n.id, n.name]));
+    for (const [index, link] of state2.links.entries()) {
+      if (link.source === link.target) {
+        return {
+          ok: false,
+          error: `A link cannot connect ${nameById.get(link.source) ?? link.source} to itself.`
+        };
+      }
+      if (!Number.isFinite(link.value) || link.value <= 0) {
+        const sourceName = nameById.get(link.source) ?? link.source;
+        const targetName = nameById.get(link.target) ?? link.target;
+        return {
+          ok: false,
+          error: `Link ${index + 1} (${sourceName} to ${targetName}) needs a value greater than 0.`
+        };
+      }
+      if (link.value > MAX_LINK_VALUE) {
+        const sourceName = nameById.get(link.source) ?? link.source;
+        const targetName = nameById.get(link.target) ?? link.target;
+        return {
+          ok: false,
+          error: `Link ${index + 1} (${sourceName} to ${targetName}) value is too large (maximum ${MAX_LINK_VALUE}).`
+        };
+      }
+    }
+    const adjacency = /* @__PURE__ */ new Map();
+    for (const link of state2.links) {
+      if (!adjacency.has(link.source)) adjacency.set(link.source, []);
+      adjacency.get(link.source)?.push(link.target);
+    }
+    const visited = /* @__PURE__ */ new Set();
+    const path = [];
+    const pathIndex = /* @__PURE__ */ new Map();
+    function visit(id) {
+      path.push(id);
+      pathIndex.set(id, path.length - 1);
+      visited.add(id);
+      for (const next of adjacency.get(id) ?? []) {
+        const nextIndex = pathIndex.get(next);
+        if (nextIndex !== void 0) {
+          return [...path.slice(nextIndex), next].map((nodeId) => nameById.get(nodeId) ?? nodeId);
+        }
+        if (!visited.has(next)) {
+          const cycle = visit(next);
+          if (cycle) return cycle;
+        }
+      }
+      path.pop();
+      pathIndex.delete(id);
+      return null;
+    }
+    for (const node of state2.nodes) {
+      if (!visited.has(node.id)) {
+        const cycle = visit(node.id);
+        if (cycle) {
+          return { ok: false, error: `This link would create a cycle: ${cycle.join(" \u2192 ")}` };
+        }
+      }
+    }
+    return { ok: true };
+  }
+
   // src/link-editor.ts
   function renderLinkOptions(selectEl, nodes, selectedId, excludedId) {
     d3.select(selectEl).selectAll("option").data(nodes).join("option").attr("value", (n) => n.id).property("disabled", (n) => n.id === excludedId).property("selected", (n) => n.id === selectedId).text((n) => n.name);
@@ -73,11 +152,11 @@
     row.append("select").attr("class", "link-target").attr("data-action", "update-link-target").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Target for link ${i + 1}`).each(function(d) {
       renderLinkOptions(this, state2.nodes, d.target, d.source);
     });
-    row.append("input").attr("type", "number").attr("class", "link-value").attr("data-action", "update-link-value").attr("data-index", (_d, i) => i).attr("min", "0").attr("step", "any").attr("aria-label", (_d, i) => `Value for link ${i + 1}`).property("value", (d) => d.value);
+    row.append("input").attr("type", "text").attr("inputmode", "decimal").attr("class", "link-value").attr("data-action", "update-link-value").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Value for link ${i + 1}`).property("value", (d) => d.value);
     row.append("button").attr("type", "button").attr("class", "link-delete").attr("data-action", "delete-link").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Delete link ${i + 1}`).text("Delete");
     root.append("button").attr("type", "button").attr("class", "add-link").attr("data-action", "add-link").property("disabled", state2.nodes.length < 2).text("Add link");
   }
-  function setupLinkEditor(actions) {
+  function setupLinkEditor(actions, state2) {
     const root = document.getElementById("link-editor");
     if (!root) return;
     root.addEventListener("click", (event) => {
@@ -90,20 +169,39 @@
       }
     });
     root.addEventListener("change", (event) => {
-      if (!(event.target instanceof HTMLSelectElement)) return;
-      const { action, index } = event.target.dataset;
-      if (index === void 0) return;
-      if (action === "update-link-source") {
-        actions.updateLinkSource(Number(index), event.target.value);
-      } else if (action === "update-link-target") {
-        actions.updateLinkTarget(Number(index), event.target.value);
+      const target = event.target;
+      if (target instanceof HTMLSelectElement) {
+        const { action: action2, index: index2 } = target.dataset;
+        if (index2 === void 0) return;
+        if (action2 === "update-link-source") {
+          actions.updateLinkSource(Number(index2), target.value);
+        } else if (action2 === "update-link-target") {
+          actions.updateLinkTarget(Number(index2), target.value);
+        }
+        return;
+      }
+      if (!(target instanceof HTMLInputElement)) return;
+      const { action, index } = target.dataset;
+      if (action !== "update-link-value" || index === void 0) return;
+      const parsed = parseLinkValue(target.value);
+      if (parsed.kind !== "valid") {
+        target.value = String(state2.links[Number(index)].value);
+        target.removeAttribute("aria-invalid");
       }
     });
     root.addEventListener("input", (event) => {
       if (!(event.target instanceof HTMLInputElement)) return;
-      const { action, index } = event.target.dataset;
-      if (action === "update-link-value" && index !== void 0) {
-        actions.updateLinkValue(Number(index), event.target.valueAsNumber);
+      const target = event.target;
+      const { action, index } = target.dataset;
+      if (action !== "update-link-value" || index === void 0) return;
+      const parsed = parseLinkValue(target.value);
+      if (parsed.kind === "valid") {
+        target.removeAttribute("aria-invalid");
+        actions.updateLinkValue(Number(index), parsed.value);
+      } else if (parsed.kind === "empty") {
+        target.removeAttribute("aria-invalid");
+      } else {
+        target.setAttribute("aria-invalid", "true");
       }
     });
   }
@@ -267,18 +365,15 @@
       return node;
     });
     const nodeIds = new Set(nodes.map((n) => n.id));
-    const links = parsed.links.filter(isRawLink).filter(
-      (l) => nodeIds.has(l.source) && nodeIds.has(l.target) && // JSON.stringify serializes NaN as null, so an in-progress row
-      // (blank value input) round-trips through localStorage as
-      // "value": null — accepted here and restored as NaN below so the
-      // row survives reload; validate() will flag it again as before.
-      (typeof l.value === "number" || l.value === null)
-    ).map((l) => ({
+    const links = parsed.links.filter(isRawLink).filter((l) => nodeIds.has(l.source) && nodeIds.has(l.target)).map((l) => ({
       source: l.source,
       target: l.target,
-      value: typeof l.value === "number" ? l.value : Number.NaN
+      value: normalizeLinkValue(l.value)
     }));
     return { nodes, links, settings: normalizeSettings(parsed.settings) };
+  }
+  function normalizeLinkValue(value) {
+    return typeof value === "number" && value > 0 && value <= MAX_LINK_VALUE ? value : 1;
   }
   function loadState() {
     let raw = null;
@@ -419,71 +514,6 @@
     }
   }
 
-  // src/validate.ts
-  var MAX_LINK_VALUE = 1e15;
-  function validate(state2) {
-    const nameById = new Map(state2.nodes.map((n) => [n.id, n.name]));
-    for (const [index, link] of state2.links.entries()) {
-      if (link.source === link.target) {
-        return {
-          ok: false,
-          error: `A link cannot connect ${nameById.get(link.source) ?? link.source} to itself.`
-        };
-      }
-      if (!Number.isFinite(link.value) || link.value <= 0) {
-        const sourceName = nameById.get(link.source) ?? link.source;
-        const targetName = nameById.get(link.target) ?? link.target;
-        return {
-          ok: false,
-          error: `Link ${index + 1} (${sourceName} to ${targetName}) needs a value greater than 0.`
-        };
-      }
-      if (link.value > MAX_LINK_VALUE) {
-        const sourceName = nameById.get(link.source) ?? link.source;
-        const targetName = nameById.get(link.target) ?? link.target;
-        return {
-          ok: false,
-          error: `Link ${index + 1} (${sourceName} to ${targetName}) value is too large (maximum ${MAX_LINK_VALUE}).`
-        };
-      }
-    }
-    const adjacency = /* @__PURE__ */ new Map();
-    for (const link of state2.links) {
-      if (!adjacency.has(link.source)) adjacency.set(link.source, []);
-      adjacency.get(link.source)?.push(link.target);
-    }
-    const visited = /* @__PURE__ */ new Set();
-    const path = [];
-    const pathIndex = /* @__PURE__ */ new Map();
-    function visit(id) {
-      path.push(id);
-      pathIndex.set(id, path.length - 1);
-      visited.add(id);
-      for (const next of adjacency.get(id) ?? []) {
-        const nextIndex = pathIndex.get(next);
-        if (nextIndex !== void 0) {
-          return [...path.slice(nextIndex), next].map((nodeId) => nameById.get(nodeId) ?? nodeId);
-        }
-        if (!visited.has(next)) {
-          const cycle = visit(next);
-          if (cycle) return cycle;
-        }
-      }
-      path.pop();
-      pathIndex.delete(id);
-      return null;
-    }
-    for (const node of state2.nodes) {
-      if (!visited.has(node.id)) {
-        const cycle = visit(node.id);
-        if (cycle) {
-          return { ok: false, error: `This link would create a cycle: ${cycle.join(" \u2192 ")}` };
-        }
-      }
-    }
-    return { ok: true };
-  }
-
   // src/main.ts
   var STORAGE_NOTICE = "Changes can't be saved in this browser right now (storage may be full or unavailable). The diagram keeps working, but edits won't survive closing or reloading this tab \u2014 try freeing up space or leaving private/incognito mode.";
   var state;
@@ -566,7 +596,7 @@
     state = loadState();
     applyTheme(state.settings.theme);
     setupNodeEditor(nodeEditorActions);
-    setupLinkEditor(linkEditorActions);
+    setupLinkEditor(linkEditorActions, state);
     setupControls(state, controlsActions);
     setupResizer();
     refresh();

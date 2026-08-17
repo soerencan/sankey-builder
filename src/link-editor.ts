@@ -1,4 +1,5 @@
 import type { Link, Node, State } from "./state";
+import { parseLinkValue } from "./validate";
 
 export interface LinkEditorActions {
 	addLink(): void;
@@ -65,12 +66,11 @@ export function renderLinkEditor(state: State): void {
 
 	row
 		.append("input")
-		.attr("type", "number")
+		.attr("type", "text")
+		.attr("inputmode", "decimal")
 		.attr("class", "link-value")
 		.attr("data-action", "update-link-value")
 		.attr("data-index", (_d, i) => i)
-		.attr("min", "0")
-		.attr("step", "any")
 		.attr("aria-label", (_d, i) => `Value for link ${i + 1}`)
 		.property("value", (d) => d.value);
 
@@ -98,8 +98,11 @@ export function renderLinkEditor(state: State): void {
  * Select changes do a full rebuild (focus loss on a <select> after
  * choosing a value is normal browser behavior); the value input follows
  * the same focus-preserving path as node renames.
+ *
+ * `state` is the stable, mutated-in-place reference from main.ts, so the
+ * blur handler reads the value that in-progress edits have already written.
  */
-export function setupLinkEditor(actions: LinkEditorActions): void {
+export function setupLinkEditor(actions: LinkEditorActions, state: State): void {
 	const root = document.getElementById("link-editor");
 	if (!root) return;
 
@@ -114,23 +117,43 @@ export function setupLinkEditor(actions: LinkEditorActions): void {
 	});
 
 	root.addEventListener("change", (event) => {
-		if (!(event.target instanceof HTMLSelectElement)) return;
-		const { action, index } = event.target.dataset;
-		if (index === undefined) return;
-		if (action === "update-link-source") {
-			actions.updateLinkSource(Number(index), event.target.value);
-		} else if (action === "update-link-target") {
-			actions.updateLinkTarget(Number(index), event.target.value);
+		const target = event.target;
+		if (target instanceof HTMLSelectElement) {
+			const { action, index } = target.dataset;
+			if (index === undefined) return;
+			if (action === "update-link-source") {
+				actions.updateLinkSource(Number(index), target.value);
+			} else if (action === "update-link-target") {
+				actions.updateLinkTarget(Number(index), target.value);
+			}
+			return;
+		}
+		if (!(target instanceof HTMLInputElement)) return;
+		const { action, index } = target.dataset;
+		if (action !== "update-link-value" || index === undefined) return;
+		// On blur, an empty or invalid field never reached state — restore the
+		// input's text from the last committed value so the row stays coherent.
+		const parsed = parseLinkValue(target.value);
+		if (parsed.kind !== "valid") {
+			target.value = String(state.links[Number(index)].value);
+			target.removeAttribute("aria-invalid");
 		}
 	});
 
 	root.addEventListener("input", (event) => {
 		if (!(event.target instanceof HTMLInputElement)) return;
-		const { action, index } = event.target.dataset;
-		if (action === "update-link-value" && index !== undefined) {
-			// valueAsNumber is NaN on an empty/invalid field, which validate()
-			// rejects rather than letting it reach d3-sankey as bad geometry.
-			actions.updateLinkValue(Number(index), event.target.valueAsNumber);
+		const target = event.target;
+		const { action, index } = target.dataset;
+		if (action !== "update-link-value" || index === undefined) return;
+		const parsed = parseLinkValue(target.value);
+		if (parsed.kind === "valid") {
+			target.removeAttribute("aria-invalid");
+			actions.updateLinkValue(Number(index), parsed.value);
+		} else if (parsed.kind === "empty") {
+			// Mid-edit blank — leave state untouched rather than writing NaN.
+			target.removeAttribute("aria-invalid");
+		} else {
+			target.setAttribute("aria-invalid", "true");
 		}
 	});
 }

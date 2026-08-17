@@ -1,7 +1,88 @@
 import { describe, expect, it } from "vitest";
 import type { State } from "../src/state";
 import { defaultState } from "../src/state";
-import { MAX_LINK_VALUE, validate } from "../src/validate";
+import { MAX_LINK_VALUE, parseLinkValue, validate } from "../src/validate";
+
+describe("parseLinkValue", () => {
+	it("reports an empty string as empty", () => {
+		expect(parseLinkValue("")).toEqual({ kind: "empty" });
+	});
+
+	it("treats a whitespace-only string as empty", () => {
+		expect(parseLinkValue("   ")).toEqual({ kind: "empty" });
+	});
+
+	it("parses a plain integer", () => {
+		expect(parseLinkValue("42")).toEqual({ kind: "valid", value: 42 });
+	});
+
+	it("parses a decimal", () => {
+		expect(parseLinkValue("3.14")).toEqual({ kind: "valid", value: 3.14 });
+	});
+
+	it("parses a trailing-dot integer as its integer value", () => {
+		expect(parseLinkValue("5.")).toEqual({ kind: "valid", value: 5 });
+	});
+
+	it("parses a leading-dot fraction", () => {
+		expect(parseLinkValue(".5")).toEqual({ kind: "valid", value: 0.5 });
+	});
+
+	it("trims surrounding whitespace before parsing", () => {
+		expect(parseLinkValue("  7  ")).toEqual({ kind: "valid", value: 7 });
+	});
+
+	it("accepts exactly 4 fractional digits", () => {
+		expect(parseLinkValue("0.1234")).toEqual({ kind: "valid", value: 0.1234 });
+	});
+
+	it("accepts exactly the cap", () => {
+		expect(parseLinkValue("1000000000000000")).toEqual({
+			kind: "valid",
+			value: MAX_LINK_VALUE,
+		});
+	});
+
+	it("rejects zero", () => {
+		expect(parseLinkValue("0")).toEqual({ kind: "invalid" });
+	});
+
+	it("rejects an all-zero decimal", () => {
+		expect(parseLinkValue("0.0000")).toEqual({ kind: "invalid" });
+	});
+
+	it("rejects a negative value", () => {
+		expect(parseLinkValue("-1")).toEqual({ kind: "invalid" });
+	});
+
+	it("rejects exponent notation", () => {
+		expect(parseLinkValue("1e5")).toEqual({ kind: "invalid" });
+	});
+
+	it("rejects more than 4 fractional digits", () => {
+		expect(parseLinkValue("0.12345")).toEqual({ kind: "invalid" });
+	});
+
+	it("rejects a thousands separator", () => {
+		expect(parseLinkValue("1,000")).toEqual({ kind: "invalid" });
+	});
+
+	it("rejects inner whitespace", () => {
+		expect(parseLinkValue("1 0")).toEqual({ kind: "invalid" });
+	});
+
+	it("rejects non-numeric text", () => {
+		expect(parseLinkValue("abc")).toEqual({ kind: "invalid" });
+	});
+
+	it("rejects a bare dot", () => {
+		expect(parseLinkValue(".")).toEqual({ kind: "invalid" });
+	});
+
+	it("rejects a value above the cap", () => {
+		expect(parseLinkValue("1000000000000001")).toEqual({ kind: "invalid" });
+	});
+});
 
 describe("validate", () => {
 	it("passes for the default state", () => {

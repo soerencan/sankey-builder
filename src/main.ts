@@ -42,10 +42,10 @@ interface RefreshOptions {
  * 1. Rebuild the color resolver fresh from state (replaces app.js's
  *    module-level currentColorScale singleton).
  * 2. Validate and update the error notice.
- * 3. Save — regardless of validity: an in-progress row (e.g. a blank value
- *    mid-edit) must survive a reload; there is no "last-good state" in
- *    storage, only the last-good *diagram*, which stays on screen without
- *    needing its own storage.
+ * 3. Save — regardless of validity: an invalid *topology* the user is still
+ *    editing (e.g. a cycle) is retained in the editor and must survive a
+ *    reload; there is no "last-good state" in storage, only the last-good
+ *    *diagram*, which stays on screen without needing its own storage.
  * 4. Update the storage notice from the save result.
  * 5. Rebuild the requested editors — regardless of validity — so the user
  *    can see and fix the offending row. The flags exist to preserve input
@@ -158,7 +158,7 @@ function init(): void {
 	state = loadState();
 	applyTheme(state.settings.theme);
 	setupNodeEditor(nodeEditorActions);
-	setupLinkEditor(linkEditorActions);
+	setupLinkEditor(linkEditorActions, state);
 	setupControls(state, controlsActions);
 	setupResizer();
 	refresh();

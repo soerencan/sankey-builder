@@ -130,27 +130,50 @@ describe("loadState", () => {
 		});
 	});
 
-	describe("value NaN round-trip", () => {
-		it("restores a null value (blank mid-edit row) as NaN", () => {
+	describe("link value coercion", () => {
+		function loadWithValue(value: unknown) {
 			const payload = {
 				nodes: [
 					{ id: "n1", name: "A" },
 					{ id: "n2", name: "B" },
 				],
-				links: [{ source: "n1", target: "n2", value: null }],
+				links: [{ source: "n1", target: "n2", value }],
 				settings: {},
 			};
 			vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-			expect(loadState().links[0].value).toBeNaN();
+			return loadState().links;
+		}
+
+		it("keeps a plain finite value in range", () => {
+			expect(loadWithValue(12.5)).toEqual([{ source: "n1", target: "n2", value: 12.5 }]);
 		});
 
-		it("saveState followed by loadState round-trips a NaN link value", () => {
-			vi.stubGlobal("localStorage", fakeLocalStorage());
-			const state = defaultState();
-			state.links[0].value = Number.NaN;
+		it("does not round a stored decimal below the 4-digit input cap", () => {
+			expect(loadWithValue(0.123456)[0].value).toBe(0.123456);
+		});
 
-			expect(saveState(state)).toBe(true);
-			expect(loadState().links[0].value).toBeNaN();
+		it("coerces a legacy null (blank mid-edit row) to 1 rather than dropping it", () => {
+			expect(loadWithValue(null)).toEqual([{ source: "n1", target: "n2", value: 1 }]);
+		});
+
+		it("coerces a negative value to 1", () => {
+			expect(loadWithValue(-3)[0].value).toBe(1);
+		});
+
+		it("coerces zero to 1", () => {
+			expect(loadWithValue(0)[0].value).toBe(1);
+		});
+
+		it("coerces an out-of-range value to 1", () => {
+			expect(loadWithValue(1e16)[0].value).toBe(1);
+		});
+
+		it("coerces a non-number value to 1", () => {
+			expect(loadWithValue("abc")[0].value).toBe(1);
+		});
+
+		it("coerces a numeric string to 1 (no lenient parsing)", () => {
+			expect(loadWithValue("5")[0].value).toBe(1);
 		});
 	});
 
