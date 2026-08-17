@@ -1,6 +1,8 @@
 import { createNodeColorResolver, enterManualMode } from "./colors";
 import type { ControlsActions } from "./controls";
-import { setupControls } from "./controls";
+import { setupControls, syncControls } from "./controls";
+import type { IoActions } from "./io-controls";
+import { setupIo } from "./io-controls";
 import type { LinkEditorActions } from "./link-editor";
 import { renderLinkEditor, setupLinkEditor } from "./link-editor";
 import type { NodeEditorActions } from "./node-editor";
@@ -58,6 +60,12 @@ function refresh({ rebuildNodes = true, rebuildLinks = true }: RefreshOptions = 
 	const nodeColor = createNodeColorResolver(state);
 	const result = validate(state);
 	d3.select("#error").text(result.ok ? "" : (result.error ?? ""));
+
+	// Clear any import notice: it's a one-shot result of the last import, so the
+	// next user action retires it. importDiagram() sets #io-notice AFTER its own
+	// refresh() call, so its message survives that refresh and clears here on the
+	// following action.
+	d3.select("#io-notice").text("");
 
 	// Always persist, even when invalid — see the rationale above.
 	const saved = saveState(state);
@@ -127,6 +135,34 @@ const linkEditorActions: LinkEditorActions = {
 	},
 };
 
+const ioActions: IoActions = {
+	importDiagram(imported, repairs) {
+		// state is the stable reference every module captured — mutate in place
+		// rather than reassigning, so those captures stay live.
+		state.nodes.length = 0;
+		state.nodes.push(...imported.nodes);
+		state.links.length = 0;
+		state.links.push(...imported.links);
+		state.settings.palette = imported.settings.palette;
+		state.settings.colorMode = imported.settings.colorMode;
+		state.settings.linkColor = imported.settings.linkColor;
+		state.settings.alignment = imported.settings.alignment;
+		// theme is deliberately untouched — a per-browser preference, not
+		// diagram data, so it survives an import.
+		syncControls(state);
+		refresh();
+		let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
+		if (repairs.length > 0) message += ` Adjustments: ${repairs.join("; ")}.`;
+		// Set AFTER refresh() (which clears #io-notice) so this message survives
+		// the import's own refresh and only retires on the next user action.
+		// Separate from #storage-notice so it doesn't disturb that lifecycle.
+		d3.select("#io-notice").text(message);
+	},
+	reportImportError(message) {
+		d3.select("#io-notice").text(message);
+	},
+};
+
 const controlsActions: ControlsActions = {
 	setLinkColor(value) {
 		state.settings.linkColor = value;
@@ -160,6 +196,7 @@ function init(): void {
 	setupNodeEditor(nodeEditorActions);
 	setupLinkEditor(linkEditorActions, state);
 	setupControls(state, controlsActions);
+	setupIo(state, ioActions);
 	setupResizer();
 	refresh();
 }

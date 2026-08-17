@@ -6,8 +6,10 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { serializeState } from "../src/io";
 import { STORAGE_KEY } from "../src/persist";
+import { defaultState } from "../src/state";
 import { loadD3Global } from "./helpers/d3-global";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -286,6 +288,154 @@ describe("artifact smoke test", () => {
 		clearedSource.dispatchEvent(new Event("change", { bubbles: true }));
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
 		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[3].source).toBeNull();
+	});
+
+	it("imports a constructed file: replaces state, rebuilds editors and diagram, preserves theme", async () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		// Set a distinct current theme so import-preserves-theme is unambiguous.
+		const themeSelect = document.getElementById("theme") as HTMLSelectElement;
+		themeSelect.value = "light";
+		themeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+		const payload = {
+			nodes: [
+				{ id: "n1", name: "X" },
+				{ id: "n2", name: "Y" },
+				{ id: "n3", name: "Z" },
+			],
+			links: [
+				{ source: "n1", target: "n2", value: 3 },
+				{ source: "n2", target: "n3", value: 4 },
+			],
+			settings: {
+				palette: "set2",
+				colorMode: "auto",
+				linkColor: "static",
+				alignment: "left",
+				// A theme in the file must be ignored, not applied.
+				theme: "dark",
+			},
+		};
+		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		input.dispatchEvent(new Event("change", { bubbles: true }));
+		// Flush the async file.text() + parseImport chain.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(3);
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(2);
+		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(3);
+		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(2);
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n1", "n2", "n3"]);
+		expect(stored.settings.palette).toBe("set2");
+		expect(stored.settings.linkColor).toBe("static");
+		// Theme stays the pre-import "light", NOT the file's "dark".
+		expect(stored.settings.theme).toBe("light");
+
+		expect(document.getElementById("io-notice")?.textContent).toBe("Imported 3 nodes, 2 links.");
+
+		// The import notice is one-shot: the next user action (here, a rename)
+		// runs refresh(), which retires it.
+		const nameInput = document.querySelector<HTMLInputElement>('.node-name[data-id="n1"]');
+		if (!nameInput) throw new Error("unreachable");
+		nameInput.value = "Renamed";
+		nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(document.getElementById("io-notice")?.textContent).toBe("");
+	});
+
+	it("rejects a non-diagram file, leaving state and storage untouched, and shows the error", async () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const storedBefore = localStorage.getItem(STORAGE_KEY);
+		const rectsBefore = document.querySelectorAll("#diagram svg rect").length;
+
+		const file = new File(['{"totally":"unrelated"}'], "notes.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		input.dispatchEvent(new Event("change", { bubbles: true }));
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(document.getElementById("io-notice")?.textContent).toContain("diagram export");
+		// Nothing changed: same storage payload, same diagram, same editor rows.
+		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
+		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(rectsBefore);
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
+	});
+
+	it("reports import repairs in the notice with the exact counts + adjustments format", async () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const payload = {
+			nodes: [
+				{ id: "n1", name: "A" },
+				{ id: "n2", name: "B" },
+			],
+			// A dangling target is repaired to null (kept as an incomplete row).
+			links: [{ source: "n1", target: "gone", value: 1 }],
+			settings: {},
+		};
+		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		input.dispatchEvent(new Event("change", { bubbles: true }));
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(document.getElementById("io-notice")?.textContent).toBe(
+			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.",
+		);
+	});
+
+	it("exports the current diagram as a pretty-printed JSON blob download", async () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
+		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+		const createElement = vi.spyOn(document, "createElement");
+
+		// Capture mock data before mockRestore() below, which clears mock.calls.
+		let blob: Blob | undefined;
+		let createUrlCalls = 0;
+		let revokedUrl: string | undefined;
+		let downloadName: string | undefined;
+		try {
+			document
+				.getElementById("export-button")
+				?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+			// revoke is deferred via setTimeout(0) — let it fire before capturing.
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		} finally {
+			createUrlCalls = createObjectURL.mock.calls.length;
+			blob = createObjectURL.mock.calls[0]?.[0] as Blob | undefined;
+			revokedUrl = revokeObjectURL.mock.calls[0]?.[0] as string | undefined;
+			downloadName = (
+				createElement.mock.results
+					.map((r) => r.value as HTMLElement)
+					.find((el) => el.tagName === "A") as HTMLAnchorElement | undefined
+			)?.download;
+			createElement.mockRestore();
+			createObjectURL.mockRestore();
+			revokeObjectURL.mockRestore();
+		}
+
+		expect(createUrlCalls).toBe(1);
+		expect(blob?.type).toBe("application/json");
+		expect(JSON.parse(await (blob as Blob).text())).toEqual(
+			JSON.parse(serializeState(defaultState())),
+		);
+		expect(downloadName).toBe("sankey.json");
+		expect(revokedUrl).toBe("blob:fake");
 	});
 
 	it("surfaces a storage notice on save failure and clears it once saves recover", () => {

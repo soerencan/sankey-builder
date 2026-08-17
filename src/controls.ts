@@ -10,18 +10,14 @@ export interface ControlsActions {
 }
 
 /**
- * Delegated change listener on #controls, mirroring the node/link editors'
- * setup functions. Settings are simple string fields, so this reads
- * straight off state and routes raw select values to actions rather than
- * going through per-field setters.
+ * Syncs the static <select> markup in #controls to state, so the defaults live
+ * in one place (defaultState()) rather than duplicated as `selected` attributes
+ * that could drift out of sync. Also called after an import replaces settings.
  */
-export function setupControls(state: State, actions: ControlsActions): void {
+export function syncControls(state: State): void {
 	const root = document.getElementById("controls");
 	if (!root) return;
 
-	// Sync the static <select> markup to state on load, so the defaults live
-	// in one place (defaultState()) rather than duplicated as `selected`
-	// attributes that could drift out of sync.
 	const linkColorSelect = root.querySelector<HTMLSelectElement>("#link-color");
 	if (linkColorSelect) linkColorSelect.value = state.settings.linkColor;
 	const alignmentSelect = root.querySelector<HTMLSelectElement>("#alignment");
@@ -34,6 +30,19 @@ export function setupControls(state: State, actions: ControlsActions): void {
 	if (paletteSelect) {
 		paletteSelect.value = state.settings.colorMode === "manual" ? "manual" : state.settings.palette;
 	}
+}
+
+/**
+ * Delegated change listener on #controls, mirroring the node/link editors'
+ * setup functions. Settings are simple string fields, so this reads
+ * straight off state and routes raw select values to actions rather than
+ * going through per-field setters.
+ */
+export function setupControls(state: State, actions: ControlsActions): void {
+	const root = document.getElementById("controls");
+	if (!root) return;
+
+	syncControls(state);
 
 	root.addEventListener("change", (event) => {
 		if (!(event.target instanceof HTMLSelectElement)) return;

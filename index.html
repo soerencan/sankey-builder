@@ -13,6 +13,7 @@
 
   <div id="error" role="status" aria-live="polite"></div>
   <div id="storage-notice" role="status" aria-live="polite"></div>
+  <div id="io-notice" role="status" aria-live="polite"></div>
 
   <main class="app-layout">
     <aside class="editor-column">
@@ -62,6 +63,11 @@
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
+        </div>
+        <div class="control-row io-row">
+          <button type="button" id="export-button" data-action="export">Export</button>
+          <button type="button" id="import-button" data-action="import">Import</button>
+          <input type="file" id="import-file" accept=".json,application/json" hidden />
         </div>
       </section>
     </aside>

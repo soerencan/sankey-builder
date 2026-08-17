@@ -79,6 +79,17 @@ body {
   display: none;
 }
 
+#io-notice {
+  padding: 0.75rem 1.5rem;
+  color: color-mix(in srgb, var(--ink) 80%, transparent);
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+#io-notice:empty {
+  display: none;
+}
+
 .app-layout {
   display: flex;
   /* Half of the old 1.5rem gap on each side of the resizer — its own hit
@@ -316,6 +327,11 @@ select {
 
 .control-row + .control-row {
   margin-top: 0.5rem;
+}
+
+/* Export/Import share a row with no label — let the two buttons split it. */
+.io-row button {
+  flex: 1 1 auto;
 }
 
 .control-row label {

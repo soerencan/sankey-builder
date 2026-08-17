@@ -30,7 +30,7 @@
   }
 
   // src/controls.ts
-  function setupControls(state2, actions) {
+  function syncControls(state2) {
     const root = document.getElementById("controls");
     if (!root) return;
     const linkColorSelect = root.querySelector("#link-color");
@@ -43,6 +43,11 @@
     if (paletteSelect) {
       paletteSelect.value = state2.settings.colorMode === "manual" ? "manual" : state2.settings.palette;
     }
+  }
+  function setupControls(state2, actions) {
+    const root = document.getElementById("controls");
+    if (!root) return;
+    syncControls(state2);
     root.addEventListener("change", (event) => {
       if (!(event.target instanceof HTMLSelectElement)) return;
       const { action } = event.target.dataset;
@@ -208,6 +213,215 @@
     return { ok: true };
   }
 
+  // src/persist.ts
+  var STORAGE_KEY = "sankey-builder";
+  var LINK_COLOR_MODES = /* @__PURE__ */ new Set([
+    "source",
+    "target",
+    "source-target",
+    "static"
+  ]);
+  var ALIGNMENTS = /* @__PURE__ */ new Set(["left", "right", "center", "justify"]);
+  var THEMES = /* @__PURE__ */ new Set(["auto", "light", "dark"]);
+  var NODE_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+  function isLinkColorMode(value) {
+    return typeof value === "string" && LINK_COLOR_MODES.has(value);
+  }
+  function isAlignment(value) {
+    return typeof value === "string" && ALIGNMENTS.has(value);
+  }
+  function isTheme(value) {
+    return typeof value === "string" && THEMES.has(value);
+  }
+  function normalizeSettings(settings, repairs) {
+    const s = settings && typeof settings === "object" ? settings : {};
+    let palette = "observable10";
+    if (isPaletteKey(s.palette)) palette = s.palette;
+    else if (s.palette !== void 0) repairs?.push("settings: unknown palette \u2014 using default");
+    let colorMode = "auto";
+    if (s.colorMode === "manual") colorMode = "manual";
+    else if (s.colorMode !== void 0 && s.colorMode !== "auto")
+      repairs?.push("settings: unknown color mode \u2014 using default");
+    let linkColor = "source-target";
+    if (isLinkColorMode(s.linkColor)) linkColor = s.linkColor;
+    else if (s.linkColor !== void 0) repairs?.push("settings: unknown link color \u2014 using default");
+    let alignment = "justify";
+    if (isAlignment(s.alignment)) alignment = s.alignment;
+    else if (s.alignment !== void 0) repairs?.push("settings: unknown alignment \u2014 using default");
+    const theme = isTheme(s.theme) ? s.theme : "auto";
+    return { palette, colorMode, linkColor, alignment, theme };
+  }
+  function isRawState(value) {
+    if (!value || typeof value !== "object") return false;
+    const v = value;
+    return Array.isArray(v.nodes) && Array.isArray(v.links);
+  }
+  function isRawNode(value) {
+    if (!value || typeof value !== "object") return false;
+    const v = value;
+    return typeof v.id === "string" && typeof v.name === "string";
+  }
+  function isRawLink(value) {
+    return Boolean(value) && typeof value === "object";
+  }
+  function normalizeNodes(rawNodes, repairs) {
+    const nodes = [];
+    rawNodes.forEach((value, index) => {
+      if (!isRawNode(value)) {
+        repairs?.push(`node ${index + 1}: missing id or name \u2014 dropped`);
+        return;
+      }
+      const node = { id: value.id, name: value.name };
+      if (value.color !== void 0) {
+        if (typeof value.color === "string" && NODE_COLOR_RE.test(value.color)) {
+          node.color = value.color;
+        } else {
+          repairs?.push(`node ${value.id}: invalid color removed`);
+        }
+      }
+      nodes.push(node);
+    });
+    return nodes;
+  }
+  function normalizeLinks(rawLinks, nodeIds, repairs) {
+    const links = [];
+    rawLinks.forEach((value, index) => {
+      if (!isRawLink(value)) {
+        repairs?.push(`link ${index + 1}: not an object \u2014 dropped`);
+        return;
+      }
+      const source = normalizeEndpoint(value.source, nodeIds);
+      if (source === null && value.source != null) {
+        repairs?.push(`link ${index + 1}: unknown source \u2014 left unassigned`);
+      }
+      const target = normalizeEndpoint(value.target, nodeIds);
+      if (target === null && value.target != null) {
+        repairs?.push(`link ${index + 1}: unknown target \u2014 left unassigned`);
+      }
+      if (value.value !== void 0 && !isValidLinkValue(value.value)) {
+        repairs?.push(`link ${index + 1}: invalid value \u2014 set to 1`);
+      }
+      links.push({ source, target, value: normalizeLinkValue(value.value) });
+    });
+    return links;
+  }
+  function normalizeState(parsed) {
+    if (!isRawState(parsed)) return defaultState();
+    const nodes = normalizeNodes(parsed.nodes);
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const links = normalizeLinks(parsed.links, nodeIds);
+    return { nodes, links, settings: normalizeSettings(parsed.settings) };
+  }
+  function normalizeEndpoint(value, nodeIds) {
+    return typeof value === "string" && nodeIds.has(value) ? value : null;
+  }
+  function isValidLinkValue(value) {
+    return typeof value === "number" && value > 0 && value <= MAX_LINK_VALUE;
+  }
+  function normalizeLinkValue(value) {
+    return isValidLinkValue(value) ? value : 1;
+  }
+  function loadState() {
+    let raw = null;
+    try {
+      raw = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return defaultState();
+    }
+    if (!raw) return defaultState();
+    try {
+      return normalizeState(JSON.parse(raw));
+    } catch {
+      return defaultState();
+    }
+  }
+  function saveState(state2) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state2));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // src/io.ts
+  function serializeState(state2) {
+    const exported = {
+      nodes: state2.nodes,
+      links: state2.links.filter(isComplete),
+      settings: {
+        palette: state2.settings.palette,
+        colorMode: state2.settings.colorMode,
+        linkColor: state2.settings.linkColor,
+        alignment: state2.settings.alignment
+      }
+    };
+    return JSON.stringify(exported, null, 2);
+  }
+  var NOT_JSON = "This file isn't valid JSON, so it can't be a diagram export.";
+  var NOT_A_DIAGRAM = `This file doesn't look like a diagram export (expected "nodes" and "links" arrays).`;
+  function parseImport(text) {
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { ok: false, error: NOT_JSON };
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { ok: false, error: NOT_A_DIAGRAM };
+    }
+    const obj = parsed;
+    if (!Array.isArray(obj.nodes) || !Array.isArray(obj.links)) {
+      return { ok: false, error: NOT_A_DIAGRAM };
+    }
+    const repairs = [];
+    const nodes = normalizeNodes(obj.nodes, repairs);
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const links = normalizeLinks(obj.links, nodeIds, repairs);
+    const normalized = normalizeSettings(obj.settings, repairs);
+    const settings = {
+      palette: normalized.palette,
+      colorMode: normalized.colorMode,
+      linkColor: normalized.linkColor,
+      alignment: normalized.alignment
+    };
+    return { ok: true, state: { nodes, links, settings }, repairs };
+  }
+
+  // src/io-controls.ts
+  function setupIo(state2, actions) {
+    const exportButton = document.getElementById("export-button");
+    const importButton = document.getElementById("import-button");
+    const fileInput = document.getElementById("import-file");
+    if (!(fileInput instanceof HTMLInputElement)) return;
+    exportButton?.addEventListener("click", () => downloadJson(serializeState(state2)));
+    importButton?.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0];
+      fileInput.value = "";
+      if (!file) return;
+      let text;
+      try {
+        text = await file.text();
+      } catch {
+        actions.reportImportError("Could not read the selected file. Please try again.");
+        return;
+      }
+      const result = parseImport(text);
+      if (result.ok) actions.importDiagram(result.state, result.repairs);
+      else actions.reportImportError(result.error);
+    });
+  }
+  function downloadJson(json) {
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "sankey.json";
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   // src/link-editor.ts
   function renderLinkOptions(selectEl, nodes, selectedId, excludedId) {
     const select = d3.select(selectEl);
@@ -351,96 +565,6 @@
     });
   }
 
-  // src/persist.ts
-  var STORAGE_KEY = "sankey-builder";
-  var LINK_COLOR_MODES = /* @__PURE__ */ new Set([
-    "source",
-    "target",
-    "source-target",
-    "static"
-  ]);
-  var ALIGNMENTS = /* @__PURE__ */ new Set(["left", "right", "center", "justify"]);
-  var THEMES = /* @__PURE__ */ new Set(["auto", "light", "dark"]);
-  var NODE_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
-  function isLinkColorMode(value) {
-    return typeof value === "string" && LINK_COLOR_MODES.has(value);
-  }
-  function isAlignment(value) {
-    return typeof value === "string" && ALIGNMENTS.has(value);
-  }
-  function isTheme(value) {
-    return typeof value === "string" && THEMES.has(value);
-  }
-  function normalizeSettings(settings) {
-    const s = settings && typeof settings === "object" ? settings : {};
-    return {
-      palette: isPaletteKey(s.palette) ? s.palette : "observable10",
-      colorMode: s.colorMode === "manual" ? "manual" : "auto",
-      // An unrecognized linkColor would otherwise render as url() references
-      // to gradients that don't exist — invisible links — so it falls back
-      // rather than passing through like alignment/palette do downstream.
-      linkColor: isLinkColorMode(s.linkColor) ? s.linkColor : "source-target",
-      alignment: isAlignment(s.alignment) ? s.alignment : "justify",
-      theme: isTheme(s.theme) ? s.theme : "auto"
-    };
-  }
-  function isRawState(value) {
-    if (!value || typeof value !== "object") return false;
-    const v = value;
-    return Array.isArray(v.nodes) && Array.isArray(v.links);
-  }
-  function isRawNode(value) {
-    if (!value || typeof value !== "object") return false;
-    const v = value;
-    return typeof v.id === "string" && typeof v.name === "string";
-  }
-  function isRawLink(value) {
-    return Boolean(value) && typeof value === "object";
-  }
-  function normalizeState(parsed) {
-    if (!isRawState(parsed)) return defaultState();
-    const nodes = parsed.nodes.filter(isRawNode).map((n) => {
-      const node = { id: n.id, name: n.name };
-      if (typeof n.color === "string" && NODE_COLOR_RE.test(n.color)) node.color = n.color;
-      return node;
-    });
-    const nodeIds = new Set(nodes.map((n) => n.id));
-    const links = parsed.links.filter(isRawLink).map((l) => ({
-      source: normalizeEndpoint(l.source, nodeIds),
-      target: normalizeEndpoint(l.target, nodeIds),
-      value: normalizeLinkValue(l.value)
-    }));
-    return { nodes, links, settings: normalizeSettings(parsed.settings) };
-  }
-  function normalizeEndpoint(value, nodeIds) {
-    return typeof value === "string" && nodeIds.has(value) ? value : null;
-  }
-  function normalizeLinkValue(value) {
-    return typeof value === "number" && value > 0 && value <= MAX_LINK_VALUE ? value : 1;
-  }
-  function loadState() {
-    let raw = null;
-    try {
-      raw = localStorage.getItem(STORAGE_KEY);
-    } catch {
-      return defaultState();
-    }
-    if (!raw) return defaultState();
-    try {
-      return normalizeState(JSON.parse(raw));
-    } catch {
-      return defaultState();
-    }
-  }
-  function saveState(state2) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state2));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   // src/render.ts
   var DIAGRAM_WIDTH = 960;
   var DIAGRAM_HEIGHT = 480;
@@ -565,6 +689,7 @@
     const nodeColor = createNodeColorResolver(state);
     const result = validate(state);
     d3.select("#error").text(result.ok ? "" : result.error ?? "");
+    d3.select("#io-notice").text("");
     const saved = saveState(state);
     d3.select("#storage-notice").text(saved ? "" : STORAGE_NOTICE);
     if (rebuildNodes) renderNodeEditor(state, nodeColor);
@@ -612,6 +737,26 @@
       refresh({ rebuildNodes: false, rebuildLinks: false });
     }
   };
+  var ioActions = {
+    importDiagram(imported, repairs) {
+      state.nodes.length = 0;
+      state.nodes.push(...imported.nodes);
+      state.links.length = 0;
+      state.links.push(...imported.links);
+      state.settings.palette = imported.settings.palette;
+      state.settings.colorMode = imported.settings.colorMode;
+      state.settings.linkColor = imported.settings.linkColor;
+      state.settings.alignment = imported.settings.alignment;
+      syncControls(state);
+      refresh();
+      let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
+      if (repairs.length > 0) message += ` Adjustments: ${repairs.join("; ")}.`;
+      d3.select("#io-notice").text(message);
+    },
+    reportImportError(message) {
+      d3.select("#io-notice").text(message);
+    }
+  };
   var controlsActions = {
     setLinkColor(value) {
       state.settings.linkColor = value;
@@ -642,6 +787,7 @@
     setupNodeEditor(nodeEditorActions);
     setupLinkEditor(linkEditorActions, state);
     setupControls(state, controlsActions);
+    setupIo(state, ioActions);
     setupResizer();
     refresh();
   }

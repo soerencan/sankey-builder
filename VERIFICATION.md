@@ -45,3 +45,18 @@ pipeline), so verify per engine which behavior actually occurs.
 - [ ] Firefox: paste `1.23456789` → same check as Safari; record truncate vs. highlight.
 - [ ] Drag-and-drop text (e.g. drag `1.23456789` from another field) into a link value → truncates in engines that send `insertFromDrop` with `data`, otherwise highlights. Verify it's never worse than the highlight.
 - [ ] Mobile IME keyboard: typing digits that arrive via `insertCompositionText` bypasses the keystroke block — confirm over-precise input lands on the aria-invalid highlight (acceptable) rather than reaching state as bad geometry.
+
+## Export / Import
+
+The parse/serialize logic and the DOM wiring are automated (unit + smoke), but
+the real browser download dialog and native file picker aren't reachable from
+happy-dom — verify those, and confirm they work under `file://` where storage
+and origin behavior differ.
+
+- [ ] Export (served): click Export → the browser downloads `sankey.json`; opening it shows a pretty-printed `{nodes, links, settings}` with no `theme` key and no incomplete links.
+- [ ] Import (served): click Import → the native file picker opens; choosing a previously exported file replaces the diagram, editors, and controls, and the theme in use does not change.
+- [ ] Import repairs: hand-edit an exported file to introduce a bad color, an unknown palette, and a dangling link endpoint, then import → the diagram loads and the notice lists the adjustments made.
+- [ ] Import rejection: pick an unrelated `.json` file → the diagram is left untouched and the notice says it doesn't look like a diagram export.
+- [ ] Import a topologically-invalid file (e.g. a cycle A→B→A): state is replaced and saved, `#error` shows the cycle message, the previous diagram stays rendered (refresh bails before re-render on an invalid graph), and `#io-notice` still reports the import — confirm that three-way combination reads acceptably rather than confusingly.
+- [ ] `file://` export: double-click `index.html` from disk, click Export → the download still lands in Downloads (no console errors about blob URLs or the object-URL lifecycle).
+- [ ] `file://` import: from the same `file://` page, import a file via the picker → the diagram updates with zero console errors.
