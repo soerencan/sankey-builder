@@ -202,6 +202,49 @@ describe("validate", () => {
 		});
 	});
 
+	describe("incomplete links", () => {
+		it("skips a link with a null endpoint entirely — never an error", () => {
+			const state = defaultState();
+			state.links.push({ source: "n1", target: null, value: 1 });
+			expect(validate(state)).toEqual({ ok: true });
+		});
+
+		it("treats a state whose only structural problem is an incomplete link as valid", () => {
+			const state: State = {
+				nodes: [
+					{ id: "n1", name: "A" },
+					{ id: "n2", name: "B" },
+				],
+				links: [{ source: null, target: null, value: 1 }],
+				settings: defaultState().settings,
+			};
+			expect(validate(state)).toEqual({ ok: true });
+		});
+
+		it("ignores an incomplete link's value even when it would otherwise be invalid", () => {
+			const state = defaultState();
+			state.links.push({ source: null, target: "n2", value: 0 });
+			expect(validate(state)).toEqual({ ok: true });
+		});
+
+		it("does not let an incomplete link participate in cycle detection", () => {
+			const state: State = {
+				nodes: [
+					{ id: "n1", name: "A" },
+					{ id: "n2", name: "B" },
+				],
+				links: [
+					{ source: "n1", target: "n2", value: 1 },
+					// A completing edge back to n1 would close a cycle, but it's
+					// incomplete (null source) so it's ignored.
+					{ source: null, target: "n1", value: 1 },
+				],
+				settings: defaultState().settings,
+			};
+			expect(validate(state)).toEqual({ ok: true });
+		});
+	});
+
 	describe("cycle detection", () => {
 		it("reports a simple 2-node cycle by node names", () => {
 			const state: State = {
@@ -244,10 +287,11 @@ describe("validate", () => {
 		});
 
 		it("doesn't flag a dangling link (no matching node) as a cycle", () => {
-			// persist.ts normally prunes dangling links before validate ever sees
-			// the state, but validate is defensive here too: DFS only starts from
-			// `state.nodes`, and a dangling target has no outgoing edges of its
-			// own, so it can never close a cycle back to itself.
+			// persist.ts normally coerces a dangling endpoint to null before
+			// validate ever sees the state, but validate is defensive here too:
+			// DFS only starts from `state.nodes`, and a dangling target has no
+			// outgoing edges of its own, so it can never close a cycle back to
+			// itself.
 			const state: State = {
 				nodes: [{ id: "n1", name: "A" }],
 				links: [{ source: "n1", target: "missing", value: 1 }],

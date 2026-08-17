@@ -1,6 +1,10 @@
 import type { SankeyLink, SankeyNode } from "d3-sankey";
 import type { NodeColorResolver } from "./colors";
-import type { Alignment, LinkColorMode, Node, State } from "./state";
+import type { Alignment, Link, LinkColorMode, Node, State } from "./state";
+import { isComplete } from "./state";
+
+// A link with both endpoints assigned — the only kind d3-sankey ever lays out.
+type CompleteLink = Link & { source: string; target: string };
 
 export const DIAGRAM_WIDTH = 960;
 export const DIAGRAM_HEIGHT = 480;
@@ -56,8 +60,11 @@ function alignFn(name: Alignment): typeof d3.sankeyJustify {
  * Runs d3-sankey layout on a copy of the graph, since d3-sankey mutates
  * whatever it's given.
  */
-function layout(state: State): { nodes: LayoutNode[]; links: LayoutLink[] } {
-	const { nodes, links } = structuredClone({ nodes: state.nodes, links: state.links });
+function layout(
+	state: State,
+	sourceLinks: CompleteLink[],
+): { nodes: LayoutNode[]; links: LayoutLink[] } {
+	const { nodes, links } = structuredClone({ nodes: state.nodes, links: sourceLinks });
 	const graph = d3
 		.sankey<Node, LinkExtra>()
 		.nodeId((d) => d.id)
@@ -91,12 +98,14 @@ export function renderDiagram(state: State, nodeColor: NodeColorResolver): void 
 	// d3-sankey's internal bin-by-column step does `new Array(-1)` on an
 	// empty node list, throwing RangeError before it ever gets to layout.
 	if (state.nodes.length === 0) return;
-	// Zero links collapses every node into a single column with zero value,
+	// Only complete links have geometry; incomplete ones are omitted. Zero
+	// complete links collapses every node into a single column with zero value,
 	// which d3-sankey turns into NaN geometry (0 * Infinity) rather than a
 	// throw — nothing meaningful to draw anyway, so bail the same way.
-	if (state.links.length === 0) return;
+	const completeLinks = state.links.filter(isComplete);
+	if (completeLinks.length === 0) return;
 
-	const { nodes, links } = layout(state);
+	const { nodes, links } = layout(state, completeLinks);
 
 	const svg = container.append("svg").attr("viewBox", `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
 

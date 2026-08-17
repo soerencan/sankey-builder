@@ -4,26 +4,37 @@ import { exceedsFractionDigits, parseLinkValue, truncateFractionDigits } from ".
 export interface LinkEditorActions {
 	addLink(): void;
 	deleteLink(index: number): void;
-	updateLinkSource(index: number, id: string): void;
-	updateLinkTarget(index: number, id: string): void;
+	updateLinkSource(index: number, id: string | null): void;
+	updateLinkTarget(index: number, id: string | null): void;
 	updateLinkValue(index: number, value: number): void;
 }
 
 /**
- * Populates a source/target <select> with all nodes, disabling the one
- * chosen in the other select of the same row — makes a self-link
- * impossible to select rather than merely rejecting it after the fact.
+ * Populates a source/target <select> with a "— select —" placeholder (empty
+ * value) followed by all nodes. The placeholder is selected while the endpoint
+ * is null and stays selectable afterward, so an endpoint can be un-assigned
+ * again — consistent with incomplete links being harmless. The node matching
+ * the other select of the same row is disabled, making a self-link impossible
+ * to choose rather than merely rejecting it after the fact.
  */
 function renderLinkOptions(
 	selectEl: HTMLSelectElement,
 	nodes: Node[],
-	selectedId: string,
-	excludedId: string,
+	selectedId: string | null,
+	excludedId: string | null,
 ): void {
-	d3.select(selectEl)
-		.selectAll("option")
+	const select = d3.select(selectEl);
+	select.selectAll("option").remove();
+	select
+		.append("option")
+		.attr("value", "")
+		.property("selected", selectedId === null)
+		.text("— select —");
+	select
+		.selectAll("option.node-option")
 		.data(nodes)
 		.join("option")
+		.attr("class", "node-option")
 		.attr("value", (n) => n.id)
 		.property("disabled", (n) => n.id === excludedId)
 		.property("selected", (n) => n.id === selectedId)
@@ -88,8 +99,6 @@ export function renderLinkEditor(state: State): void {
 		.attr("type", "button")
 		.attr("class", "add-link")
 		.attr("data-action", "add-link")
-		// A link needs two distinct nodes to default into.
-		.property("disabled", state.nodes.length < 2)
 		.text("Add link");
 }
 
@@ -143,10 +152,11 @@ export function setupLinkEditor(actions: LinkEditorActions, state: State): void 
 		if (target instanceof HTMLSelectElement) {
 			const { action, index } = target.dataset;
 			if (index === undefined) return;
+			// The placeholder's empty value maps back to a null endpoint.
 			if (action === "update-link-source") {
-				actions.updateLinkSource(Number(index), target.value);
+				actions.updateLinkSource(Number(index), target.value || null);
 			} else if (action === "update-link-target") {
-				actions.updateLinkTarget(Number(index), target.value);
+				actions.updateLinkTarget(Number(index), target.value || null);
 			}
 			return;
 		}

@@ -67,11 +67,12 @@ function isRawLink(value: unknown): value is Record<string, unknown> {
 
 /**
  * Shape-validates a hydrated localStorage payload, dropping individual
- * malformed rows rather than failing the whole hydration — a link referencing
- * a node id that no longer exists would crash d3-sankey layout and gets
- * dropped. A malformed value (legacy `null`, negative, zero, out of range,
- * non-number) is coerced to 1 rather than dropping the link, since the link's
- * topology is still meaningful and the user can retype the value.
+ * malformed rows rather than failing the whole hydration. An endpoint that
+ * isn't a string or references a node id that no longer exists is coerced to
+ * null (the link becomes incomplete and inert) rather than dropping the whole
+ * link — no data loss from typo'd or hand-edited storage. A malformed value
+ * (legacy `null`, negative, zero, out of range, non-number) is likewise
+ * coerced to 1 rather than dropping the link.
  */
 function normalizeState(parsed: unknown): State {
 	if (!isRawState(parsed)) return defaultState();
@@ -83,16 +84,18 @@ function normalizeState(parsed: unknown): State {
 	});
 
 	const nodeIds = new Set(nodes.map((n) => n.id));
-	const links: Link[] = parsed.links
-		.filter(isRawLink)
-		.filter((l) => nodeIds.has(l.source as string) && nodeIds.has(l.target as string))
-		.map((l) => ({
-			source: l.source as string,
-			target: l.target as string,
-			value: normalizeLinkValue(l.value),
-		}));
+	const links: Link[] = parsed.links.filter(isRawLink).map((l) => ({
+		source: normalizeEndpoint(l.source, nodeIds),
+		target: normalizeEndpoint(l.target, nodeIds),
+		value: normalizeLinkValue(l.value),
+	}));
 
 	return { nodes, links, settings: normalizeSettings(parsed.settings) };
+}
+
+/** A non-string or dangling endpoint becomes null; the link stays as an incomplete row. */
+function normalizeEndpoint(value: unknown, nodeIds: Set<string>): string | null {
+	return typeof value === "string" && nodeIds.has(value) ? value : null;
 }
 
 /** State never holds NaN now; anything out of (0, MAX_LINK_VALUE] falls back to 1. */

@@ -58,6 +58,66 @@
     });
   }
 
+  // src/state.ts
+  function isComplete(link) {
+    return link.source !== null && link.target !== null;
+  }
+  function defaultState() {
+    return {
+      nodes: [
+        { id: "n1", name: "Coal" },
+        { id: "n2", name: "Gas" },
+        { id: "n3", name: "Electricity" },
+        { id: "n4", name: "Homes" }
+      ],
+      links: [
+        { source: "n1", target: "n3", value: 10 },
+        { source: "n2", target: "n3", value: 6 },
+        { source: "n3", target: "n4", value: 14 }
+      ],
+      settings: {
+        palette: "observable10",
+        colorMode: "auto",
+        linkColor: "source-target",
+        alignment: "justify",
+        theme: "auto"
+      }
+    };
+  }
+  function nextNodeId(state2) {
+    const maxSuffix = state2.nodes.reduce((max, n) => {
+      const match = /^n(\d+)$/.exec(n.id);
+      return match ? Math.max(max, Number(match[1])) : max;
+    }, 0);
+    return `n${maxSuffix + 1}`;
+  }
+  function addNode(state2) {
+    const id = nextNodeId(state2);
+    state2.nodes.push({ id, name: `Node ${id.slice(1)}` });
+  }
+  function renameNode(state2, id, name) {
+    const node = state2.nodes.find((n) => n.id === id);
+    if (node) node.name = name;
+  }
+  function deleteNode(state2, id) {
+    state2.nodes = state2.nodes.filter((n) => n.id !== id);
+    state2.links = state2.links.filter((l) => l.source !== id && l.target !== id);
+  }
+  function updateNodeColor(state2, id, color) {
+    const node = state2.nodes.find((n) => n.id === id);
+    if (node) node.color = color;
+  }
+  function updateLink(state2, index, patch) {
+    const link = state2.links[index];
+    if (link) Object.assign(link, patch);
+  }
+  function addLink(state2) {
+    state2.links.push({ source: null, target: null, value: 1 });
+  }
+  function deleteLink(state2, index) {
+    state2.links.splice(index, 1);
+  }
+
   // src/validate.ts
   var MAX_LINK_VALUE = 1e15;
   var LINK_VALUE_RE = /^(\d+(\.\d*)?|\.\d+)$/;
@@ -86,6 +146,7 @@
   function validate(state2) {
     const nameById = new Map(state2.nodes.map((n) => [n.id, n.name]));
     for (const [index, link] of state2.links.entries()) {
+      if (!isComplete(link)) continue;
       if (link.source === link.target) {
         return {
           ok: false,
@@ -111,6 +172,7 @@
     }
     const adjacency = /* @__PURE__ */ new Map();
     for (const link of state2.links) {
+      if (!isComplete(link)) continue;
       if (!adjacency.has(link.source)) adjacency.set(link.source, []);
       adjacency.get(link.source)?.push(link.target);
     }
@@ -148,7 +210,10 @@
 
   // src/link-editor.ts
   function renderLinkOptions(selectEl, nodes, selectedId, excludedId) {
-    d3.select(selectEl).selectAll("option").data(nodes).join("option").attr("value", (n) => n.id).property("disabled", (n) => n.id === excludedId).property("selected", (n) => n.id === selectedId).text((n) => n.name);
+    const select = d3.select(selectEl);
+    select.selectAll("option").remove();
+    select.append("option").attr("value", "").property("selected", selectedId === null).text("\u2014 select \u2014");
+    select.selectAll("option.node-option").data(nodes).join("option").attr("class", "node-option").attr("value", (n) => n.id).property("disabled", (n) => n.id === excludedId).property("selected", (n) => n.id === selectedId).text((n) => n.name);
   }
   function renderLinkEditor(state2) {
     const root = d3.select("#link-editor");
@@ -163,7 +228,7 @@
     });
     row.append("input").attr("type", "text").attr("inputmode", "decimal").attr("class", "link-value").attr("data-action", "update-link-value").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Value for link ${i + 1}`).property("value", (d) => d.value);
     row.append("button").attr("type", "button").attr("class", "link-delete").attr("data-action", "delete-link").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Delete link ${i + 1}`).text("Delete");
-    root.append("button").attr("type", "button").attr("class", "add-link").attr("data-action", "add-link").property("disabled", state2.nodes.length < 2).text("Add link");
+    root.append("button").attr("type", "button").attr("class", "add-link").attr("data-action", "add-link").text("Add link");
   }
   function commitLinkValue(target, index, actions) {
     const parsed = parseLinkValue(target.value);
@@ -194,9 +259,9 @@
         const { action: action2, index: index2 } = target.dataset;
         if (index2 === void 0) return;
         if (action2 === "update-link-source") {
-          actions.updateLinkSource(Number(index2), target.value);
+          actions.updateLinkSource(Number(index2), target.value || null);
         } else if (action2 === "update-link-target") {
-          actions.updateLinkTarget(Number(index2), target.value);
+          actions.updateLinkTarget(Number(index2), target.value || null);
         }
         return;
       }
@@ -286,65 +351,6 @@
     });
   }
 
-  // src/state.ts
-  function defaultState() {
-    return {
-      nodes: [
-        { id: "n1", name: "Coal" },
-        { id: "n2", name: "Gas" },
-        { id: "n3", name: "Electricity" },
-        { id: "n4", name: "Homes" }
-      ],
-      links: [
-        { source: "n1", target: "n3", value: 10 },
-        { source: "n2", target: "n3", value: 6 },
-        { source: "n3", target: "n4", value: 14 }
-      ],
-      settings: {
-        palette: "observable10",
-        colorMode: "auto",
-        linkColor: "source-target",
-        alignment: "justify",
-        theme: "auto"
-      }
-    };
-  }
-  function nextNodeId(state2) {
-    const maxSuffix = state2.nodes.reduce((max, n) => {
-      const match = /^n(\d+)$/.exec(n.id);
-      return match ? Math.max(max, Number(match[1])) : max;
-    }, 0);
-    return `n${maxSuffix + 1}`;
-  }
-  function addNode(state2) {
-    const id = nextNodeId(state2);
-    state2.nodes.push({ id, name: `Node ${id.slice(1)}` });
-  }
-  function renameNode(state2, id, name) {
-    const node = state2.nodes.find((n) => n.id === id);
-    if (node) node.name = name;
-  }
-  function deleteNode(state2, id) {
-    state2.nodes = state2.nodes.filter((n) => n.id !== id);
-    state2.links = state2.links.filter((l) => l.source !== id && l.target !== id);
-  }
-  function updateNodeColor(state2, id, color) {
-    const node = state2.nodes.find((n) => n.id === id);
-    if (node) node.color = color;
-  }
-  function updateLink(state2, index, patch) {
-    const link = state2.links[index];
-    if (link) Object.assign(link, patch);
-  }
-  function addLink(state2) {
-    if (state2.nodes.length < 2) return;
-    const [source, target] = state2.nodes;
-    state2.links.push({ source: source.id, target: target.id, value: 1 });
-  }
-  function deleteLink(state2, index) {
-    state2.links.splice(index, 1);
-  }
-
   // src/persist.ts
   var STORAGE_KEY = "sankey-builder";
   var LINK_COLOR_MODES = /* @__PURE__ */ new Set([
@@ -399,12 +405,15 @@
       return node;
     });
     const nodeIds = new Set(nodes.map((n) => n.id));
-    const links = parsed.links.filter(isRawLink).filter((l) => nodeIds.has(l.source) && nodeIds.has(l.target)).map((l) => ({
-      source: l.source,
-      target: l.target,
+    const links = parsed.links.filter(isRawLink).map((l) => ({
+      source: normalizeEndpoint(l.source, nodeIds),
+      target: normalizeEndpoint(l.target, nodeIds),
       value: normalizeLinkValue(l.value)
     }));
     return { nodes, links, settings: normalizeSettings(parsed.settings) };
+  }
+  function normalizeEndpoint(value, nodeIds) {
+    return typeof value === "string" && nodeIds.has(value) ? value : null;
   }
   function normalizeLinkValue(value) {
     return typeof value === "number" && value > 0 && value <= MAX_LINK_VALUE ? value : 1;
@@ -443,8 +452,8 @@
     };
     return table[name] ?? d3.sankeyJustify;
   }
-  function layout(state2) {
-    const { nodes, links } = structuredClone({ nodes: state2.nodes, links: state2.links });
+  function layout(state2, sourceLinks) {
+    const { nodes, links } = structuredClone({ nodes: state2.nodes, links: sourceLinks });
     const graph = d3.sankey().nodeId((d) => d.id).nodeAlign(alignFn(state2.settings.alignment)).nodeWidth(15).nodePadding(10).extent([
       [1, 5],
       [DIAGRAM_WIDTH - 1, DIAGRAM_HEIGHT - 5]
@@ -461,8 +470,9 @@
     const container = d3.select("#diagram");
     container.html("");
     if (state2.nodes.length === 0) return;
-    if (state2.links.length === 0) return;
-    const { nodes, links } = layout(state2);
+    const completeLinks = state2.links.filter(isComplete);
+    if (completeLinks.length === 0) return;
+    const { nodes, links } = layout(state2, completeLinks);
     const svg = container.append("svg").attr("viewBox", `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
     const linkGroup = svg.append("g").attr("fill", "none").attr("stroke-opacity", 0.5).selectAll("g").data(links).join("g");
     if (state2.settings.linkColor === "source-target") {

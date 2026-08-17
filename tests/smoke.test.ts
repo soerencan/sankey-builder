@@ -232,6 +232,62 @@ describe("artifact smoke test", () => {
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 	});
 
+	it("Add link appends an unassigned row that stays inert until both endpoints are chosen", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
+		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
+
+		const addLinkButton = document.querySelector<HTMLButtonElement>('[data-action="add-link"]');
+		expect(addLinkButton).not.toBeNull();
+		addLinkButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		// New row appended with both endpoints on the placeholder; the diagram is
+		// unchanged because the row is incomplete.
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(4);
+		const source = () => document.querySelector<HTMLSelectElement>('.link-source[data-index="3"]');
+		const target = () => document.querySelector<HTMLSelectElement>('.link-target[data-index="3"]');
+		expect(source()?.value).toBe("");
+		expect(target()?.value).toBe("");
+		expect(source()?.querySelector('option[value=""]')?.textContent).toBe("— select —");
+		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
+
+		// The incomplete row is persisted end-to-end straight after the click.
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[3]).toEqual({
+			source: null,
+			target: null,
+			value: 1,
+		});
+
+		// Choosing a source alone leaves the link incomplete — still no new flow.
+		const chosenSource = source();
+		if (!chosenSource) throw new Error("unreachable");
+		chosenSource.value = "n1";
+		chosenSource.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
+
+		// Choosing the target completes the link — the flow appears and persists.
+		const chosenTarget = target();
+		if (!chosenTarget) throw new Error("unreachable");
+		chosenTarget.value = "n2";
+		chosenTarget.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(4);
+
+		const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(parsed.links[3]).toEqual({ source: "n1", target: "n2", value: 1 });
+
+		// Un-assigning the source ("" → null) makes the row incomplete again —
+		// the flow disappears and the null endpoint round-trips to storage.
+		const clearedSource = source();
+		if (!clearedSource) throw new Error("unreachable");
+		clearedSource.value = "";
+		clearedSource.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[3].source).toBeNull();
+	});
+
 	it("surfaces a storage notice on save failure and clears it once saves recover", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;

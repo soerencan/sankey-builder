@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { type State, addLink, addNode, defaultState, deleteNode, nextNodeId } from "../src/state";
+import {
+	type State,
+	addLink,
+	addNode,
+	defaultState,
+	deleteNode,
+	isComplete,
+	nextNodeId,
+} from "../src/state";
 
 describe("defaultState", () => {
 	it("returns the starting graph and settings", () => {
@@ -74,20 +82,30 @@ describe("deleteNode", () => {
 			{ source: "n2", target: "n3", value: 6 },
 		]);
 	});
+
+	it("prunes only links referencing the deleted id, leaving null endpoints untouched", () => {
+		const state: State = {
+			nodes: [
+				{ id: "n1", name: "A" },
+				{ id: "n2", name: "B" },
+			],
+			links: [
+				{ source: "n1", target: null, value: 1 },
+				{ source: "n2", target: null, value: 2 },
+				{ source: null, target: null, value: 3 },
+			],
+			settings: defaultState().settings,
+		};
+		deleteNode(state, "n1");
+		expect(state.links).toEqual([
+			{ source: "n2", target: null, value: 2 },
+			{ source: null, target: null, value: 3 },
+		]);
+	});
 });
 
 describe("addLink", () => {
-	it("no-ops when fewer than two nodes exist", () => {
-		const state: State = {
-			nodes: [{ id: "n1", name: "A" }],
-			links: [],
-			settings: defaultState().settings,
-		};
-		addLink(state);
-		expect(state.links).toEqual([]);
-	});
-
-	it("defaults to the first two distinct nodes and value 1", () => {
+	it("creates an unassigned null/null/value-1 link", () => {
 		const state: State = {
 			nodes: [
 				{ id: "n1", name: "A" },
@@ -97,6 +115,30 @@ describe("addLink", () => {
 			settings: defaultState().settings,
 		};
 		addLink(state);
-		expect(state.links).toEqual([{ source: "n1", target: "n2", value: 1 }]);
+		expect(state.links).toEqual([{ source: null, target: null, value: 1 }]);
+	});
+
+	it("works at any node count, including zero nodes", () => {
+		const state: State = { nodes: [], links: [], settings: defaultState().settings };
+		addLink(state);
+		expect(state.links).toEqual([{ source: null, target: null, value: 1 }]);
+	});
+});
+
+describe("isComplete", () => {
+	it("is true only when both endpoints are assigned", () => {
+		expect(isComplete({ source: "n1", target: "n2", value: 1 })).toBe(true);
+	});
+
+	it("is false when the source is null", () => {
+		expect(isComplete({ source: null, target: "n2", value: 1 })).toBe(false);
+	});
+
+	it("is false when the target is null", () => {
+		expect(isComplete({ source: "n1", target: null, value: 1 })).toBe(false);
+	});
+
+	it("is false when both endpoints are null", () => {
+		expect(isComplete({ source: null, target: null, value: 1 })).toBe(false);
 	});
 });

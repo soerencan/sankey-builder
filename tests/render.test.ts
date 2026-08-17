@@ -42,6 +42,38 @@ describe("renderDiagram", () => {
 		expect(diagram?.querySelector('path[stroke="url(#link-grad-0)"]')).not.toBeNull();
 	});
 
+	it("plots only complete links when the graph mixes complete and incomplete ones", () => {
+		const state = defaultState();
+		// One extra row the user hasn't finished assigning.
+		state.links.push({ source: "n1", target: null, value: 1 });
+		const nodeColor = createNodeColorResolver(state);
+
+		renderDiagram(state, nodeColor);
+
+		const diagram = document.getElementById("diagram");
+		expect(diagram?.querySelector("svg")).not.toBeNull();
+		// All 4 nodes still render; only the 3 complete links become paths.
+		expect(diagram?.querySelectorAll("rect")).toHaveLength(4);
+		expect(diagram?.querySelectorAll("path")).toHaveLength(3);
+	});
+
+	it("linkless guard: renders nothing when every link is incomplete", () => {
+		const state = defaultState();
+		state.links = [
+			{ source: "n1", target: null, value: 1 },
+			{ source: null, target: null, value: 1 },
+		];
+		const nodeColor = createNodeColorResolver(state);
+
+		const diagram = document.getElementById("diagram");
+		if (diagram) diagram.innerHTML = "<p>stale content</p>";
+
+		expect(() => renderDiagram(state, nodeColor)).not.toThrow();
+
+		expect(diagram?.innerHTML).toBe("");
+		expect(diagram?.querySelector("svg")).toBeNull();
+	});
+
 	it("empty-graph guard: clears the container and renders nothing for zero nodes", () => {
 		const state = defaultState();
 		state.nodes = [];

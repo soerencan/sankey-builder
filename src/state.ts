@@ -5,9 +5,19 @@ export interface Node {
 }
 
 export interface Link {
-	source: string;
-	target: string;
+	source: string | null;
+	target: string | null;
 	value: number;
+}
+
+/**
+ * A link is complete once both endpoints are assigned. Incomplete links are
+ * inert downstream — validate skips them and render filters them out — so an
+ * "Add link" click never draws a flow the user didn't choose. Persistence
+ * deliberately keeps them, so an in-progress row survives a reload.
+ */
+export function isComplete(link: Link): link is Link & { source: string; target: string } {
+	return link.source !== null && link.target !== null;
 }
 
 // Closed value sets straight from app.js: PALETTES' keys, colorMode's two
@@ -81,7 +91,8 @@ export function renameNode(state: State, id: string, name: string): void {
 export function deleteNode(state: State, id: string): void {
 	state.nodes = state.nodes.filter((n) => n.id !== id);
 	// Cascade-prune links referencing the node now: d3-sankey throws
-	// Error("missing: <id>") on a dangling reference during layout.
+	// Error("missing: <id>") on a dangling reference during layout. Null
+	// endpoints don't match `id`, so incomplete links are left intact.
 	state.links = state.links.filter((l) => l.source !== id && l.target !== id);
 }
 
@@ -96,14 +107,12 @@ export function updateLink(state: State, index: number, patch: Partial<Link>): v
 }
 
 /**
- * Defaults to the first two distinct nodes and value 1; no-ops when fewer
- * than two nodes exist (the Add-link button is disabled in that case too —
- * this is just a defensive backstop for the state mutation itself).
+ * Adds an unassigned link — both endpoints null, value 1. The user picks
+ * source and target from the row's dropdowns; until then the link is
+ * incomplete and inert, so this works at any node count (including zero).
  */
 export function addLink(state: State): void {
-	if (state.nodes.length < 2) return;
-	const [source, target] = state.nodes;
-	state.links.push({ source: source.id, target: target.id, value: 1 });
+	state.links.push({ source: null, target: null, value: 1 });
 }
 
 export function deleteLink(state: State, index: number): void {

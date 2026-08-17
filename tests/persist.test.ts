@@ -63,7 +63,7 @@ describe("loadState", () => {
 		expect(loadState()).toEqual(defaultState());
 	});
 
-	it("drops dangling links referencing a missing node id", () => {
+	it("coerces a dangling endpoint to null instead of dropping the link", () => {
 		const payload = {
 			nodes: [{ id: "n1", name: "A" }],
 			links: [
@@ -73,7 +73,40 @@ describe("loadState", () => {
 			settings: {},
 		};
 		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-		expect(loadState().links).toEqual([]);
+		expect(loadState().links).toEqual([
+			{ source: "n1", target: null, value: 1 },
+			{ source: null, target: "n1", value: 1 },
+		]);
+	});
+
+	it("coerces a non-string endpoint to null", () => {
+		const payload = {
+			nodes: [{ id: "n1", name: "A" }],
+			links: [{ source: "n1", target: 42, value: 1 }],
+			settings: {},
+		};
+		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
+		expect(loadState().links).toEqual([{ source: "n1", target: null, value: 1 }]);
+	});
+
+	it("round-trips null endpoints (an unassigned link)", () => {
+		const payload = {
+			nodes: [{ id: "n1", name: "A" }],
+			links: [{ source: null, target: null, value: 1 }],
+			settings: {},
+		};
+		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
+		expect(loadState().links).toEqual([{ source: null, target: null, value: 1 }]);
+	});
+
+	it("normalizes a bare {} raw link to a fully unassigned row", () => {
+		const payload = {
+			nodes: [{ id: "n1", name: "A" }],
+			links: [{}],
+			settings: {},
+		};
+		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
+		expect(loadState().links).toEqual([{ source: null, target: null, value: 1 }]);
 	});
 
 	it("drops individual malformed nodes rather than failing the whole hydration", () => {

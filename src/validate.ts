@@ -1,3 +1,4 @@
+import { isComplete } from "./state";
 import type { State } from "./state";
 
 // d3-sankey's relaxation passes multiply a y-coordinate (up to ~475) by a
@@ -69,6 +70,8 @@ export function validate(state: State): ValidationResult {
 	const nameById = new Map(state.nodes.map((n) => [n.id, n.name]));
 
 	for (const [index, link] of state.links.entries()) {
+		// Incomplete links (a null endpoint) are inert — never an error.
+		if (!isComplete(link)) continue;
 		if (link.source === link.target) {
 			// Safety net only — the link-editor selects already make a self-link
 			// impossible to choose.
@@ -100,6 +103,7 @@ export function validate(state: State): ValidationResult {
 
 	const adjacency = new Map<string, string[]>();
 	for (const link of state.links) {
+		if (!isComplete(link)) continue;
 		if (!adjacency.has(link.source)) adjacency.set(link.source, []);
 		adjacency.get(link.source)?.push(link.target);
 	}
