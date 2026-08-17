@@ -1,3 +1,4 @@
+import { setupRowReorder } from "./row-reorder";
 import type { Link, Node, State } from "./state";
 import { exceedsFractionDigits, parseLinkValue, truncateFractionDigits } from "./validate";
 
@@ -7,6 +8,7 @@ export interface LinkEditorActions {
 	updateLinkSource(index: number, id: string | null): void;
 	updateLinkTarget(index: number, id: string | null): void;
 	updateLinkValue(index: number, value: number): void;
+	moveLink(from: number, to: number): void;
 }
 
 /**
@@ -54,6 +56,14 @@ export function renderLinkEditor(state: State): void {
 		.data(state.links)
 		.join("div")
 		.attr("class", "link-row");
+
+	row
+		.append("button")
+		.attr("type", "button")
+		.attr("class", "drag-handle")
+		.attr("data-index", (_d, i) => i)
+		.attr("aria-label", (_d, i) => `Reorder link ${i + 1}`)
+		.text("⠿");
 
 	row
 		.append("select")
@@ -136,6 +146,14 @@ function commitLinkValue(
 export function setupLinkEditor(actions: LinkEditorActions, state: State): void {
 	const root = document.getElementById("link-editor");
 	if (!root) return;
+
+	setupRowReorder({
+		rootId: "link-editor",
+		rowClass: "link-row",
+		move: actions.moveLink,
+		// Links have no stable id — refocus the handle now at the new index.
+		refocusSelector: (_handle, to) => `.drag-handle[data-index="${to}"]`,
+	});
 
 	root.addEventListener("click", (event) => {
 		if (!(event.target instanceof HTMLElement)) return;

@@ -1,4 +1,5 @@
 import type { NodeColorResolver } from "./colors";
+import { setupRowReorder } from "./row-reorder";
 import type { Node, State } from "./state";
 
 export interface NodeEditorActions {
@@ -6,6 +7,7 @@ export interface NodeEditorActions {
 	deleteNode(id: string): void;
 	renameNode(id: string, name: string): void;
 	updateNodeColor(id: string, color: string): void;
+	moveNode(from: number, to: number): void;
 }
 
 /** Rebuilds #node-editor from state — same full-rebuild approach as the diagram. */
@@ -23,6 +25,15 @@ export function renderNodeEditor(state: State, nodeColor: NodeColorResolver): vo
 		.data(state.nodes, (d) => d.id)
 		.join("div")
 		.attr("class", `node-row${manual ? " manual" : ""}`);
+
+	row
+		.append("button")
+		.attr("type", "button")
+		.attr("class", "drag-handle")
+		.attr("data-index", (_d, i) => i)
+		.attr("data-id", (d) => d.id)
+		.attr("aria-label", (d) => `Reorder ${d.name}`)
+		.text("⠿");
 
 	row
 		.append("span")
@@ -74,6 +85,14 @@ export function setupNodeEditor(actions: NodeEditorActions): void {
 	const root = document.getElementById("node-editor");
 	if (!root) return;
 
+	setupRowReorder({
+		rootId: "node-editor",
+		rowClass: "node-row",
+		move: actions.moveNode,
+		// Refocus the same node's handle by its stable id after the rebuild.
+		refocusSelector: (handle) => `.drag-handle[data-id="${handle.dataset.id}"]`,
+	});
+
 	root.addEventListener("click", (event) => {
 		if (!(event.target instanceof HTMLElement)) return;
 		const { action, id } = event.target.dataset;
@@ -97,6 +116,8 @@ export function setupNodeEditor(actions: NodeEditorActions): void {
 			deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
 			const colorInput = row?.querySelector(".node-color");
 			colorInput?.setAttribute("aria-label", `Color for ${event.target.value}`);
+			const handle = row?.querySelector(".drag-handle");
+			handle?.setAttribute("aria-label", `Reorder ${event.target.value}`);
 		} else if (action === "update-node-color" && id !== undefined) {
 			actions.updateNodeColor(id, event.target.value);
 			// Update this row's swatch directly rather than rebuilding: a color

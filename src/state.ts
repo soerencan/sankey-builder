@@ -118,3 +118,27 @@ export function addLink(state: State): void {
 export function deleteLink(state: State, index: number): void {
 	state.links.splice(index, 1);
 }
+
+/**
+ * Splice-move: pull the item at `from` and reinsert it at `to`. Out-of-range
+ * indices clamp to the valid range; a no-op when the resolved indices match or
+ * the array has fewer than two items. Row order IS array order — everything
+ * downstream (editor rows, dropdown options, export, persistence) follows.
+ */
+function moveWithin<T>(items: T[], from: number, to: number): void {
+	if (items.length < 2) return;
+	const max = items.length - 1;
+	const src = Math.max(0, Math.min(from, max));
+	const dst = Math.max(0, Math.min(to, max));
+	if (src === dst) return;
+	const [moved] = items.splice(src, 1);
+	items.splice(dst, 0, moved);
+}
+
+export function moveNode(state: State, from: number, to: number): void {
+	moveWithin(state.nodes, from, to);
+}
+
+export function moveLink(state: State, from: number, to: number): void {
+	moveWithin(state.links, from, to);
+}

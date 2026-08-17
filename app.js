@@ -122,6 +122,21 @@
   function deleteLink(state2, index) {
     state2.links.splice(index, 1);
   }
+  function moveWithin(items, from, to) {
+    if (items.length < 2) return;
+    const max = items.length - 1;
+    const src = Math.max(0, Math.min(from, max));
+    const dst = Math.max(0, Math.min(to, max));
+    if (src === dst) return;
+    const [moved] = items.splice(src, 1);
+    items.splice(dst, 0, moved);
+  }
+  function moveNode(state2, from, to) {
+    moveWithin(state2.nodes, from, to);
+  }
+  function moveLink(state2, from, to) {
+    moveWithin(state2.links, from, to);
+  }
 
   // src/validate.ts
   var MAX_LINK_VALUE = 1e15;
@@ -422,6 +437,98 @@
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
+  // src/row-reorder.ts
+  function setupRowReorder(config) {
+    const root = document.getElementById(config.rootId);
+    if (!root) return;
+    const rowSelector = `.${config.rowClass}`;
+    let draggingIndex = null;
+    const rowOf = (target) => target instanceof Element ? target.closest(rowSelector) : null;
+    const rows = () => Array.from(root.querySelectorAll(rowSelector));
+    const clearIndicators = () => {
+      const marked = root.querySelectorAll(`${rowSelector}.drop-before, ${rowSelector}.drop-after`);
+      for (const el of Array.from(marked)) {
+        el.classList.remove("drop-before", "drop-after");
+      }
+    };
+    const disableDrag = () => {
+      const draggable = root.querySelectorAll(`${rowSelector}[draggable="true"]`);
+      for (const el of Array.from(draggable)) {
+        el.draggable = false;
+      }
+    };
+    root.addEventListener("mousedown", (event) => {
+      if (event.button !== 0) return;
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest(".drag-handle")) return;
+      const row = rowOf(target);
+      if (row) row.draggable = true;
+    });
+    window.addEventListener("mouseup", disableDrag);
+    root.addEventListener("dragstart", (event) => {
+      const row = rowOf(event.target);
+      if (!row?.draggable) return;
+      draggingIndex = rows().indexOf(row);
+      row.classList.add("dragging");
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(draggingIndex));
+      }
+    });
+    root.addEventListener("dragover", (event) => {
+      if (draggingIndex === null) return;
+      const row = rowOf(event.target);
+      if (!row) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      clearIndicators();
+      row.classList.add(isAfter(event, row) ? "drop-after" : "drop-before");
+    });
+    root.addEventListener("dragleave", (event) => {
+      rowOf(event.target)?.classList.remove("drop-before", "drop-after");
+    });
+    root.addEventListener("drop", (event) => {
+      if (draggingIndex === null) return;
+      const row = rowOf(event.target);
+      if (!row) return;
+      event.preventDefault();
+      const overIndex = rows().indexOf(row);
+      const gap = isAfter(event, row) ? overIndex + 1 : overIndex;
+      const from = draggingIndex;
+      const to = gap > from ? gap - 1 : gap;
+      clearIndicators();
+      draggingIndex = null;
+      config.move(from, to);
+    });
+    root.addEventListener("dragend", () => {
+      clearIndicators();
+      disableDrag();
+      for (const el of Array.from(root.querySelectorAll(`${rowSelector}.dragging`))) {
+        el.classList.remove("dragging");
+      }
+      draggingIndex = null;
+    });
+    root.addEventListener("keydown", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.classList.contains("drag-handle")) return;
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      const row = rowOf(target);
+      if (!row) return;
+      event.preventDefault();
+      const current = rows();
+      const from = current.indexOf(row);
+      const to = event.key === "ArrowUp" ? from - 1 : from + 1;
+      if (to < 0 || to >= current.length) return;
+      const selector = config.refocusSelector(target, to);
+      config.move(from, to);
+      root.querySelector(selector)?.focus();
+    });
+  }
+  function isAfter(event, row) {
+    const rect = row.getBoundingClientRect();
+    return event.clientY > rect.top + rect.height / 2;
+  }
+
   // src/link-editor.ts
   function renderLinkOptions(selectEl, nodes, selectedId, excludedId) {
     const select = d3.select(selectEl);
@@ -434,6 +541,7 @@
     root.html("");
     root.append("h2").attr("id", "link-editor-heading").text("Links");
     const row = root.append("div").attr("class", "link-rows").selectAll(".link-row").data(state2.links).join("div").attr("class", "link-row");
+    row.append("button").attr("type", "button").attr("class", "drag-handle").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Reorder link ${i + 1}`).text("\u283F");
     row.append("select").attr("class", "link-source").attr("data-action", "update-link-source").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Source for link ${i + 1}`).each(function(d) {
       renderLinkOptions(this, state2.nodes, d.source, d.target);
     });
@@ -458,6 +566,13 @@
   function setupLinkEditor(actions, state2) {
     const root = document.getElementById("link-editor");
     if (!root) return;
+    setupRowReorder({
+      rootId: "link-editor",
+      rowClass: "link-row",
+      move: actions.moveLink,
+      // Links have no stable id — refocus the handle now at the new index.
+      refocusSelector: (_handle, to) => `.drag-handle[data-index="${to}"]`
+    });
     root.addEventListener("click", (event) => {
       if (!(event.target instanceof HTMLElement)) return;
       const { action, index } = event.target.dataset;
@@ -526,6 +641,7 @@
     root.append("h2").attr("id", "node-editor-heading").text("Nodes");
     const manual = state2.settings.colorMode === "manual";
     const row = root.append("div").attr("class", "node-rows").selectAll(".node-row").data(state2.nodes, (d) => d.id).join("div").attr("class", `node-row${manual ? " manual" : ""}`);
+    row.append("button").attr("type", "button").attr("class", "drag-handle").attr("data-index", (_d, i) => i).attr("data-id", (d) => d.id).attr("aria-label", (d) => `Reorder ${d.name}`).text("\u283F");
     row.append("span").attr("class", "node-swatch").style("background-color", (d) => nodeColor(d));
     row.append("input").attr("type", "text").attr("class", "node-name").attr("data-action", "rename-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Name for ${d.name}`).property("value", (d) => d.name);
     if (manual) {
@@ -537,6 +653,13 @@
   function setupNodeEditor(actions) {
     const root = document.getElementById("node-editor");
     if (!root) return;
+    setupRowReorder({
+      rootId: "node-editor",
+      rowClass: "node-row",
+      move: actions.moveNode,
+      // Refocus the same node's handle by its stable id after the rebuild.
+      refocusSelector: (handle) => `.drag-handle[data-id="${handle.dataset.id}"]`
+    });
     root.addEventListener("click", (event) => {
       if (!(event.target instanceof HTMLElement)) return;
       const { action, id } = event.target.dataset;
@@ -557,6 +680,8 @@
         deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
         const colorInput = row?.querySelector(".node-color");
         colorInput?.setAttribute("aria-label", `Color for ${event.target.value}`);
+        const handle = row?.querySelector(".drag-handle");
+        handle?.setAttribute("aria-label", `Reorder ${event.target.value}`);
       } else if (action === "update-node-color" && id !== void 0) {
         actions.updateNodeColor(id, event.target.value);
         const swatch = event.target.closest(".node-row")?.querySelector(".node-swatch");
@@ -713,6 +838,10 @@
     updateNodeColor(id, color) {
       updateNodeColor(state, id, color);
       refresh({ rebuildNodes: false, rebuildLinks: false });
+    },
+    moveNode(from, to) {
+      moveNode(state, from, to);
+      refresh();
     }
   };
   var linkEditorActions = {
@@ -735,6 +864,10 @@
     updateLinkValue(index, value) {
       updateLink(state, index, { value });
       refresh({ rebuildNodes: false, rebuildLinks: false });
+    },
+    moveLink(from, to) {
+      moveLink(state, from, to);
+      refresh({ rebuildNodes: false });
     }
   };
   var ioActions = {

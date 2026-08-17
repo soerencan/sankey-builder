@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseImport, serializeState } from "../src/io";
-import { type State, defaultState } from "../src/state";
+import { type State, defaultState, moveLink, moveNode } from "../src/state";
 
 function sampleState(): State {
 	return {
@@ -53,6 +53,17 @@ describe("serializeState", () => {
 		expect(json).toContain('\n  "links"');
 		// Idempotent under a re-pretty-print at the same indent.
 		expect(json).toBe(JSON.stringify(JSON.parse(json), null, 2));
+	});
+
+	it("preserves array order after a reorder (row order is array order)", () => {
+		const state = defaultState();
+		moveNode(state, 0, 3);
+		moveLink(state, 0, 2);
+		const parsed = JSON.parse(serializeState(state));
+		expect(parsed.nodes.map((n: { id: string }) => n.id)).toEqual(state.nodes.map((n) => n.id));
+		expect(parsed.links.map((l: { value: number }) => l.value)).toEqual(
+			state.links.map((l) => l.value),
+		);
 	});
 });
 

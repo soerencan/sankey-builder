@@ -16,6 +16,8 @@ import {
 	addNode,
 	deleteLink,
 	deleteNode,
+	moveLink,
+	moveNode,
 	renameNode,
 	updateLink,
 	updateNodeColor,
@@ -108,6 +110,12 @@ const nodeEditorActions: NodeEditorActions = {
 		// change is visible live while dragging.
 		refresh({ rebuildNodes: false, rebuildLinks: false });
 	},
+	moveNode(from, to) {
+		moveNode(state, from, to);
+		// Node order drives the link dropdowns' option order, so rebuild both
+		// editors (same reason renameNode rebuilds the link editor).
+		refresh();
+	},
 };
 
 const linkEditorActions: LinkEditorActions = {
@@ -132,6 +140,11 @@ const linkEditorActions: LinkEditorActions = {
 		// Skip both editor rebuilds: the node editor is unaffected, and
 		// rebuilding the link editor here would steal focus mid-keystroke.
 		refresh({ rebuildNodes: false, rebuildLinks: false });
+	},
+	moveLink(from, to) {
+		moveLink(state, from, to);
+		// The node editor is unaffected by link order — rebuild only the links.
+		refresh({ rebuildNodes: false });
 	},
 };
 

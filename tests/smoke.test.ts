@@ -438,6 +438,172 @@ describe("artifact smoke test", () => {
 		expect(revokedUrl).toBe("blob:fake");
 	});
 
+	it("keyboard-reorders a node row: order, dropdowns, storage, and focus all follow", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const nodeNames = () =>
+			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
+				(i) => i.value,
+			);
+		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+
+		const handle = document.querySelector<HTMLButtonElement>(
+			'#node-editor .drag-handle[data-id="n1"]',
+		);
+		if (!handle) throw new Error("unreachable");
+		handle.focus();
+		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+		// Coal (n1) moved down one position.
+		expect(nodeNames()).toEqual(["Gas", "Coal", "Electricity", "Homes"]);
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n1", "n3", "n4"]);
+
+		// Link dropdown option order follows the new node order.
+		const firstSource = document.querySelector<HTMLSelectElement>("#link-editor .link-source");
+		const options = Array.from(firstSource?.querySelectorAll("option.node-option") ?? []).map(
+			(o) => o.textContent,
+		);
+		expect(options).toEqual(["Gas", "Coal", "Electricity", "Homes"]);
+
+		// Focus is back on the moved row's handle, now at index 1.
+		const moved = document.querySelector<HTMLButtonElement>(
+			'#node-editor .drag-handle[data-id="n1"]',
+		);
+		expect(document.activeElement).toBe(moved);
+		expect(moved?.getAttribute("data-index")).toBe("1");
+	});
+
+	it("keyboard-reorders a link row: order, storage, and focus all follow", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const linkValues = () =>
+			Array.from(document.querySelectorAll<HTMLInputElement>("#link-editor .link-value")).map(
+				(i) => i.value,
+			);
+		// Default links: n1->n3 (10), n2->n3 (6), n3->n4 (14).
+		expect(linkValues()).toEqual(["10", "6", "14"]);
+
+		const handle = document.querySelector<HTMLButtonElement>(
+			'#link-editor .drag-handle[data-index="0"]',
+		);
+		if (!handle) throw new Error("unreachable");
+		handle.focus();
+		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+		expect(linkValues()).toEqual(["6", "10", "14"]);
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([6, 10, 14]);
+
+		// Focus lands on the moved link's handle, now at index 1.
+		const moved = document.querySelector<HTMLButtonElement>(
+			'#link-editor .drag-handle[data-index="1"]',
+		);
+		expect(document.activeElement).toBe(moved);
+	});
+
+	it("mouse-drags a node row by its handle to reorder", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const nodeNames = () =>
+			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
+				(i) => i.value,
+			);
+		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+
+		const rows = () => Array.from(document.querySelectorAll<HTMLElement>("#node-editor .node-row"));
+		const handle = document.querySelector<HTMLButtonElement>(
+			'#node-editor .drag-handle[data-id="n1"]',
+		);
+		if (!handle) throw new Error("unreachable");
+
+		// mousedown on the handle arms dragging on its row; then run the DnD cycle.
+		handle.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+		const dataTransfer = new DataTransfer();
+		rows()[0].dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer }));
+		rows()[2].dispatchEvent(
+			new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer }),
+		);
+		rows()[2].dispatchEvent(
+			new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }),
+		);
+
+		// happy-dom reports clientY undefined and zero-size rects, so the drop
+		// inserts BEFORE the target row (index 2): Coal (n1) lands at index 1.
+		expect(nodeNames()).toEqual(["Gas", "Coal", "Electricity", "Homes"]);
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n1", "n3", "n4"]);
+	});
+
+	it("ignores a cross-box drag (node row onto a link row)", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const nodeNames = () =>
+			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
+				(i) => i.value,
+			);
+		const linkValues = () =>
+			Array.from(document.querySelectorAll<HTMLInputElement>("#link-editor .link-value")).map(
+				(i) => i.value,
+			);
+		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(linkValues()).toEqual(["10", "6", "14"]);
+
+		const handle = document.querySelector<HTMLButtonElement>(
+			'#node-editor .drag-handle[data-id="n1"]',
+		);
+		const nodeRow = document.querySelector<HTMLElement>("#node-editor .node-row");
+		const linkRow = document.querySelector<HTMLElement>("#link-editor .link-row");
+		if (!handle || !nodeRow || !linkRow) throw new Error("unreachable");
+
+		// Arm + start the drag in the node box, then drop over a LINK row.
+		handle.dispatchEvent(new MouseEvent("mousedown", { button: 0, bubbles: true }));
+		const dataTransfer = new DataTransfer();
+		nodeRow.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer }));
+		const overEvent = new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer });
+		linkRow.dispatchEvent(overEvent);
+		linkRow.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }));
+
+		// The link box never armed a drag, so it does nothing: orders unchanged
+		// and it didn't claim the dragover as a drop target.
+		expect(overEvent.defaultPrevented).toBe(false);
+		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(linkValues()).toEqual(["10", "6", "14"]);
+	});
+
+	it("boundary keyboard move is a no-op (ArrowUp on the first node row)", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const nodeNames = () =>
+			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
+				(i) => i.value,
+			);
+		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+
+		const handle = document.querySelector<HTMLButtonElement>(
+			'#node-editor .drag-handle[data-id="n1"]',
+		);
+		if (!handle) throw new Error("unreachable");
+		handle.focus();
+		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+
+		// Already at the top: order unchanged and focus stays put.
+		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(document.activeElement).toBe(handle);
+	});
+
 	it("surfaces a storage notice on save failure and clears it once saves recover", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;

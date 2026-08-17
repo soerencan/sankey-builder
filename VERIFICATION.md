@@ -31,6 +31,18 @@ cascades, dropdown propagation) is not — don't assume `make test` covers it.
 
 - [ ] Dragging the divider between the editor column and the diagram resizes the column smoothly within its 240–640px bounds and reflows the diagram live.
 
+## Row reordering (drag feel)
+
+The keyboard path (focus a handle, Arrow up/down) and the resulting state/DOM
+changes are automated; the pointer drag feel is not — verify it in a real
+browser.
+
+- [ ] Grab a node row by its ⠿ handle and drag: the cursor shows grab/grabbing, the dragged row dims, and an accent insertion line appears on the top or bottom edge of the row under the pointer depending on which half you're over.
+- [ ] Dropping reorders the row to match the indicator, and the diagram/dropdowns update to the new order.
+- [ ] Dragging a node row over the *link* box (or vice-versa) does nothing — no cross-box move, no stray indicator left behind.
+- [ ] Starting a drag from a non-handle part of the row (e.g. the name field or a dropdown) does NOT initiate a reorder — text selection and normal control behavior are unaffected.
+- [ ] Touch: dragging by the handle on a touchscreen is not expected to reorder (HTML5 DnD only) — confirm it degrades gracefully (no broken state) and that the keyboard path remains available.
+
 ## Link value paste truncation (cross-engine)
 
 The 4-decimal cap is enforced at `beforeinput`, which reads the pasted text
