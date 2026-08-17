@@ -80,10 +80,9 @@ body {
 }
 
 #io-notice {
-  padding: 0.75rem 1.5rem;
   color: color-mix(in srgb, var(--ink) 80%, transparent);
   font-size: 0.85rem;
-  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
 }
 
 #io-notice:empty {
@@ -367,9 +366,18 @@ select {
   margin-top: 0.5rem;
 }
 
-/* Export/Import share a row with no label — let the two buttons split it. */
-.io-row button {
-  flex: 1 1 auto;
+/*
+ * App-level Export/Import actions, standing apart from the settings boxes:
+ * the two buttons split the top row, and #io-notice spans beneath them.
+ */
+.io-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.io-actions #io-notice {
+  grid-column: 1 / -1;
 }
 
 .control-row label {
