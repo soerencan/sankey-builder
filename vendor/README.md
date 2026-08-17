@@ -13,5 +13,15 @@ managed by a package manager.
 `d3.sankeyLinkHorizontal`, `d3.sankeyLeft/Right/Center/Justify`), so both
 scripts must load in this order before `app.js`.
 
-To update: re-run the two `curl` commands above with the new version numbers
-and update this table.
+To update, fetch the new versions from the table's source URLs:
+
+```sh
+curl -o vendor/d3.min.js https://cdn.jsdelivr.net/npm/d3@<version>/dist/d3.min.js
+curl -o vendor/d3-sankey.min.js https://cdn.jsdelivr.net/npm/d3-sankey@<version>/dist/d3-sankey.min.js
+```
+
+Then update the version numbers in this table and in the License section of
+the project-root [README](../README.md), and refresh
+`LICENSE-d3` / `LICENSE-d3-sankey` from the packages'
+`LICENSE` files (e.g. `https://cdn.jsdelivr.net/npm/d3@<version>/LICENSE`) in
+case upstream terms changed.
