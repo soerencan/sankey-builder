@@ -74,6 +74,15 @@
     if (!(value > 0) || value > MAX_LINK_VALUE) return { kind: "invalid" };
     return { kind: "valid", value };
   }
+  function exceedsFractionDigits(raw) {
+    if (!LINK_VALUE_RE.test(raw)) return false;
+    const dot = raw.indexOf(".");
+    return dot !== -1 && raw.length - dot - 1 > MAX_FRACTION_DIGITS;
+  }
+  function truncateFractionDigits(raw) {
+    const dot = raw.indexOf(".");
+    return dot === -1 ? raw : raw.slice(0, dot + 1 + MAX_FRACTION_DIGITS);
+  }
   function validate(state2) {
     const nameById = new Map(state2.nodes.map((n) => [n.id, n.name]));
     for (const [index, link] of state2.links.entries()) {
@@ -156,6 +165,17 @@
     row.append("button").attr("type", "button").attr("class", "link-delete").attr("data-action", "delete-link").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Delete link ${i + 1}`).text("Delete");
     root.append("button").attr("type", "button").attr("class", "add-link").attr("data-action", "add-link").property("disabled", state2.nodes.length < 2).text("Add link");
   }
+  function commitLinkValue(target, index, actions) {
+    const parsed = parseLinkValue(target.value);
+    if (parsed.kind === "valid") {
+      target.removeAttribute("aria-invalid");
+      actions.updateLinkValue(index, parsed.value);
+    } else if (parsed.kind === "empty") {
+      target.removeAttribute("aria-invalid");
+    } else {
+      target.setAttribute("aria-invalid", "true");
+    }
+  }
   function setupLinkEditor(actions, state2) {
     const root = document.getElementById("link-editor");
     if (!root) return;
@@ -189,20 +209,34 @@
         target.removeAttribute("aria-invalid");
       }
     });
+    root.addEventListener("beforeinput", (event) => {
+      if (!(event instanceof InputEvent)) return;
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      const { action, index } = target.dataset;
+      if (action !== "update-link-value" || index === void 0) return;
+      if (event.data == null) return;
+      const start = target.selectionStart ?? target.value.length;
+      const end = target.selectionEnd ?? target.value.length;
+      const prospective = target.value.slice(0, start) + event.data + target.value.slice(end);
+      if (!exceedsFractionDigits(prospective)) return;
+      if (event.inputType === "insertText") {
+        event.preventDefault();
+      } else if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
+        event.preventDefault();
+        const trimmed = truncateFractionDigits(prospective);
+        target.value = trimmed;
+        const caret = Math.min(start + event.data.length, trimmed.length);
+        target.setSelectionRange(caret, caret);
+        commitLinkValue(target, Number(index), actions);
+      }
+    });
     root.addEventListener("input", (event) => {
       if (!(event.target instanceof HTMLInputElement)) return;
       const target = event.target;
       const { action, index } = target.dataset;
       if (action !== "update-link-value" || index === void 0) return;
-      const parsed = parseLinkValue(target.value);
-      if (parsed.kind === "valid") {
-        target.removeAttribute("aria-invalid");
-        actions.updateLinkValue(Number(index), parsed.value);
-      } else if (parsed.kind === "empty") {
-        target.removeAttribute("aria-invalid");
-      } else {
-        target.setAttribute("aria-invalid", "true");
-      }
+      commitLinkValue(target, Number(index), actions);
     });
   }
 

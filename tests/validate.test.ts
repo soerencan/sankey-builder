@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { State } from "../src/state";
 import { defaultState } from "../src/state";
-import { MAX_LINK_VALUE, parseLinkValue, validate } from "../src/validate";
+import {
+	MAX_LINK_VALUE,
+	exceedsFractionDigits,
+	parseLinkValue,
+	truncateFractionDigits,
+	validate,
+} from "../src/validate";
 
 describe("parseLinkValue", () => {
 	it("reports an empty string as empty", () => {
@@ -81,6 +87,38 @@ describe("parseLinkValue", () => {
 
 	it("rejects a value above the cap", () => {
 		expect(parseLinkValue("1000000000000001")).toEqual({ kind: "invalid" });
+	});
+});
+
+describe("exceedsFractionDigits", () => {
+	it("is true for a well-formed decimal with 5 fractional digits", () => {
+		expect(exceedsFractionDigits("1.23456")).toBe(true);
+	});
+
+	it("is false at exactly 4 fractional digits", () => {
+		expect(exceedsFractionDigits("1.2345")).toBe(false);
+	});
+
+	it("is false for a plain integer", () => {
+		expect(exceedsFractionDigits("12345")).toBe(false);
+	});
+
+	it("is false for a garbage string even when long", () => {
+		expect(exceedsFractionDigits("1.2.3456")).toBe(false);
+	});
+});
+
+describe("truncateFractionDigits", () => {
+	it("truncates (not rounds) to 4 fractional digits", () => {
+		expect(truncateFractionDigits("1.23456789")).toBe("1.2345");
+	});
+
+	it("leaves a value already within the cap untouched", () => {
+		expect(truncateFractionDigits("1.23")).toBe("1.23");
+	});
+
+	it("leaves a plain integer untouched", () => {
+		expect(truncateFractionDigits("100")).toBe("100");
 	});
 });
 

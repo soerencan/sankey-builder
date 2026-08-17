@@ -150,6 +150,88 @@ describe("artifact smoke test", () => {
 		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(20);
 	});
 
+	it("intercepts the 4-decimal cap at beforeinput (block keystroke, truncate paste)", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const valueInput = document.querySelector<HTMLInputElement>('.link-value[data-index="0"]');
+		if (!valueInput) throw new Error("unreachable");
+
+		// happy-dom does not run the native editing pipeline for beforeinput, so
+		// these assert defaultPrevented (+ programmatic effects the handler
+		// applies itself), never a value the browser would have inserted.
+		const beforeinput = (init: InputEventInit) => {
+			const ev = new InputEvent("beforeinput", { bubbles: true, cancelable: true, ...init });
+			valueInput.dispatchEvent(ev);
+			return ev;
+		};
+
+		// Typing a 5th fractional digit onto an at-cap value is blocked.
+		valueInput.value = "1.2345";
+		valueInput.setSelectionRange(6, 6);
+		expect(beforeinput({ inputType: "insertText", data: "6" }).defaultPrevented).toBe(true);
+		expect(valueInput.value).toBe("1.2345");
+
+		// Typing the 4th fractional digit stays under the cap and is allowed.
+		valueInput.value = "1.234";
+		valueInput.setSelectionRange(5, 5);
+		expect(beforeinput({ inputType: "insertText", data: "5" }).defaultPrevented).toBe(false);
+
+		// Deletions carry no data and are never intercepted, even from an
+		// over-precise legacy value.
+		valueInput.value = "1.23456";
+		valueInput.setSelectionRange(7, 7);
+		expect(beforeinput({ inputType: "deleteContentBackward", data: null }).defaultPrevented).toBe(
+			false,
+		);
+
+		// An over-precise paste is truncated (not rounded) to 4 fractional digits
+		// and committed straight to state/storage.
+		valueInput.value = "";
+		valueInput.setSelectionRange(0, 0);
+		expect(beforeinput({ inputType: "insertFromPaste", data: "1.23456789" }).defaultPrevented).toBe(
+			true,
+		);
+		expect(valueInput.value).toBe("1.2345");
+		// Caret lands at the end of the inserted region, clamped to the clip point.
+		expect(valueInput.selectionStart).toBe(6);
+		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(1.2345);
+
+		// A paste replacing a mid-string selection exercises the
+		// slice+data+slice splice non-degenerately, then truncates the
+		// over-precise spliced result.
+		valueInput.value = "12.3400";
+		valueInput.setSelectionRange(5, 7);
+		expect(beforeinput({ inputType: "insertFromPaste", data: "56789" }).defaultPrevented).toBe(
+			true,
+		);
+		expect(valueInput.value).toBe("12.3456");
+		expect(valueInput.selectionStart).toBe(7);
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(12.3456);
+
+		// A truncated paste that still lands invalid is highlighted, not silently
+		// dropped: the field shows the truncated text but state/storage stay put.
+		valueInput.value = "";
+		valueInput.setSelectionRange(0, 0);
+		expect(beforeinput({ inputType: "insertFromPaste", data: "0.00001" }).defaultPrevented).toBe(
+			true,
+		);
+		expect(valueInput.value).toBe("0.0000");
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(12.3456);
+
+		// A garbage paste is not intercepted — it falls through to the input
+		// handler's highlight path.
+		valueInput.value = "";
+		valueInput.setSelectionRange(0, 0);
+		expect(beforeinput({ inputType: "insertFromPaste", data: "abc" }).defaultPrevented).toBe(false);
+		valueInput.value = "abc";
+		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+	});
+
 	it("surfaces a storage notice on save failure and clears it once saves recover", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;

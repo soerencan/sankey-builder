@@ -44,6 +44,24 @@ export function parseLinkValue(raw: string): LinkValueParse {
 }
 
 /**
+ * True when `raw` is a well-formed plain decimal whose fractional part exceeds
+ * the 4-digit cap — the one invalid case the link editor intercepts at the
+ * keystroke (maxlength-style) instead of merely highlighting after the fact.
+ * Not trimmed: it inspects the raw prospective field value verbatim.
+ */
+export function exceedsFractionDigits(raw: string): boolean {
+	if (!LINK_VALUE_RE.test(raw)) return false;
+	const dot = raw.indexOf(".");
+	return dot !== -1 && raw.length - dot - 1 > MAX_FRACTION_DIGITS;
+}
+
+/** Truncates (never rounds) a decimal's fractional part to the 4-digit cap. */
+export function truncateFractionDigits(raw: string): string {
+	const dot = raw.indexOf(".");
+	return dot === -1 ? raw : raw.slice(0, dot + 1 + MAX_FRACTION_DIGITS);
+}
+
+/**
  * Pre-validates the graph so d3-sankey's failure modes (hard throws on
  * cycles/self-links, silent NaN geometry on bad values) never reach layout.
  */

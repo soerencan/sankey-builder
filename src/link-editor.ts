@@ -1,5 +1,5 @@
 import type { Link, Node, State } from "./state";
-import { parseLinkValue } from "./validate";
+import { exceedsFractionDigits, parseLinkValue, truncateFractionDigits } from "./validate";
 
 export interface LinkEditorActions {
 	addLink(): void;
@@ -94,6 +94,28 @@ export function renderLinkEditor(state: State): void {
 }
 
 /**
+ * Parse the current field text and reconcile state + the invalid marker.
+ * Shared by the `input` handler and the paste branch of `beforeinput`, which
+ * rewrites `value` programmatically (no native `input` event follows).
+ */
+function commitLinkValue(
+	target: HTMLInputElement,
+	index: number,
+	actions: LinkEditorActions,
+): void {
+	const parsed = parseLinkValue(target.value);
+	if (parsed.kind === "valid") {
+		target.removeAttribute("aria-invalid");
+		actions.updateLinkValue(index, parsed.value);
+	} else if (parsed.kind === "empty") {
+		// Mid-edit blank — leave state untouched rather than writing NaN.
+		target.removeAttribute("aria-invalid");
+	} else {
+		target.setAttribute("aria-invalid", "true");
+	}
+}
+
+/**
  * Delegated listeners on the link-editor root, mirroring setupNodeEditor.
  * Select changes do a full rebuild (focus loss on a <select> after
  * choosing a value is normal browser behavior); the value input follows
@@ -140,20 +162,44 @@ export function setupLinkEditor(actions: LinkEditorActions, state: State): void 
 		}
 	});
 
+	// Constrained-input interception for the 4-decimal cap: block a 5th
+	// fractional digit at the keystroke (maxlength-style) and truncate an
+	// over-precise paste, rather than routing them through the highlight path.
+	// Every other invalid case (0, garbage, over the 1e15 cap) still falls
+	// through to the `input` handler's aria-invalid marker.
+	root.addEventListener("beforeinput", (event) => {
+		if (!(event instanceof InputEvent)) return;
+		const target = event.target;
+		if (!(target instanceof HTMLInputElement)) return;
+		const { action, index } = target.dataset;
+		if (action !== "update-link-value" || index === undefined) return;
+
+		// Deletions carry no data and can only shrink the fractional part —
+		// never intercept them.
+		if (event.data == null) return;
+
+		const start = target.selectionStart ?? target.value.length;
+		const end = target.selectionEnd ?? target.value.length;
+		const prospective = target.value.slice(0, start) + event.data + target.value.slice(end);
+		if (!exceedsFractionDigits(prospective)) return;
+
+		if (event.inputType === "insertText") {
+			event.preventDefault();
+		} else if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
+			event.preventDefault();
+			const trimmed = truncateFractionDigits(prospective);
+			target.value = trimmed;
+			const caret = Math.min(start + event.data.length, trimmed.length);
+			target.setSelectionRange(caret, caret);
+			commitLinkValue(target, Number(index), actions);
+		}
+	});
+
 	root.addEventListener("input", (event) => {
 		if (!(event.target instanceof HTMLInputElement)) return;
 		const target = event.target;
 		const { action, index } = target.dataset;
 		if (action !== "update-link-value" || index === undefined) return;
-		const parsed = parseLinkValue(target.value);
-		if (parsed.kind === "valid") {
-			target.removeAttribute("aria-invalid");
-			actions.updateLinkValue(Number(index), parsed.value);
-		} else if (parsed.kind === "empty") {
-			// Mid-edit blank — leave state untouched rather than writing NaN.
-			target.removeAttribute("aria-invalid");
-		} else {
-			target.setAttribute("aria-invalid", "true");
-		}
+		commitLinkValue(target, Number(index), actions);
 	});
 }
