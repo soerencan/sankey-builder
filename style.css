@@ -415,3 +415,166 @@ select {
   width: 100%;
   height: auto;
 }
+
+/* ==========================================================================
+   Responsive layout (three tiers). The SVG keeps its fixed 960×480 viewBox
+   scaling — width-aware re-layout is a separate future concern.
+   ========================================================================== */
+
+/*
+ * Tier 1 — stack below 820px. Above it, the 240px column minimum plus the
+ * resizer, gaps, and 1.5rem padding still leave the diagram a sane width;
+ * below it, side-by-side would squeeze the diagram too far, so stack instead.
+ */
+@media (max-width: 820px) {
+  /* Keep focus from landing behind the sticky diagram: reserve just past its
+     45vh height so tabbing/scrolling to an editor control scrolls it clear. */
+  html {
+    scroll-padding-top: 46vh;
+  }
+
+  .app-layout {
+    flex-direction: column;
+    /* Stretch children to full width (the base align-items: start would leave
+       them at their own inline size when stacked). */
+    align-items: stretch;
+  }
+
+  /* Diagram on top, editor column below — reordered via `order`, no DOM change. */
+  #diagram {
+    order: -1;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    max-height: 45vh;
+    overflow: hidden;
+    /* Opaque so editor rows scrolling underneath don't show through the SVG's
+       letterbox margins. */
+    background: var(--surface);
+  }
+
+  /* Cap the SVG so it letterboxes (default preserveAspectRatio meet) inside the
+     capped box rather than growing the sticky header past 45vh. */
+  #diagram svg {
+    max-height: 45vh;
+  }
+
+  /* Override the base 480px empty-height: it wins over max-height, so a stacked
+     empty diagram (all links deleted) would otherwise be an opaque sticky block
+     covering most of a phone viewport. Collapse it to a small placeholder. */
+  #diagram:empty {
+    min-height: 6rem;
+  }
+
+  /* Meaningless when stacked; its pointer/keyboard logic is inert while hidden. */
+  .resizer {
+    display: none;
+  }
+
+  /* !important beats the inline width setupResizer() may have set, so the
+     stacked column fills the width instead of being pinned to a dragged px. */
+  .editor-column {
+    width: auto !important;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+/*
+ * Tier 2 — wrap cramped rows by the editor box's OWN width (container query,
+ * not viewport), so dragging the desktop column narrow wraps the same way a
+ * small screen does.
+ */
+.editor-column section {
+  container-type: inline-size;
+}
+
+/* Wrapping starts at 260px of box CONTENT width — a ~294px column (260 +
+   2rem padding + 2px border). So the 320px default stays single-line and the
+   240px column minimum wraps, as intended. Below the threshold the link row's
+   two selects can't share a line with value/delete/handle, so those drop to a
+   second line, handle kept leftmost for drag consistency. */
+@container (max-width: 260px) {
+  .link-row {
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-areas:
+      "source source source target target target"
+      "handle value  value  value  delete delete";
+    row-gap: 0.5rem;
+  }
+
+  .link-row .drag-handle {
+    grid-area: handle;
+    justify-self: start;
+  }
+
+  .link-source {
+    grid-area: source;
+  }
+
+  .link-target {
+    grid-area: target;
+  }
+
+  .link-value {
+    grid-area: value;
+    width: auto;
+  }
+
+  .link-delete {
+    grid-area: delete;
+  }
+
+  /* Manual color mode adds a color input; wrap color + delete to a second line
+     so the name field keeps a usable width. Non-manual node rows still fit. */
+  .node-row.manual {
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-areas:
+      "handle swatch name  name"
+      ".      .      color delete";
+  }
+
+  .node-row.manual .drag-handle {
+    grid-area: handle;
+  }
+
+  .node-row.manual .node-swatch {
+    grid-area: swatch;
+  }
+
+  .node-row.manual .node-name {
+    grid-area: name;
+  }
+
+  .node-row.manual .node-color {
+    grid-area: color;
+    justify-self: end;
+  }
+
+  .node-row.manual .node-delete {
+    grid-area: delete;
+  }
+}
+
+/* Tier 3 — coarse pointers (touch) get larger tap targets. */
+@media (pointer: coarse) {
+  button,
+  select,
+  input[type="text"] {
+    min-height: 44px;
+  }
+
+  .drag-handle {
+    min-width: 44px;
+  }
+
+  .node-color {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .node-rows,
+  .link-rows {
+    gap: 0.75rem;
+  }
+}
