@@ -438,11 +438,11 @@
   }
 
   // src/row-reorder.ts
+  var DRAG_THRESHOLD_PX = 4;
   function setupRowReorder(config) {
     const root = document.getElementById(config.rootId);
     if (!root) return;
     const rowSelector = `.${config.rowClass}`;
-    let draggingIndex = null;
     const rowOf = (target) => target instanceof Element ? target.closest(rowSelector) : null;
     const rows = () => Array.from(root.querySelectorAll(rowSelector));
     const clearIndicators = () => {
@@ -451,62 +451,94 @@
         el.classList.remove("drop-before", "drop-after");
       }
     };
-    const disableDrag = () => {
-      const draggable = root.querySelectorAll(`${rowSelector}[draggable="true"]`);
-      for (const el of Array.from(draggable)) {
-        el.draggable = false;
-      }
+    const isAfter = (clientY, row) => {
+      const rect = row.getBoundingClientRect();
+      return clientY > rect.top + rect.height / 2;
     };
-    root.addEventListener("mousedown", (event) => {
-      if (event.button !== 0) return;
-      const target = event.target;
-      if (!(target instanceof Element) || !target.closest(".drag-handle")) return;
-      const row = rowOf(target);
-      if (row) row.draggable = true;
-    });
-    window.addEventListener("mouseup", disableDrag);
-    root.addEventListener("dragstart", (event) => {
-      const row = rowOf(event.target);
-      if (!row?.draggable) return;
-      draggingIndex = rows().indexOf(row);
-      row.classList.add("dragging");
-      if (event.dataTransfer) {
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", String(draggingIndex));
+    const rowAtPoint = (clientX, clientY) => rowOf(document.elementFromPoint(clientX, clientY));
+    const releaseCapture = (d) => {
+      if (d.handle.hasPointerCapture(d.pointerId)) {
+        d.handle.releasePointerCapture(d.pointerId);
       }
-    });
-    root.addEventListener("dragover", (event) => {
-      if (draggingIndex === null) return;
-      const row = rowOf(event.target);
-      if (!row) return;
-      event.preventDefault();
-      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      d.row.classList.remove("dragging");
+    };
+    let armed = null;
+    let drag = null;
+    const cleanup = () => {
       clearIndicators();
-      row.classList.add(isAfter(event, row) ? "drop-after" : "drop-before");
-    });
-    root.addEventListener("dragleave", (event) => {
-      rowOf(event.target)?.classList.remove("drop-before", "drop-after");
-    });
-    root.addEventListener("drop", (event) => {
-      if (draggingIndex === null) return;
-      const row = rowOf(event.target);
-      if (!row) return;
-      event.preventDefault();
-      const overIndex = rows().indexOf(row);
-      const gap = isAfter(event, row) ? overIndex + 1 : overIndex;
-      const from = draggingIndex;
-      const to = gap > from ? gap - 1 : gap;
-      clearIndicators();
-      draggingIndex = null;
-      config.move(from, to);
-    });
-    root.addEventListener("dragend", () => {
-      clearIndicators();
-      disableDrag();
-      for (const el of Array.from(root.querySelectorAll(`${rowSelector}.dragging`))) {
-        el.classList.remove("dragging");
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.classList.remove("row-dragging");
+      armed = null;
+      drag = null;
+    };
+    function onPointerMove(event) {
+      if (!armed || event.pointerId !== armed.pointerId) return;
+      if (!drag) {
+        const dx = event.clientX - armed.startX;
+        const dy = event.clientY - armed.startY;
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+        const fromIndex = rows().indexOf(armed.row);
+        if (fromIndex === -1) {
+          cleanup();
+          return;
+        }
+        drag = { pointerId: armed.pointerId, handle: armed.handle, row: armed.row, fromIndex };
+        armed.handle.setPointerCapture(armed.pointerId);
+        drag.row.classList.add("dragging");
+        document.body.classList.add("row-dragging");
       }
-      draggingIndex = null;
+      const target = rowAtPoint(event.clientX, event.clientY);
+      clearIndicators();
+      if (target && target !== drag.row) {
+        target.classList.add(isAfter(event.clientY, target) ? "drop-after" : "drop-before");
+      }
+    }
+    function onPointerUp(event) {
+      if (!armed || event.pointerId !== armed.pointerId) return;
+      if (drag?.row.isConnected) {
+        const target = rowAtPoint(event.clientX, event.clientY);
+        if (target && target !== drag.row) {
+          const overIndex = rows().indexOf(target);
+          const gap = isAfter(event.clientY, target) ? overIndex + 1 : overIndex;
+          const from = drag.fromIndex;
+          const to = gap > from ? gap - 1 : gap;
+          if (to !== from) config.move(from, to);
+        }
+      }
+      if (drag) releaseCapture(drag);
+      cleanup();
+    }
+    function onPointerCancel(event) {
+      if (!armed || event.pointerId !== armed.pointerId) return;
+      if (drag) releaseCapture(drag);
+      cleanup();
+    }
+    function onKeyDown(event) {
+      if (event.key !== "Escape" || !drag) return;
+      releaseCapture(drag);
+      cleanup();
+    }
+    root.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (armed !== null || drag !== null) return;
+      const handle = event.target instanceof Element ? event.target.closest(".drag-handle") : null;
+      if (!handle) return;
+      const row = rowOf(handle);
+      if (!row) return;
+      armed = {
+        pointerId: event.pointerId,
+        handle,
+        row,
+        startX: event.clientX,
+        startY: event.clientY
+      };
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+      window.addEventListener("pointercancel", onPointerCancel);
+      window.addEventListener("keydown", onKeyDown);
     });
     root.addEventListener("keydown", (event) => {
       const target = event.target;
@@ -523,10 +555,6 @@
       config.move(from, to);
       root.querySelector(selector)?.focus();
     });
-  }
-  function isAfter(event, row) {
-    const rect = row.getBoundingClientRect();
-    return event.clientY > rect.top + rect.height / 2;
   }
 
   // src/link-editor.ts

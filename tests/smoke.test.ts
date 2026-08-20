@@ -508,7 +508,7 @@ describe("artifact smoke test", () => {
 		expect(document.activeElement).toBe(moved);
 	});
 
-	it("mouse-drags a node row by its handle to reorder", () => {
+	it("pointer-drags a node row by its handle to reorder", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;
 		globalEval(bundle);
@@ -525,22 +525,28 @@ describe("artifact smoke test", () => {
 		);
 		if (!handle) throw new Error("unreachable");
 
-		// mousedown on the handle arms dragging on its row; then run the DnD cycle.
-		handle.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-		const dataTransfer = new DataTransfer();
-		rows()[0].dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer }));
-		rows()[2].dispatchEvent(
-			new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer }),
-		);
-		rows()[2].dispatchEvent(
-			new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }),
-		);
+		// happy-dom's elementFromPoint is a stub that always returns null, so the
+		// pointer-position hit-test the implementation relies on is mocked here to
+		// stand in for real hit-testing.
+		const elementFromPoint = vi.spyOn(document, "elementFromPoint").mockReturnValue(rows()[2]);
 
-		// happy-dom reports clientY undefined and zero-size rects, so the drop
-		// inserts BEFORE the target row (index 2): Coal (n1) lands at index 1.
-		expect(nodeNames()).toEqual(["Gas", "Coal", "Electricity", "Homes"]);
+		handle.dispatchEvent(
+			new PointerEvent("pointerdown", { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }),
+		);
+		// Past the 4px move threshold, so this promotes the armed pointer to a drag.
+		window.dispatchEvent(
+			new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 10, bubbles: true }),
+		);
+		window.dispatchEvent(
+			new PointerEvent("pointerup", { pointerId: 1, clientX: 0, clientY: 10, bubbles: true }),
+		);
+		elementFromPoint.mockRestore();
+
+		// happy-dom reports zero-size rects, so any positive clientY reads as the
+		// lower half of the target row (index 2): Coal (n1) drops in right after it.
+		expect(nodeNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
 		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n1", "n3", "n4"]);
+		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n3", "n1", "n4"]);
 	});
 
 	it("ignores a cross-box drag (node row onto a link row)", () => {
@@ -562,23 +568,179 @@ describe("artifact smoke test", () => {
 		const handle = document.querySelector<HTMLButtonElement>(
 			'#node-editor .drag-handle[data-id="n1"]',
 		);
-		const nodeRow = document.querySelector<HTMLElement>("#node-editor .node-row");
 		const linkRow = document.querySelector<HTMLElement>("#link-editor .link-row");
-		if (!handle || !nodeRow || !linkRow) throw new Error("unreachable");
+		if (!handle || !linkRow) throw new Error("unreachable");
 
-		// Arm + start the drag in the node box, then drop over a LINK row.
-		handle.dispatchEvent(new MouseEvent("mousedown", { button: 0, bubbles: true }));
-		const dataTransfer = new DataTransfer();
-		nodeRow.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer }));
-		const overEvent = new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer });
-		linkRow.dispatchEvent(overEvent);
-		linkRow.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }));
+		// Arm + start the drag in the node box, then drop over a LINK row: the
+		// node box's rowSelector ("node-row") never matches it, so it's a no-op.
+		const elementFromPoint = vi.spyOn(document, "elementFromPoint").mockReturnValue(linkRow);
+		handle.dispatchEvent(
+			new PointerEvent("pointerdown", { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }),
+		);
+		window.dispatchEvent(
+			new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 10, bubbles: true }),
+		);
+		window.dispatchEvent(
+			new PointerEvent("pointerup", { pointerId: 1, clientX: 0, clientY: 10, bubbles: true }),
+		);
+		elementFromPoint.mockRestore();
 
-		// The link box never armed a drag, so it does nothing: orders unchanged
-		// and it didn't claim the dragover as a drop target.
-		expect(overEvent.defaultPrevented).toBe(false);
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 		expect(linkValues()).toEqual(["10", "6", "14"]);
+	});
+
+	it("a sub-threshold pointer tap does not reorder", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const nodeNames = () =>
+			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
+				(i) => i.value,
+			);
+		const handle = document.querySelector<HTMLButtonElement>(
+			'#node-editor .drag-handle[data-id="n1"]',
+		);
+		if (!handle) throw new Error("unreachable");
+
+		handle.dispatchEvent(
+			new PointerEvent("pointerdown", { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }),
+		);
+		// Under the 4px threshold: this is a tap, not a drag.
+		window.dispatchEvent(
+			new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 2, bubbles: true }),
+		);
+		window.dispatchEvent(
+			new PointerEvent("pointerup", { pointerId: 1, clientX: 0, clientY: 2, bubbles: true }),
+		);
+
+		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(handle.classList.contains("dragging")).toBe(false);
+		expect(document.body.classList.contains("row-dragging")).toBe(false);
+	});
+
+	it("pointercancel aborts a drag: no move, and drag classes are cleared", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const nodeNames = () =>
+			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
+				(i) => i.value,
+			);
+		const handle = document.querySelector<HTMLButtonElement>(
+			'#node-editor .drag-handle[data-id="n1"]',
+		);
+		const row = document.querySelector<HTMLElement>("#node-editor .node-row");
+		if (!handle || !row) throw new Error("unreachable");
+
+		handle.dispatchEvent(
+			new PointerEvent("pointerdown", { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }),
+		);
+		window.dispatchEvent(
+			new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 10, bubbles: true }),
+		);
+		expect(row.classList.contains("dragging")).toBe(true);
+		expect(document.body.classList.contains("row-dragging")).toBe(true);
+
+		window.dispatchEvent(new PointerEvent("pointercancel", { pointerId: 1, bubbles: true }));
+
+		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(row.classList.contains("dragging")).toBe(false);
+		expect(document.body.classList.contains("row-dragging")).toBe(false);
+	});
+
+	it("tears down the window pointer listeners once a drag completes", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const nodeNames = () =>
+			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
+				(i) => i.value,
+			);
+		const rows = () => Array.from(document.querySelectorAll<HTMLElement>("#node-editor .node-row"));
+		const handle = document.querySelector<HTMLButtonElement>(
+			'#node-editor .drag-handle[data-id="n1"]',
+		);
+		if (!handle) throw new Error("unreachable");
+
+		const elementFromPoint = vi.spyOn(document, "elementFromPoint").mockReturnValue(rows()[2]);
+		handle.dispatchEvent(
+			new PointerEvent("pointerdown", { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }),
+		);
+		window.dispatchEvent(
+			new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 10, bubbles: true }),
+		);
+		window.dispatchEvent(
+			new PointerEvent("pointerup", { pointerId: 1, clientX: 0, clientY: 10, bubbles: true }),
+		);
+		elementFromPoint.mockRestore();
+
+		expect(document.body.classList.contains("row-dragging")).toBe(false);
+		const namesAfterDrop = nodeNames();
+
+		// The pointerup handler removes the window listeners, so a stray move
+		// for the same (now-stale) pointer id is a no-op rather than resuming.
+		window.dispatchEvent(
+			new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 50, bubbles: true }),
+		);
+		expect(nodeNames()).toEqual(namesAfterDrop);
+		expect(
+			document.querySelectorAll(
+				"#node-editor .dragging, #node-editor .drop-before, #node-editor .drop-after",
+			).length,
+		).toBe(0);
+	});
+
+	it("a second pointerdown during an active drag is ignored (no multi-pointer hijack)", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const nodeNames = () =>
+			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
+				(i) => i.value,
+			);
+		const rows = () => Array.from(document.querySelectorAll<HTMLElement>("#node-editor .node-row"));
+		const handle1 = document.querySelector<HTMLButtonElement>(
+			'#node-editor .drag-handle[data-id="n1"]',
+		);
+		const handle2 = document.querySelector<HTMLButtonElement>(
+			'#node-editor .drag-handle[data-id="n2"]',
+		);
+		if (!handle1 || !handle2) throw new Error("unreachable");
+
+		const elementFromPoint = vi.spyOn(document, "elementFromPoint").mockReturnValue(rows()[2]);
+
+		// Pointer 1 starts and is promoted to an active drag on row 0 (n1).
+		handle1.dispatchEvent(
+			new PointerEvent("pointerdown", { pointerId: 1, clientX: 0, clientY: 0, bubbles: true }),
+		);
+		window.dispatchEvent(
+			new PointerEvent("pointermove", { pointerId: 1, clientX: 0, clientY: 10, bubbles: true }),
+		);
+
+		// A second finger lands on a different handle mid-drag: must be ignored
+		// rather than hijacking the armed/drag state.
+		handle2.dispatchEvent(
+			new PointerEvent("pointerdown", { pointerId: 2, clientX: 0, clientY: 0, bubbles: true }),
+		);
+		window.dispatchEvent(
+			new PointerEvent("pointermove", { pointerId: 2, clientX: 0, clientY: 50, bubbles: true }),
+		);
+		window.dispatchEvent(
+			new PointerEvent("pointerup", { pointerId: 2, clientX: 0, clientY: 50, bubbles: true }),
+		);
+		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+
+		// Pointer 1's own drag is unaffected and still completes normally.
+		window.dispatchEvent(
+			new PointerEvent("pointerup", { pointerId: 1, clientX: 0, clientY: 10, bubbles: true }),
+		);
+		elementFromPoint.mockRestore();
+
+		expect(nodeNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
 	});
 
 	it("boundary keyboard move is a no-op (ArrowUp on the first node row)", () => {

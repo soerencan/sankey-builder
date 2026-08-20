@@ -158,7 +158,8 @@ body {
 
 /* Suppresses selection-highlight flicker while dragging the divider across
    text-bearing siblings (labels, inputs). */
-body.resizing {
+body.resizing,
+body.row-dragging {
   user-select: none;
 }
 
@@ -328,6 +329,9 @@ select {
   font-size: 1rem;
   line-height: 1;
   cursor: grab;
+  /* Without this, touch browsers hijack a vertical drag on the handle for
+     page scrolling before pointermove ever sees it. */
+  touch-action: none;
 }
 
 .drag-handle:hover {
