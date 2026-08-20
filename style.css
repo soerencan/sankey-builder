@@ -492,6 +492,9 @@ select {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-2);
+  /* Opaque, not transparent: in the stacked mobile layout the diagram is
+     sticky and the editor rows scroll beneath it. */
+  background: var(--surface);
 }
 
 /* An unconditional min-height here would outlive the SVG's own rendered
