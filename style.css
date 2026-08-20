@@ -314,6 +314,19 @@ select {
   box-shadow: 0 0 0 2px var(--danger);
 }
 
+/* Paired with .link-value's aria-describedby. Spans the full row width below
+   the inputs regardless of the current column count, so it works unchanged
+   in both the default 5-column row and the narrow container-query wrap. */
+.field-error {
+  grid-column: 1 / -1;
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.field-error:empty {
+  display: none;
+}
+
 .link-delete {
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));

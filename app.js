@@ -163,6 +163,9 @@
     const dot = raw.indexOf(".");
     return dot === -1 ? raw : raw.slice(0, dot + 1 + MAX_FRACTION_DIGITS);
   }
+  function isPlainDecimalFormat(trimmed) {
+    return LINK_VALUE_RE.test(trimmed);
+  }
   function validate(state2) {
     const nameById = new Map(state2.nodes.map((n) => [n.id, n.name]));
     for (const [index, link] of state2.links.entries()) {
@@ -558,6 +561,17 @@
   }
 
   // src/link-editor.ts
+  function linkValueErrorId(index) {
+    return `link-value-error-${index}`;
+  }
+  function linkValueErrorMessage(raw) {
+    const trimmed = raw.trim();
+    if (exceedsFractionDigits(trimmed)) return "Enter a number with up to 4 decimal places.";
+    if (isPlainDecimalFormat(trimmed) && Number(trimmed) > MAX_LINK_VALUE) {
+      return `Enter a number no greater than ${MAX_LINK_VALUE}.`;
+    }
+    return "Enter a plain number greater than 0.";
+  }
   function renderLinkOptions(selectEl, nodes, selectedId, excludedId) {
     const select = d3.select(selectEl);
     select.selectAll("option").remove();
@@ -576,19 +590,27 @@
     row.append("select").attr("class", "link-target").attr("data-action", "update-link-target").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Target for link ${i + 1}`).each(function(d) {
       renderLinkOptions(this, state2.nodes, d.target, d.source);
     });
-    row.append("input").attr("type", "text").attr("inputmode", "decimal").attr("class", "link-value").attr("data-action", "update-link-value").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Value for link ${i + 1}`).property("value", (d) => d.value);
+    row.append("input").attr("type", "text").attr("inputmode", "decimal").attr("class", "link-value").attr("data-action", "update-link-value").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Value for link ${i + 1}`).attr("aria-describedby", (_d, i) => linkValueErrorId(i)).property("value", (d) => d.value);
     row.append("button").attr("type", "button").attr("class", "link-delete").attr("data-action", "delete-link").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Delete link ${i + 1}`).text("Delete");
+    row.append("span").attr("class", "field-error").attr("id", (_d, i) => linkValueErrorId(i));
     root.append("button").attr("type", "button").attr("class", "add-link").attr("data-action", "add-link").text("Add link");
+  }
+  function setLinkValueError(index, message) {
+    const el = document.getElementById(linkValueErrorId(index));
+    if (el) el.textContent = message;
   }
   function commitLinkValue(target, index, actions) {
     const parsed = parseLinkValue(target.value);
     if (parsed.kind === "valid") {
       target.removeAttribute("aria-invalid");
+      setLinkValueError(index, "");
       actions.updateLinkValue(index, parsed.value);
     } else if (parsed.kind === "empty") {
       target.removeAttribute("aria-invalid");
+      setLinkValueError(index, "");
     } else {
       target.setAttribute("aria-invalid", "true");
+      setLinkValueError(index, linkValueErrorMessage(target.value));
     }
   }
   function setupLinkEditor(actions, state2) {
@@ -629,6 +651,7 @@
       if (parsed.kind !== "valid") {
         target.value = String(state2.links[Number(index)].value);
         target.removeAttribute("aria-invalid");
+        setLinkValueError(Number(index), "");
       }
     });
     root.addEventListener("beforeinput", (event) => {

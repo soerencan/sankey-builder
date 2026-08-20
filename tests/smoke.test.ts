@@ -152,6 +152,64 @@ describe("artifact smoke test", () => {
 		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(20);
 	});
 
+	it("shows an inline, accessible error message for an invalid link value and clears it once valid", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const valueInput = document.querySelector<HTMLInputElement>('.link-value[data-index="0"]');
+		if (!valueInput) throw new Error("unreachable");
+
+		const describedbyId = valueInput.getAttribute("aria-describedby");
+		expect(describedbyId).toBeTruthy();
+		const errorEl = describedbyId ? document.getElementById(describedbyId) : null;
+		expect(errorEl).not.toBeNull();
+		if (!errorEl) throw new Error("unreachable");
+
+		// aria-describedby is wired up before any error occurs, and the paired
+		// element starts empty.
+		expect(errorEl.textContent).toBe("");
+
+		valueInput.value = "abc";
+		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
+
+		// Further invalid keystrokes keep the message (not cleared on every
+		// keypress, only when the value actually becomes valid or blank).
+		valueInput.value = "abcd";
+		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
+
+		// Becoming valid clears both the marker and the message.
+		valueInput.value = "20";
+		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
+		expect(errorEl.textContent).toBe("");
+
+		// Above the 1e15 cap gets its own message.
+		valueInput.value = "9999999999999999";
+		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(errorEl.textContent).toBe("Enter a number no greater than 1000000000000000.");
+
+		// Over 4 fractional digits, set directly (bypassing beforeinput's
+		// keystroke/paste interception), still reaches the message branch.
+		valueInput.value = "0.00001";
+		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
+
+		// Blur on an invalid value reverts the text to the last committed
+		// value and clears both the marker and the message.
+		valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(valueInput.value).toBe("20");
+		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
+		expect(errorEl.textContent).toBe("");
+	});
+
 	it("intercepts the 4-decimal cap at beforeinput (block keystroke, truncate paste)", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;

@@ -1,6 +1,12 @@
 import { setupRowReorder } from "./row-reorder";
 import type { Link, Node, State } from "./state";
-import { exceedsFractionDigits, parseLinkValue, truncateFractionDigits } from "./validate";
+import {
+	MAX_LINK_VALUE,
+	exceedsFractionDigits,
+	isPlainDecimalFormat,
+	parseLinkValue,
+	truncateFractionDigits,
+} from "./validate";
 
 export interface LinkEditorActions {
 	addLink(): void;
@@ -9,6 +15,30 @@ export interface LinkEditorActions {
 	updateLinkTarget(index: number, id: string | null): void;
 	updateLinkValue(index: number, value: number): void;
 	moveLink(from: number, to: number): void;
+}
+
+function linkValueErrorId(index: number): string {
+	return `link-value-error-${index}`;
+}
+
+/**
+ * Message for the "invalid" parseLinkValue branch, mirroring its actual
+ * rules (src/validate.ts) rather than a generic catch-all. The over-precision
+ * branch is reachable even though beforeinput blocks a 5th typed digit and
+ * truncates an over-precise paste: a whitespace-padded paste ("  0.00001")
+ * or an inputType beforeinput doesn't intercept (composition,
+ * insertReplacementText) can still land an over-precise value here. The
+ * max-value branch is gated on the plain-decimal format so "1e20" — rejected
+ * for its format, not its magnitude — doesn't get a message implying
+ * exponent notation would otherwise be accepted.
+ */
+function linkValueErrorMessage(raw: string): string {
+	const trimmed = raw.trim();
+	if (exceedsFractionDigits(trimmed)) return "Enter a number with up to 4 decimal places.";
+	if (isPlainDecimalFormat(trimmed) && Number(trimmed) > MAX_LINK_VALUE) {
+		return `Enter a number no greater than ${MAX_LINK_VALUE}.`;
+	}
+	return "Enter a plain number greater than 0.";
 }
 
 /**
@@ -93,6 +123,7 @@ export function renderLinkEditor(state: State): void {
 		.attr("data-action", "update-link-value")
 		.attr("data-index", (_d, i) => i)
 		.attr("aria-label", (_d, i) => `Value for link ${i + 1}`)
+		.attr("aria-describedby", (_d, i) => linkValueErrorId(i))
 		.property("value", (d) => d.value);
 
 	row
@@ -104,6 +135,20 @@ export function renderLinkEditor(state: State): void {
 		.attr("aria-label", (_d, i) => `Delete link ${i + 1}`)
 		.text("Delete");
 
+	// Appended last (after all 5 row-1 cells) so it lands in a fresh implicit
+	// row under sparse auto-placement — appending it earlier left row 1 short
+	// a cell, which pushed Delete onto its own row 3 the moment an error
+	// showed. Always present (empty when valid) so aria-describedby has a
+	// stable target — no attribute toggling needed, just text content. Empty
+	// is visually hidden via CSS (:empty), same pattern as the top-level
+	// #error banner. No aria-live: validation runs on every keystroke, and a
+	// live region would announce mid-typing on each one — the description is
+	// still reachable via aria-describedby whenever the field has focus.
+	row
+		.append("span")
+		.attr("class", "field-error")
+		.attr("id", (_d, i) => linkValueErrorId(i));
+
 	root
 		.append("button")
 		.attr("type", "button")
@@ -112,10 +157,19 @@ export function renderLinkEditor(state: State): void {
 		.text("Add link");
 }
 
+/** Sets (or clears, for "") the text of the field's paired error element. */
+function setLinkValueError(index: number, message: string): void {
+	const el = document.getElementById(linkValueErrorId(index));
+	if (el) el.textContent = message;
+}
+
 /**
- * Parse the current field text and reconcile state + the invalid marker.
- * Shared by the `input` handler and the paste branch of `beforeinput`, which
- * rewrites `value` programmatically (no native `input` event follows).
+ * Parse the current field text and reconcile state + the invalid marker +
+ * its paired error message. Shared by the `input` handler and the paste
+ * branch of `beforeinput`, which rewrites `value` programmatically (no
+ * native `input` event follows). Re-run on every keystroke, so the message
+ * persists across further invalid edits and clears the moment the value
+ * becomes valid (or blank) again — never cleared unconditionally.
  */
 function commitLinkValue(
 	target: HTMLInputElement,
@@ -125,12 +179,15 @@ function commitLinkValue(
 	const parsed = parseLinkValue(target.value);
 	if (parsed.kind === "valid") {
 		target.removeAttribute("aria-invalid");
+		setLinkValueError(index, "");
 		actions.updateLinkValue(index, parsed.value);
 	} else if (parsed.kind === "empty") {
 		// Mid-edit blank — leave state untouched rather than writing NaN.
 		target.removeAttribute("aria-invalid");
+		setLinkValueError(index, "");
 	} else {
 		target.setAttribute("aria-invalid", "true");
+		setLinkValueError(index, linkValueErrorMessage(target.value));
 	}
 }
 
@@ -187,6 +244,7 @@ export function setupLinkEditor(actions: LinkEditorActions, state: State): void 
 		if (parsed.kind !== "valid") {
 			target.value = String(state.links[Number(index)].value);
 			target.removeAttribute("aria-invalid");
+			setLinkValueError(Number(index), "");
 		}
 	});
 

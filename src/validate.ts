@@ -63,6 +63,16 @@ export function truncateFractionDigits(raw: string): string {
 }
 
 /**
+ * True when `trimmed` matches the same plain-decimal format parseLinkValue
+ * requires (no sign, exponent, comma, or inner whitespace). Exposed so
+ * callers can tell "not a plain number at all" (e.g. "1e5", "+5") apart from
+ * "a plain number, just out of range" without duplicating the regex.
+ */
+export function isPlainDecimalFormat(trimmed: string): boolean {
+	return LINK_VALUE_RE.test(trimmed);
+}
+
+/**
  * Pre-validates the graph so d3-sankey's failure modes (hard throws on
  * cycles/self-links, silent NaN geometry on bad values) never reach layout.
  */
