@@ -13,15 +13,19 @@ managed by a package manager.
 `d3.sankeyLinkHorizontal`, `d3.sankeyLeft/Right/Center/Justify`), so both
 scripts must load in this order before `app.js`.
 
+`open-props.min.css` is standalone CSS (design tokens only); `index.html`
+links it before `style.css`, which consumes its custom properties.
+
 To update, fetch the new versions from the table's source URLs:
 
 ```sh
 curl -o vendor/d3.min.js https://cdn.jsdelivr.net/npm/d3@<version>/dist/d3.min.js
 curl -o vendor/d3-sankey.min.js https://cdn.jsdelivr.net/npm/d3-sankey@<version>/dist/d3-sankey.min.js
+curl -o vendor/open-props.min.css https://unpkg.com/open-props@<version>/open-props.min.css
 ```
 
 Then update the version numbers in this table and in the License section of
 the project-root [README](../README.md), and refresh
-`LICENSE-d3` / `LICENSE-d3-sankey` from the packages'
+`LICENSE-d3` / `LICENSE-d3-sankey` / `LICENSE-open-props` from the packages'
 `LICENSE` files (e.g. `https://cdn.jsdelivr.net/npm/d3@<version>/LICENSE`) in
 case upstream terms changed.
