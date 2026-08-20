@@ -55,12 +55,16 @@ function renderLinkOptions(
 	selectedId: string | null,
 	excludedId: string | null,
 ): void {
+	// selected/disabled as attributes, not properties: Sortable's drag ghost is
+	// built via cloneNode, which copies attributes only — property-only state
+	// would reset the ghost's selects to the placeholder mid-drag. Safe because
+	// every committed change rebuilds these options from state.
 	const select = d3.select(selectEl);
 	select.selectAll("option").remove();
 	select
 		.append("option")
 		.attr("value", "")
-		.property("selected", selectedId === null)
+		.attr("selected", selectedId === null ? "" : null)
 		.text("— select —");
 	select
 		.selectAll("option.node-option")
@@ -68,8 +72,8 @@ function renderLinkOptions(
 		.join("option")
 		.attr("class", "node-option")
 		.attr("value", (n) => n.id)
-		.property("disabled", (n) => n.id === excludedId)
-		.property("selected", (n) => n.id === selectedId)
+		.attr("disabled", (n) => (n.id === excludedId ? "" : null))
+		.attr("selected", (n) => (n.id === selectedId ? "" : null))
 		.text((n) => n.name);
 }
 
@@ -129,7 +133,7 @@ export function renderLinkEditor(state: State, moveLink: (from: number, to: numb
 		.attr("data-index", (_d, i) => i)
 		.attr("aria-label", (_d, i) => `Value for link ${i + 1}`)
 		.attr("aria-describedby", (_d, i) => linkValueErrorId(i))
-		.property("value", (d) => d.value);
+		.attr("value", (d) => d.value);
 
 	row
 		.append("button")
@@ -190,6 +194,9 @@ function commitLinkValue(
 	index: number,
 	actions: LinkEditorActions,
 ): void {
+	// Value edits skip the row rebuild (focus preservation), so mirror the live
+	// value into the attribute — Sortable's cloneNode ghost reads only that.
+	target.setAttribute("value", target.value);
 	const parsed = parseLinkValue(target.value);
 	if (parsed.kind === "valid") {
 		target.removeAttribute("aria-invalid");

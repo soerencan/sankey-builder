@@ -691,6 +691,41 @@ describe("artifact smoke test", () => {
 		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([6, 10, 14]);
 	});
 
+	it("a cloned row keeps its select/input values (Sortable's drag ghost is a cloneNode)", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		// Sortable builds the floating drag ghost via cloneNode, which copies
+		// attributes but not live properties — selection/value state must
+		// therefore live in attributes or the ghost degrades to placeholders.
+		const linkRow = document.querySelector<HTMLElement>("#link-editor .link-row");
+		const nodeRow = document.querySelector<HTMLElement>("#node-editor .node-row");
+		if (!linkRow || !nodeRow) throw new Error("unreachable");
+		const source = linkRow.querySelector<HTMLSelectElement>(".link-source");
+		const target = linkRow.querySelector<HTMLSelectElement>(".link-target");
+		const value = linkRow.querySelector<HTMLInputElement>(".link-value");
+		if (!source || !target || !value) throw new Error("unreachable");
+		expect(source.value).not.toBe("");
+
+		const linkClone = linkRow.cloneNode(true) as HTMLElement;
+		expect(linkClone.querySelector<HTMLSelectElement>(".link-source")?.value).toBe(source.value);
+		expect(linkClone.querySelector<HTMLSelectElement>(".link-target")?.value).toBe(target.value);
+		expect(linkClone.querySelector<HTMLInputElement>(".link-value")?.value).toBe(value.value);
+
+		const nodeClone = nodeRow.cloneNode(true) as HTMLElement;
+		expect(nodeClone.querySelector<HTMLInputElement>(".node-name")?.value).toBe(
+			nodeRow.querySelector<HTMLInputElement>(".node-name")?.value,
+		);
+
+		// Value edits skip the row rebuild (focus preservation), so the attribute
+		// mirror in commitLinkValue must keep later clones truthful too.
+		value.value = "42";
+		value.dispatchEvent(new Event("input", { bubbles: true }));
+		const cloneAfterEdit = linkRow.cloneNode(true) as HTMLElement;
+		expect(cloneAfterEdit.querySelector<HTMLInputElement>(".link-value")?.value).toBe("42");
+	});
+
 	it("the onEnd no-op guard: a same-index or indexless event moves nothing", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;

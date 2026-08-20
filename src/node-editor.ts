@@ -56,7 +56,9 @@ export function renderNodeEditor(
 		.attr("data-action", "rename-node")
 		.attr("data-id", (d) => d.id)
 		.attr("aria-label", (d) => `Name for ${d.name}`)
-		.property("value", (d) => d.name);
+		// As an attribute so Sortable's cloneNode drag ghost inherits it —
+		// clones don't copy the live value property.
+		.attr("value", (d) => d.name);
 
 	if (manual) {
 		row
@@ -66,7 +68,7 @@ export function renderNodeEditor(
 			.attr("data-action", "update-node-color")
 			.attr("data-id", (d) => d.id)
 			.attr("aria-label", (d) => `Color for ${d.name}`)
-			.property("value", (d) => d.color ?? nodeColor(d));
+			.attr("value", (d) => d.color ?? nodeColor(d));
 	}
 
 	row
@@ -128,6 +130,8 @@ export function setupNodeEditor(actions: NodeEditorActions): void {
 			actions.renameNode(id, event.target.value);
 			// Keep the row's name-derived aria-labels in sync without touching
 			// the input itself, since a full rebuild here would steal focus/caret.
+			// The value attribute too: Sortable's cloneNode ghost reads only that.
+			event.target.setAttribute("value", event.target.value);
 			event.target.setAttribute("aria-label", `Name for ${event.target.value}`);
 			const row = event.target.closest(".node-row");
 			const deleteButton = row?.querySelector(".node-delete");
@@ -138,6 +142,7 @@ export function setupNodeEditor(actions: NodeEditorActions): void {
 			handle?.setAttribute("aria-label", `Reorder ${event.target.value}`);
 		} else if (action === "update-node-color" && id !== undefined) {
 			actions.updateNodeColor(id, event.target.value);
+			event.target.setAttribute("value", event.target.value);
 			// Update this row's swatch directly rather than rebuilding: a color
 			// picker fires many 'input' events while dragging, and a rebuild
 			// mid-drag would tear down the input the user is actively using.

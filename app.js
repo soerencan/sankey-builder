@@ -509,8 +509,8 @@
   function renderLinkOptions(selectEl, nodes, selectedId, excludedId) {
     const select = d3.select(selectEl);
     select.selectAll("option").remove();
-    select.append("option").attr("value", "").property("selected", selectedId === null).text("\u2014 select \u2014");
-    select.selectAll("option.node-option").data(nodes).join("option").attr("class", "node-option").attr("value", (n) => n.id).property("disabled", (n) => n.id === excludedId).property("selected", (n) => n.id === selectedId).text((n) => n.name);
+    select.append("option").attr("value", "").attr("selected", selectedId === null ? "" : null).text("\u2014 select \u2014");
+    select.selectAll("option.node-option").data(nodes).join("option").attr("class", "node-option").attr("value", (n) => n.id).attr("disabled", (n) => n.id === excludedId ? "" : null).attr("selected", (n) => n.id === selectedId ? "" : null).text((n) => n.name);
   }
   var rowSortable = null;
   function renderLinkEditor(state2, moveLink2) {
@@ -526,7 +526,7 @@
     row.append("select").attr("class", "link-target").attr("data-action", "update-link-target").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Target for link ${i + 1}`).each(function(d) {
       renderLinkOptions(this, state2.nodes, d.target, d.source);
     });
-    row.append("input").attr("type", "text").attr("inputmode", "decimal").attr("class", "link-value").attr("data-action", "update-link-value").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Value for link ${i + 1}`).attr("aria-describedby", (_d, i) => linkValueErrorId(i)).property("value", (d) => d.value);
+    row.append("input").attr("type", "text").attr("inputmode", "decimal").attr("class", "link-value").attr("data-action", "update-link-value").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Value for link ${i + 1}`).attr("aria-describedby", (_d, i) => linkValueErrorId(i)).attr("value", (d) => d.value);
     row.append("button").attr("type", "button").attr("class", "link-delete").attr("data-action", "delete-link").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Delete link ${i + 1}`).text("Delete");
     row.append("span").attr("class", "field-error").attr("id", (_d, i) => linkValueErrorId(i));
     root.append("button").attr("type", "button").attr("class", "add-link").attr("data-action", "add-link").text("Add link");
@@ -544,6 +544,7 @@
     if (el) el.textContent = message;
   }
   function commitLinkValue(target, index, actions) {
+    target.setAttribute("value", target.value);
     const parsed = parseLinkValue(target.value);
     if (parsed.kind === "valid") {
       target.removeAttribute("aria-invalid");
@@ -640,9 +641,9 @@
     const row = rowsContainer.selectAll(".node-row").data(state2.nodes, (d) => d.id).join("div").attr("class", `node-row${manual ? " manual" : ""}`);
     row.append("button").attr("type", "button").attr("class", "drag-handle").attr("data-index", (_d, i) => i).attr("data-id", (d) => d.id).attr("aria-label", (d) => `Reorder ${d.name}`).text("\u283F");
     row.append("span").attr("class", "node-swatch").style("background-color", (d) => nodeColor(d));
-    row.append("input").attr("type", "text").attr("class", "node-name").attr("data-action", "rename-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Name for ${d.name}`).property("value", (d) => d.name);
+    row.append("input").attr("type", "text").attr("class", "node-name").attr("data-action", "rename-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Name for ${d.name}`).attr("value", (d) => d.name);
     if (manual) {
-      row.append("input").attr("type", "color").attr("class", "node-color").attr("data-action", "update-node-color").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Color for ${d.name}`).property("value", (d) => d.color ?? nodeColor(d));
+      row.append("input").attr("type", "color").attr("class", "node-color").attr("data-action", "update-node-color").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Color for ${d.name}`).attr("value", (d) => d.color ?? nodeColor(d));
     }
     row.append("button").attr("type", "button").attr("class", "node-delete").attr("data-action", "delete-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Delete ${d.name}`).text("Delete");
     root.append("button").attr("type", "button").attr("class", "add-node").attr("data-action", "add-node").text("Add node");
@@ -679,6 +680,7 @@
       const { action, id } = event.target.dataset;
       if (action === "rename-node" && id !== void 0) {
         actions.renameNode(id, event.target.value);
+        event.target.setAttribute("value", event.target.value);
         event.target.setAttribute("aria-label", `Name for ${event.target.value}`);
         const row = event.target.closest(".node-row");
         const deleteButton = row?.querySelector(".node-delete");
@@ -689,6 +691,7 @@
         handle?.setAttribute("aria-label", `Reorder ${event.target.value}`);
       } else if (action === "update-node-color" && id !== void 0) {
         actions.updateNodeColor(id, event.target.value);
+        event.target.setAttribute("value", event.target.value);
         const swatch = event.target.closest(".node-row")?.querySelector(".node-swatch");
         if (swatch) swatch.style.backgroundColor = event.target.value;
       }
