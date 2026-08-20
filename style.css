@@ -1,36 +1,44 @@
+/* Token layer, remapped onto Open Props (vendor/open-props.min.css, linked
+   before this file). Convention: each app token keeps its existing name —
+   --surface/--ink/--border/--accent/--danger — but its value becomes an OP
+   gray/indigo/red step instead of a hand-picked hex, so the ~500 lines below
+   that already consume these names via var() need no changes. --border stays
+   a color-mix() off --ink rather than its own OP step, since that formula
+   already tracks whatever --ink resolves to. */
 :root {
   color-scheme: light dark;
 
-  --surface: #fcfcfb;
-  --ink: #0b0b0b;
+  --surface: var(--gray-0);
+  --ink: var(--gray-11);
   --border: color-mix(in srgb, var(--ink) 10%, transparent);
-  --accent: #2f6fed;
-  --danger: #c0392b;
+  --accent: var(--indigo-7);
+  --danger: var(--red-9);
 }
 
 /* :not([data-theme="light"]) lets an explicit light override win even when
    the OS prefers dark; the plain [data-theme="dark"] rule below (outside
    any media query) does the same for the opposite case. Accent/danger get
-   lighter variants here rather than reusing the light-mode hex — the
-   originals fall to ~3.2:1 and ~3.8:1 against #1a1a19, short of the ~4.5:1
-   AA text threshold that --danger in particular needs (#error, delete
-   buttons render it as text, not just a border). */
+   lighter OP steps here rather than reusing the light-mode indigo-7/red-9 —
+   those hold ~3.5:1 and ~3.2:1 against --gray-10, short of the ~4.5:1 AA
+   text threshold that --danger in particular needs (#error, delete buttons
+   render it as text, not just a border). --indigo-3/--red-5 clear ~7.7:1 and
+   ~6.3:1 against --gray-10. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --surface: #1a1a19;
-    --ink: #ffffff;
-    --accent: #7aa2ff;
-    --danger: #ff6b5c;
+    --surface: var(--gray-10);
+    --ink: var(--gray-0);
+    --accent: var(--indigo-3);
+    --danger: var(--red-5);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --surface: #1a1a19;
-  --ink: #ffffff;
-  --accent: #7aa2ff;
-  --danger: #ff6b5c;
+  --surface: var(--gray-10);
+  --ink: var(--gray-0);
+  --accent: var(--indigo-3);
+  --danger: var(--red-5);
 }
 
 :root[data-theme="light"] {
@@ -43,7 +51,7 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   background: var(--surface);
   color: var(--ink);
 }
@@ -136,6 +144,7 @@ body {
   width: 1px;
   transform: translateX(-50%);
   background: var(--border);
+  transition: background-color 150ms var(--ease-2);
 }
 
 .resizer:hover::before,
@@ -155,8 +164,9 @@ body {
   width: 4px;
   height: 28px;
   transform: translate(-50%, -50%);
-  border-radius: 2px;
+  border-radius: var(--radius-1);
   background: color-mix(in srgb, var(--ink) 20%, transparent);
+  transition: background-color 150ms var(--ease-2);
 }
 
 .resizer:hover::after,
@@ -187,8 +197,9 @@ body.row-dragging {
 
 .editor-column section {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-2);
   padding: 1rem;
+  box-shadow: var(--shadow-2);
 }
 
 .editor-column h2 {
@@ -206,11 +217,12 @@ select {
 
 button {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-2);
   padding: 0.35rem 0.7rem;
   background: transparent;
   color: var(--ink);
   cursor: pointer;
+  transition: background-color 150ms var(--ease-2);
 }
 
 button:hover {
@@ -230,7 +242,7 @@ input[type="text"],
 input[type="number"],
 select {
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-2);
   padding: 0.35rem 0.5rem;
   background: transparent;
   color: var(--ink);
@@ -265,7 +277,7 @@ select {
 .node-swatch {
   width: 0.9rem;
   height: 0.9rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 1px solid var(--border);
 }
 
@@ -278,7 +290,7 @@ select {
   height: 1.5rem;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-1);
   background: transparent;
   cursor: pointer;
 }
@@ -289,12 +301,12 @@ select {
 
 .node-color::-webkit-color-swatch {
   border: none;
-  border-radius: 3px;
+  border-radius: var(--radius-1);
 }
 
 .node-color::-moz-color-swatch {
   border: none;
-  border-radius: 3px;
+  border-radius: var(--radius-1);
 }
 
 .node-delete {
@@ -357,13 +369,14 @@ select {
 /* Row reordering: a grab handle plus drag/keyboard affordances. */
 .drag-handle {
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-1);
   padding: 0 0.15rem;
   background: transparent;
   color: color-mix(in srgb, var(--ink) 45%, transparent);
   font-size: 1rem;
   line-height: 1;
   cursor: grab;
+  transition: color 150ms var(--ease-2);
   /* Without this, touch browsers hijack a vertical drag on the handle for
      page scrolling before pointermove ever sees it. */
   touch-action: none;
@@ -436,7 +449,7 @@ select {
      width — blocking the editor column from growing past its own basis. */
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-2);
 }
 
 /* An unconditional min-height here would outlive the SVG's own rendered
