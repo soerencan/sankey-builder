@@ -215,6 +215,11 @@ input[type="number"],
 select {
   font: inherit;
   accent-color: var(--accent);
+  /* One shared control height: native selects ignore some padding and render
+     shorter than text inputs, which made the stacked control rows look
+     cramped next to the editor boxes. 2.25rem = 36px at the default font
+     size; the pointer-coarse block below still raises everything to 44px. */
+  min-height: 2.25rem;
 }
 
 button {
