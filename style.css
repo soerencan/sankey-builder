@@ -255,6 +255,25 @@ select {
   color: var(--ink);
 }
 
+/* Safari sizes native selects to its own control metrics, ignoring the shared
+   min-height above — appearance: none makes it a stylable box everywhere, at
+   the cost of the native arrow. The replacement chevron is two gradient
+   squares meeting in a ▾; gradients can read var(--ink), so it follows both
+   themes without duplicated SVG assets. */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 1.7rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink) 50%),
+    linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+  background-position:
+    calc(100% - 0.95rem) 50%,
+    calc(100% - 0.65rem) 50%;
+  background-size: 0.3rem 0.3rem;
+  background-repeat: no-repeat;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
