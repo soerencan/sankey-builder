@@ -12,7 +12,7 @@ statically. No build step or dependencies are needed to run it.
 
 ## Dependencies
 
-Vendored in `vendor/`: d3 7.9.0 and d3-sankey 0.12.3. See
+Vendored in `vendor/`: d3 7.9.0, d3-sankey 0.12.3, and Open Props 1.7.14. See
 [`vendor/README.md`](vendor/README.md) for sources and update instructions.
 
 ## Verification
@@ -76,3 +76,5 @@ terms and are not relicensed under the MIT License:
   ([license](vendor/LICENSE-d3), [source](https://github.com/d3/d3))
 - `vendor/d3-sankey.min.js` — d3-sankey 0.12.3, BSD 3-Clause License
   ([license](vendor/LICENSE-d3-sankey), [source](https://github.com/d3/d3-sankey))
+- `vendor/open-props.min.css` — Open Props 1.7.14, MIT License
+  ([license](vendor/LICENSE-open-props), [source](https://github.com/argyleink/open-props))
