@@ -407,12 +407,16 @@
   }
 
   // src/io-controls.ts
+  var EXPORT_FILENAME = "sankey.json";
   function setupIo(state2, actions) {
     const exportButton = document.getElementById("export-button");
     const importButton = document.getElementById("import-button");
     const fileInput = document.getElementById("import-file");
     if (!(fileInput instanceof HTMLInputElement)) return;
-    exportButton?.addEventListener("click", () => downloadJson(serializeState(state2)));
+    exportButton?.addEventListener("click", () => {
+      downloadJson(serializeState(state2));
+      actions.reportExportSuccess(EXPORT_FILENAME);
+    });
     importButton?.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", async () => {
       const file = fileInput.files?.[0];
@@ -435,7 +439,7 @@
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "sankey.json";
+    anchor.download = EXPORT_FILENAME;
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
@@ -939,6 +943,9 @@
     },
     reportImportError(message) {
       d3.select("#io-notice").text(message);
+    },
+    reportExportSuccess(filename) {
+      d3.select("#io-notice").text(`Exported ${filename}.`);
     }
   };
   var controlsActions = {

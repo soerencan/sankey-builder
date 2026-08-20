@@ -143,6 +143,27 @@ body {
   background: var(--accent);
 }
 
+/* Grip pill: the hairline alone is a near-invisible discovery cue, so this
+   adds a short, always-visible affordance centered on it — a stronger tint
+   than the hairline's --border so it reads as "grabbable" at rest, then
+   swaps to --accent on hover/focus/drag like the hairline does. */
+.resizer::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 20%, transparent);
+}
+
+.resizer:hover::after,
+.resizer.is-dragging::after {
+  background: var(--accent);
+}
+
 /* The hairline color swap above is the focus affordance for this element —
    the default box outline (from the global :focus-visible rule) would draw
    a rectangle around the 9px strip, and Chromium treats a pointerdown-driven
@@ -152,7 +173,8 @@ body {
   outline: none;
 }
 
-.resizer:focus-visible::before {
+.resizer:focus-visible::before,
+.resizer:focus-visible::after {
   background: var(--accent);
 }
 
@@ -583,6 +605,9 @@ select {
 
   .drag-handle {
     min-width: 44px;
+    /* The glyph reads as a stray speck in the enlarged 44px touch target at
+       the desktop 1rem size — scale it up to actually fill the target. */
+    font-size: 1.4rem;
   }
 
   .node-color {

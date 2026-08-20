@@ -1,9 +1,12 @@
 import { type ImportState, parseImport, serializeState } from "./io";
 import type { State } from "./state";
 
+const EXPORT_FILENAME = "sankey.json";
+
 export interface IoActions {
 	importDiagram(imported: ImportState, repairs: string[]): void;
 	reportImportError(message: string): void;
+	reportExportSuccess(filename: string): void;
 }
 
 /**
@@ -18,7 +21,10 @@ export function setupIo(state: State, actions: IoActions): void {
 	const fileInput = document.getElementById("import-file");
 	if (!(fileInput instanceof HTMLInputElement)) return;
 
-	exportButton?.addEventListener("click", () => downloadJson(serializeState(state)));
+	exportButton?.addEventListener("click", () => {
+		downloadJson(serializeState(state));
+		actions.reportExportSuccess(EXPORT_FILENAME);
+	});
 	importButton?.addEventListener("click", () => fileInput.click());
 
 	fileInput.addEventListener("change", async () => {
@@ -46,7 +52,7 @@ function downloadJson(json: string): void {
 	const url = URL.createObjectURL(blob);
 	const anchor = document.createElement("a");
 	anchor.href = url;
-	anchor.download = "sankey.json";
+	anchor.download = EXPORT_FILENAME;
 	anchor.click();
 	// Defer the revoke: some engines resolve the blob: URL only after click()
 	// returns, and Safari historically failed the download on a synchronous

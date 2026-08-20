@@ -496,6 +496,26 @@ describe("artifact smoke test", () => {
 		expect(revokedUrl).toBe("blob:fake");
 	});
 
+	it("announces a successful export via #io-notice", async () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
+		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+		try {
+			document
+				.getElementById("export-button")
+				?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		} finally {
+			createObjectURL.mockRestore();
+			revokeObjectURL.mockRestore();
+		}
+
+		expect(document.getElementById("io-notice")?.textContent).toBe("Exported sankey.json.");
+	});
+
 	it("keyboard-reorders a node row: order, dropdowns, storage, and focus all follow", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;

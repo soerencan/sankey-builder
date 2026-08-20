@@ -63,10 +63,10 @@ function refresh({ rebuildNodes = true, rebuildLinks = true }: RefreshOptions = 
 	const result = validate(state);
 	d3.select("#error").text(result.ok ? "" : (result.error ?? ""));
 
-	// Clear any import notice: it's a one-shot result of the last import, so the
-	// next user action retires it. importDiagram() sets #io-notice AFTER its own
-	// refresh() call, so its message survives that refresh and clears here on the
-	// following action.
+	// Clear any I/O notice (import or export): it's a one-shot result of the last
+	// action, so the next user action retires it. importDiagram() sets #io-notice
+	// AFTER its own refresh() call, so its message survives that refresh and
+	// clears here on the following action.
 	d3.select("#io-notice").text("");
 
 	// Always persist, even when invalid — see the rationale above.
@@ -173,6 +173,12 @@ const ioActions: IoActions = {
 	},
 	reportImportError(message) {
 		d3.select("#io-notice").text(message);
+	},
+	reportExportSuccess(filename) {
+		// Not preceded by refresh() (export doesn't touch state), so no risk of
+		// this being cleared before it's shown; it retires the same way import's
+		// notice does, on the next refresh()-triggering user action.
+		d3.select("#io-notice").text(`Exported ${filename}.`);
 	},
 };
 
