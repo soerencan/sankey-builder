@@ -445,108 +445,12 @@
   }
 
   // src/row-reorder.ts
-  var DRAG_THRESHOLD_PX = 4;
   function setupRowReorder(config) {
     const root = document.getElementById(config.rootId);
     if (!root) return;
     const rowSelector = `.${config.rowClass}`;
     const rowOf = (target) => target instanceof Element ? target.closest(rowSelector) : null;
     const rows = () => Array.from(root.querySelectorAll(rowSelector));
-    const clearIndicators = () => {
-      const marked = root.querySelectorAll(`${rowSelector}.drop-before, ${rowSelector}.drop-after`);
-      for (const el of Array.from(marked)) {
-        el.classList.remove("drop-before", "drop-after");
-      }
-    };
-    const isAfter = (clientY, row) => {
-      const rect = row.getBoundingClientRect();
-      return clientY > rect.top + rect.height / 2;
-    };
-    const rowAtPoint = (clientX, clientY) => rowOf(document.elementFromPoint(clientX, clientY));
-    const releaseCapture = (d) => {
-      if (d.handle.hasPointerCapture(d.pointerId)) {
-        d.handle.releasePointerCapture(d.pointerId);
-      }
-      d.row.classList.remove("dragging");
-    };
-    let armed = null;
-    let drag = null;
-    const cleanup = () => {
-      clearIndicators();
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerCancel);
-      window.removeEventListener("keydown", onKeyDown);
-      document.body.classList.remove("row-dragging");
-      armed = null;
-      drag = null;
-    };
-    function onPointerMove(event) {
-      if (!armed || event.pointerId !== armed.pointerId) return;
-      if (!drag) {
-        const dx = event.clientX - armed.startX;
-        const dy = event.clientY - armed.startY;
-        if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
-        const fromIndex = rows().indexOf(armed.row);
-        if (fromIndex === -1) {
-          cleanup();
-          return;
-        }
-        drag = { pointerId: armed.pointerId, handle: armed.handle, row: armed.row, fromIndex };
-        armed.handle.setPointerCapture(armed.pointerId);
-        drag.row.classList.add("dragging");
-        document.body.classList.add("row-dragging");
-      }
-      const target = rowAtPoint(event.clientX, event.clientY);
-      clearIndicators();
-      if (target && target !== drag.row) {
-        target.classList.add(isAfter(event.clientY, target) ? "drop-after" : "drop-before");
-      }
-    }
-    function onPointerUp(event) {
-      if (!armed || event.pointerId !== armed.pointerId) return;
-      if (drag?.row.isConnected) {
-        const target = rowAtPoint(event.clientX, event.clientY);
-        if (target && target !== drag.row) {
-          const overIndex = rows().indexOf(target);
-          const gap = isAfter(event.clientY, target) ? overIndex + 1 : overIndex;
-          const from = drag.fromIndex;
-          const to = gap > from ? gap - 1 : gap;
-          if (to !== from) config.move(from, to);
-        }
-      }
-      if (drag) releaseCapture(drag);
-      cleanup();
-    }
-    function onPointerCancel(event) {
-      if (!armed || event.pointerId !== armed.pointerId) return;
-      if (drag) releaseCapture(drag);
-      cleanup();
-    }
-    function onKeyDown(event) {
-      if (event.key !== "Escape" || !drag) return;
-      releaseCapture(drag);
-      cleanup();
-    }
-    root.addEventListener("pointerdown", (event) => {
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-      if (armed !== null || drag !== null) return;
-      const handle = event.target instanceof Element ? event.target.closest(".drag-handle") : null;
-      if (!handle) return;
-      const row = rowOf(handle);
-      if (!row) return;
-      armed = {
-        pointerId: event.pointerId,
-        handle,
-        row,
-        startX: event.clientX,
-        startY: event.clientY
-      };
-      window.addEventListener("pointermove", onPointerMove);
-      window.addEventListener("pointerup", onPointerUp);
-      window.addEventListener("pointercancel", onPointerCancel);
-      window.addEventListener("keydown", onKeyDown);
-    });
     root.addEventListener("keydown", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement) || !target.classList.contains("drag-handle")) return;
@@ -561,6 +465,32 @@
       const selector = config.refocusSelector(target, to);
       config.move(from, to);
       root.querySelector(selector)?.focus();
+    });
+  }
+  var TOUCH_HOLD_DELAY_MS = 150;
+  var TOUCH_START_THRESHOLD_PX = 4;
+  function attachRowSortable(container, config, previous) {
+    if (previous && Sortable.active === previous) {
+      Sortable.ghost?.remove();
+      Sortable.clone?.remove();
+    }
+    previous?.destroy();
+    return new Sortable(container, {
+      handle: ".drag-handle",
+      group: config.rowClass,
+      animation: 150,
+      forceFallback: true,
+      ghostClass: "row-ghost",
+      chosenClass: "row-chosen",
+      fallbackClass: "row-fallback",
+      delay: TOUCH_HOLD_DELAY_MS,
+      delayOnTouchOnly: true,
+      touchStartThreshold: TOUCH_START_THRESHOLD_PX,
+      onEnd(event) {
+        const { oldIndex, newIndex } = event;
+        if (oldIndex === void 0 || newIndex === void 0 || oldIndex === newIndex) return;
+        config.move(oldIndex, newIndex);
+      }
     });
   }
 
@@ -582,11 +512,13 @@
     select.append("option").attr("value", "").property("selected", selectedId === null).text("\u2014 select \u2014");
     select.selectAll("option.node-option").data(nodes).join("option").attr("class", "node-option").attr("value", (n) => n.id).property("disabled", (n) => n.id === excludedId).property("selected", (n) => n.id === selectedId).text((n) => n.name);
   }
-  function renderLinkEditor(state2) {
+  var rowSortable = null;
+  function renderLinkEditor(state2, moveLink2) {
     const root = d3.select("#link-editor");
     root.html("");
     root.append("h2").attr("id", "link-editor-heading").text("Links");
-    const row = root.append("div").attr("class", "link-rows").selectAll(".link-row").data(state2.links).join("div").attr("class", "link-row");
+    const rowsContainer = root.append("div").attr("class", "link-rows");
+    const row = rowsContainer.selectAll(".link-row").data(state2.links).join("div").attr("class", "link-row");
     row.append("button").attr("type", "button").attr("class", "drag-handle").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Reorder link ${i + 1}`).text("\u283F");
     row.append("select").attr("class", "link-source").attr("data-action", "update-link-source").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Source for link ${i + 1}`).each(function(d) {
       renderLinkOptions(this, state2.nodes, d.source, d.target);
@@ -598,6 +530,14 @@
     row.append("button").attr("type", "button").attr("class", "link-delete").attr("data-action", "delete-link").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Delete link ${i + 1}`).text("Delete");
     row.append("span").attr("class", "field-error").attr("id", (_d, i) => linkValueErrorId(i));
     root.append("button").attr("type", "button").attr("class", "add-link").attr("data-action", "add-link").text("Add link");
+    const container = rowsContainer.node();
+    if (container) {
+      rowSortable = attachRowSortable(
+        container,
+        { rowClass: "link-row", move: moveLink2 },
+        rowSortable
+      );
+    }
   }
   function setLinkValueError(index, message) {
     const el = document.getElementById(linkValueErrorId(index));
@@ -690,12 +630,14 @@
   }
 
   // src/node-editor.ts
-  function renderNodeEditor(state2, nodeColor) {
+  var rowSortable2 = null;
+  function renderNodeEditor(state2, nodeColor, moveNode2) {
     const root = d3.select("#node-editor");
     root.html("");
     root.append("h2").attr("id", "node-editor-heading").text("Nodes");
     const manual = state2.settings.colorMode === "manual";
-    const row = root.append("div").attr("class", "node-rows").selectAll(".node-row").data(state2.nodes, (d) => d.id).join("div").attr("class", `node-row${manual ? " manual" : ""}`);
+    const rowsContainer = root.append("div").attr("class", "node-rows");
+    const row = rowsContainer.selectAll(".node-row").data(state2.nodes, (d) => d.id).join("div").attr("class", `node-row${manual ? " manual" : ""}`);
     row.append("button").attr("type", "button").attr("class", "drag-handle").attr("data-index", (_d, i) => i).attr("data-id", (d) => d.id).attr("aria-label", (d) => `Reorder ${d.name}`).text("\u283F");
     row.append("span").attr("class", "node-swatch").style("background-color", (d) => nodeColor(d));
     row.append("input").attr("type", "text").attr("class", "node-name").attr("data-action", "rename-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Name for ${d.name}`).property("value", (d) => d.name);
@@ -704,6 +646,14 @@
     }
     row.append("button").attr("type", "button").attr("class", "node-delete").attr("data-action", "delete-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Delete ${d.name}`).text("Delete");
     root.append("button").attr("type", "button").attr("class", "add-node").attr("data-action", "add-node").text("Add node");
+    const container = rowsContainer.node();
+    if (container) {
+      rowSortable2 = attachRowSortable(
+        container,
+        { rowClass: "node-row", move: moveNode2 },
+        rowSortable2
+      );
+    }
   }
   function setupNodeEditor(actions) {
     const root = document.getElementById("node-editor");
@@ -872,8 +822,8 @@
     d3.select("#io-notice").text("");
     const saved = saveState(state);
     d3.select("#storage-notice").text(saved ? "" : STORAGE_NOTICE);
-    if (rebuildNodes) renderNodeEditor(state, nodeColor);
-    if (rebuildLinks) renderLinkEditor(state);
+    if (rebuildNodes) renderNodeEditor(state, nodeColor, nodeEditorActions.moveNode);
+    if (rebuildLinks) renderLinkEditor(state, linkEditorActions.moveLink);
     if (!result.ok) return;
     renderDiagram(state, nodeColor);
   }

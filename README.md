@@ -12,8 +12,9 @@ statically. No build step or dependencies are needed to run it.
 
 ## Dependencies
 
-Vendored in `vendor/`: d3 7.9.0, d3-sankey 0.12.3, and Open Props 1.7.14. See
-[`vendor/README.md`](vendor/README.md) for sources and update instructions.
+Vendored in `vendor/`: d3 7.9.0, d3-sankey 0.12.3, Open Props 1.7.14, and
+SortableJS 1.15.7. See [`vendor/README.md`](vendor/README.md) for sources and
+update instructions.
 
 ## Verification
 
@@ -78,3 +79,5 @@ terms and are not relicensed under the MIT License:
   ([license](vendor/LICENSE-d3-sankey), [source](https://github.com/d3/d3-sankey))
 - `vendor/open-props.min.css` — Open Props 1.7.14, MIT License
   ([license](vendor/LICENSE-open-props), [source](https://github.com/argyleink/open-props))
+- `vendor/sortable.min.js` — SortableJS 1.15.7, MIT License
+  ([license](vendor/LICENSE-sortablejs), [source](https://github.com/SortableJS/Sortable))

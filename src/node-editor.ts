@@ -1,5 +1,5 @@
 import type { NodeColorResolver } from "./colors";
-import { setupRowReorder } from "./row-reorder";
+import { attachRowSortable, setupRowReorder } from "./row-reorder";
 import type { Node, State } from "./state";
 
 export interface NodeEditorActions {
@@ -10,17 +10,26 @@ export interface NodeEditorActions {
 	moveNode(from: number, to: number): void;
 }
 
+// Recreated on every renderNodeEditor call (the .node-rows container it's
+// attached to is torn down and rebuilt each time) — tracked here so the
+// previous instance can be destroy()ed rather than leaked.
+let rowSortable: Sortable | null = null;
+
 /** Rebuilds #node-editor from state — same full-rebuild approach as the diagram. */
-export function renderNodeEditor(state: State, nodeColor: NodeColorResolver): void {
+export function renderNodeEditor(
+	state: State,
+	nodeColor: NodeColorResolver,
+	moveNode: (from: number, to: number) => void,
+): void {
 	const root = d3.select("#node-editor");
 	root.html("");
 	root.append("h2").attr("id", "node-editor-heading").text("Nodes");
 
 	const manual = state.settings.colorMode === "manual";
 
-	const row = root
-		.append("div")
-		.attr("class", "node-rows")
+	const rowsContainer = root.append("div").attr("class", "node-rows");
+
+	const row = rowsContainer
 		.selectAll<HTMLDivElement, Node>(".node-row")
 		.data(state.nodes, (d) => d.id)
 		.join("div")
@@ -75,6 +84,15 @@ export function renderNodeEditor(state: State, nodeColor: NodeColorResolver): vo
 		.attr("class", "add-node")
 		.attr("data-action", "add-node")
 		.text("Add node");
+
+	const container = rowsContainer.node();
+	if (container) {
+		rowSortable = attachRowSortable(
+			container,
+			{ rowClass: "node-row", move: moveNode },
+			rowSortable,
+		);
+	}
 }
 
 /**

@@ -1,4 +1,4 @@
-import { setupRowReorder } from "./row-reorder";
+import { attachRowSortable, setupRowReorder } from "./row-reorder";
 import type { Link, Node, State } from "./state";
 import {
 	MAX_LINK_VALUE,
@@ -73,15 +73,20 @@ function renderLinkOptions(
 		.text((n) => n.name);
 }
 
+// Recreated on every renderLinkEditor call (the .link-rows container it's
+// attached to is torn down and rebuilt each time) — tracked here so the
+// previous instance can be destroy()ed rather than leaked.
+let rowSortable: Sortable | null = null;
+
 /** Rebuilds #link-editor from state — same full-rebuild approach as the node editor. */
-export function renderLinkEditor(state: State): void {
+export function renderLinkEditor(state: State, moveLink: (from: number, to: number) => void): void {
 	const root = d3.select("#link-editor");
 	root.html("");
 	root.append("h2").attr("id", "link-editor-heading").text("Links");
 
-	const row = root
-		.append("div")
-		.attr("class", "link-rows")
+	const rowsContainer = root.append("div").attr("class", "link-rows");
+
+	const row = rowsContainer
 		.selectAll<HTMLDivElement, Link>(".link-row")
 		.data(state.links)
 		.join("div")
@@ -155,6 +160,15 @@ export function renderLinkEditor(state: State): void {
 		.attr("class", "add-link")
 		.attr("data-action", "add-link")
 		.text("Add link");
+
+	const container = rowsContainer.node();
+	if (container) {
+		rowSortable = attachRowSortable(
+			container,
+			{ rowClass: "link-row", move: moveLink },
+			rowSortable,
+		);
+	}
 }
 
 /** Sets (or clears, for "") the text of the field's paired error element. */

@@ -76,8 +76,8 @@ function refresh({ rebuildNodes = true, rebuildLinks = true }: RefreshOptions = 
 	// again.
 	d3.select("#storage-notice").text(saved ? "" : STORAGE_NOTICE);
 
-	if (rebuildNodes) renderNodeEditor(state, nodeColor);
-	if (rebuildLinks) renderLinkEditor(state);
+	if (rebuildNodes) renderNodeEditor(state, nodeColor, nodeEditorActions.moveNode);
+	if (rebuildLinks) renderLinkEditor(state, linkEditorActions.moveLink);
 	// Bail before the diagram rebuild so the last good render stays on
 	// screen; the editors above still rebuild (when requested) so the user
 	// can see and fix the offending row.

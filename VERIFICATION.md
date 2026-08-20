@@ -50,15 +50,21 @@ emulation).
 
 ## Row reordering (drag feel)
 
-The keyboard path (focus a handle, Arrow up/down) and the resulting state/DOM
-changes are automated; the pointer drag feel is not — verify it in a real
-browser.
+Reordering is driven by SortableJS (`vendor/sortable.min.js`, `forceFallback`
+mode — a synthetic drag on every platform, not native HTML5 DnD). The
+keyboard path (focus a handle, Arrow up/down) and the resulting state/DOM
+changes are automated, as is the Sortable wiring itself (instance options,
+cross-box group separation, the `onEnd` commit); the actual drag *feel* is
+not — verify it in a real browser.
 
-- [ ] Grab a node row by its ⠿ handle and drag: the cursor shows grab/grabbing, the dragged row dims, and an accent insertion line appears on the top or bottom edge of the row under the pointer depending on which half you're over.
-- [ ] Dropping reorders the row to match the indicator, and the diagram/dropdowns update to the new order.
-- [ ] Dragging a node row over the *link* box (or vice-versa) does nothing — no cross-box move, no stray indicator left behind.
+- [ ] Grab a node row by its ⠿ handle and drag (mouse): a floating clone of the row detaches and tracks the pointer/cursor exactly, with a raised shadow; the row's original slot in the list shows a dimmed placeholder that moves live as you drag over other rows, and the list around it animates (siblings slide) rather than jumping.
+- [ ] Releasing the drag drops the row where the placeholder was, and the diagram/dropdowns update to the new order.
+- [ ] Dragging a node row over the *link* box (or vice-versa) does nothing — no cross-box move; the floating clone snaps back to its box, no stray placeholder left behind.
 - [ ] Starting a drag from a non-handle part of the row (e.g. the name field or a dropdown) does NOT initiate a reorder — text selection and normal control behavior are unaffected.
-- [ ] Touch: dragging by the handle on a touchscreen is not expected to reorder (HTML5 DnD only) — confirm it degrades gracefully (no broken state) and that the keyboard path remains available.
+- [ ] Touch (real phone or touch emulation): a mouse drag starts immediately, but a touch drag requires a brief press-and-hold (~150ms) on the handle before it lifts — a quick tap doesn't start a drag. During that hold, wiggling the finger more than a few pixels cancels the pending drag rather than starting one, so a scroll gesture that begins on a row still scrolls the page instead of lifting it.
+- [ ] Touch: once a drag has lifted, the row/handle text is never selected/highlighted during the gesture (no iOS text-selection callout).
+- [ ] During any drag (mouse or touch), the rest of the page's text doesn't show selection highlighting even if the pointer strays off the handle mid-gesture.
+- [ ] There's no Escape-to-cancel for a pointer/touch drag (keyboard-arrow moves are unaffected) — dropping outside any row, or releasing back at the row's origin, is the way to abandon a drag without reordering.
 
 ## Link value paste truncation (cross-engine)
 

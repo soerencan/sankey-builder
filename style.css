@@ -189,9 +189,11 @@ body {
 }
 
 /* Suppresses selection-highlight flicker while dragging the divider across
-   text-bearing siblings (labels, inputs). */
-body.resizing,
-body.row-dragging {
+   text-bearing siblings (labels, inputs). Row dragging doesn't need an entry
+   here — SortableJS suppresses selection itself for the duration of a drag
+   (preventDefault on selectstart plus clearing any existing selection
+   everywhere; body user-select: none only on Safari specifically). */
+body.resizing {
   user-select: none;
 }
 
@@ -366,7 +368,10 @@ select {
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
 }
 
-/* Row reordering: a grab handle plus drag/keyboard affordances. */
+/* Row reordering: a grab handle plus drag/keyboard affordances. SortableJS
+   (forceFallback mode) drives the drag itself; the classes below are the
+   ones it toggles via the matching ghostClass/chosenClass/fallbackClass
+   options (src/row-reorder.ts). */
 .drag-handle {
   border: none;
   border-radius: var(--radius-1);
@@ -378,8 +383,14 @@ select {
   cursor: grab;
   transition: color 150ms var(--ease-2);
   /* Without this, touch browsers hijack a vertical drag on the handle for
-     page scrolling before pointermove ever sees it. */
+     page scrolling before Sortable's own move-threshold check ever sees it. */
   touch-action: none;
+  /* Long-press-to-select is the iOS text-selection gesture; without
+     suppressing it here, a long-press on the handle (e.g. a hesitant drag
+     start) selects its glyph instead of arming a drag. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .drag-handle:hover {
@@ -391,21 +402,28 @@ select {
   cursor: grabbing;
 }
 
-.node-row.dragging,
-.link-row.dragging {
+/* The in-list placeholder left at the drop target while the floating clone
+   (.row-fallback, below) tracks the pointer. */
+.node-row.row-ghost,
+.link-row.row-ghost {
   opacity: 0.4;
 }
 
-/* box-shadow rather than a border: a 2px accent line on the target edge that
-   doesn't shift the row's layout while dragging. --accent is theme-aware. */
-.node-row.drop-before,
-.link-row.drop-before {
-  box-shadow: 0 -2px 0 var(--accent);
+/* The source row, styled while it's the active drag target — mirrors the
+   handle's :active cursor onto the whole row so the affordance reads even
+   mid-drag, once the pointer has moved off the handle itself. */
+.node-row.row-chosen,
+.link-row.row-chosen {
+  cursor: grabbing;
 }
 
-.node-row.drop-after,
-.link-row.drop-after {
-  box-shadow: 0 2px 0 var(--accent);
+/* The floating clone that follows the pointer (forceFallback mode). A
+   raised shadow reads as "lifted" out of the list, matching the ghost
+   placeholder left behind at the drop target. */
+.node-row.row-fallback,
+.link-row.row-fallback {
+  box-shadow: var(--shadow-3);
+  cursor: grabbing;
 }
 
 .control-row {
