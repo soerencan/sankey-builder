@@ -263,6 +263,59 @@ describe("artifact smoke test", () => {
 		expect(diagram?.querySelector('path[stroke="url(#link-grad-0)"]')).not.toBeNull();
 	});
 
+	it("boots with exactly one alignment button pressed, matching the default alignment", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const pressed = Array.from(
+			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
+		).filter((option) => option.getAttribute("aria-pressed") === "true");
+
+		expect(pressed).toHaveLength(1);
+		expect(pressed[0]?.dataset.value).toBe(defaultState().settings.alignment);
+	});
+
+	it("clicking Left in the alignment group sets state, updates aria-pressed, and re-renders the diagram", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const svgBefore = document.querySelector("#diagram svg");
+		const options = Array.from(
+			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
+		);
+		const leftOption = options.find((option) => option.dataset.value === "left");
+		leftOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.alignment).toBe("left");
+
+		// Only the chosen option is pressed.
+		expect(leftOption?.getAttribute("aria-pressed")).toBe("true");
+		for (const option of options) {
+			if (option !== leftOption) expect(option.getAttribute("aria-pressed")).toBe("false");
+		}
+
+		// A fresh <svg> replaces the old one — same re-render evidence the
+		// value-edit and link-color tests above rely on.
+		const svgAfter = document.querySelector("#diagram svg");
+		expect(svgAfter).not.toBeNull();
+		expect(svgAfter).not.toBe(svgBefore);
+	});
+
+	it("every alignment button has a non-empty accessible name", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const options = document.querySelectorAll<HTMLButtonElement>(".align-group button");
+		expect(options.length).toBeGreaterThan(0);
+		for (const option of Array.from(options)) {
+			expect(option.getAttribute("aria-label")?.trim()).toBeTruthy();
+		}
+	});
+
 	it("round-trips a basic mutation: add node updates editor, diagram, and storage", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;

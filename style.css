@@ -533,8 +533,8 @@ select {
 }
 
 /* ==========================================================================
-   Diagram toolbar: the palette carousel and link-color chooser now; the
-   alignment group lands in a later step, in the same row.
+   Diagram toolbar: the palette carousel, link-color chooser, and alignment
+   group, all in the same row.
    ========================================================================== */
 
 .toolbar-button {
@@ -587,6 +587,55 @@ select {
   /* Thin border so a light swatch (e.g. Set 2's pale entries) still reads as
      a distinct shape against the equally-light --surface. */
   border: 1px solid var(--border);
+}
+
+/* Segmented toggle group: adjoining buttons share their inner borders (each
+   non-first button overlaps its neighbor by 1px rather than doubling the
+   line), with rounding only at the group's outer ends. */
+.align-group {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.align-option {
+  padding: 0.35rem;
+  border-radius: 0;
+  /* Establishes a stacking context so the focus/hover z-index bump below can
+     lift this button's border and focus ring above its neighbors', instead
+     of the shared 1px overlap or the later DOM sibling painting over them. */
+  position: relative;
+}
+
+.align-option:not(:first-child) {
+  margin-left: -1px;
+}
+
+.align-option:first-child {
+  border-top-left-radius: var(--radius-2);
+  border-bottom-left-radius: var(--radius-2);
+}
+
+.align-option:last-child {
+  border-top-right-radius: var(--radius-2);
+  border-bottom-right-radius: var(--radius-2);
+}
+
+.align-option:hover {
+  z-index: 1;
+}
+
+/* Higher than :hover so a hovered sibling can't paint over a keyboard-focused
+   button's focus ring. */
+.align-option:focus-visible {
+  z-index: 2;
+}
+
+/* Selected state must not rely on color alone — same fill-plus-inset-ring
+   treatment as .choice-option[aria-pressed="true"], and box-shadow rather
+   than outline so it doesn't collide with the :focus-visible ring below. */
+.align-option[aria-pressed="true"] {
+  background: var(--border);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* ==========================================================================
@@ -781,9 +830,11 @@ dialog h3 {
     font-size: 1.4rem;
   }
 
-  /* The chevron buttons (palette-prev/palette-next) are narrow icon-only
-     buttons — min-height alone leaves them ~32px wide, so pin min-width too. */
-  .toolbar-button {
+  /* The chevron buttons (palette-prev/palette-next) and the alignment group
+     are narrow icon-only buttons — min-height alone leaves them ~32px wide,
+     so pin min-width too. */
+  .toolbar-button,
+  .align-option {
     min-width: 44px;
   }
 

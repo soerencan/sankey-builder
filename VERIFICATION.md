@@ -10,10 +10,12 @@ Everything else from the original checklist — node/link editing, cycle and
 value validation, link color modes, alignment, palette switching, and
 reload persistence — was verified once by a full scripted
 acceptance pass at migration time; a subset of it (validation messages,
-persistence hydration, color resolution, render guards, and the
-boot/invalid-edit/recovery/storage-notice flows) is continuously asserted by
-the automated suite (`make test`), but the rest (e.g. alignment, delete
-cascades, dropdown propagation) is not — don't assume `make test` covers it.
+persistence hydration, color resolution, render guards, the alignment
+toggle group's wiring, and the boot/invalid-edit/recovery/storage-notice
+flows) is continuously asserted by the automated suite (`make test`), but
+the rest (e.g. delete cascades, dropdown propagation, and the actual visual
+layout effect of each alignment mode) is not — don't assume `make test`
+covers it.
 
 ## Theme
 
@@ -57,7 +59,10 @@ emulation).
 - [ ] With the palette dialog open, pressing Escape closes it (native `<dialog>` cancel behavior — not exercised by the automated suite, since happy-dom doesn't simulate a real Escape-triggered cancel).
 - [ ] After closing the palette dialog (Escape, Close button, or backdrop click), focus visibly returns to the palette preview button — a visible focus ring lands there, not somewhere else on the page.
 - [ ] The four link-color pictograms (Source, Source to target, Target, Neutral — both the Links button and the dialog rows) are visually distinguishable from each other in both light and dark theme, without relying on hover or a tooltip.
-- [ ] At wide widths, the toolbar (palette carousel plus the Links button) stays on a single line — no wrapping, clipping, or overlap.
+- [ ] At wide widths, the toolbar (palette carousel, Links button, and alignment group) stays on a single line — no wrapping, clipping, or overlap.
+- [ ] The alignment group's pressed button (fill plus inset ring) is distinguishable from its unpressed neighbors without relying on color alone, in both light and dark theme.
+- [ ] Tabbing through the alignment group shows a complete, unclipped focus ring on each button, including the ones between two pressed-looking neighbors — the shared inner borders never cut off part of the ring.
+- [ ] Changing alignment visibly changes how nodes are packed within their columns (left/center/right/justify) — this behavioral effect isn't asserted by `make test`, only the button wiring is.
 
 ## Row reordering (drag feel)
 

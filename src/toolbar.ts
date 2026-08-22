@@ -1,11 +1,12 @@
 import { PALETTE_LABELS, PALETTE_ORDER, isPaletteKey, paletteColors } from "./colors";
 import type { DialogController } from "./dialog";
 import { setupDialog } from "./dialog";
-import type { LinkColorMode, Palette, State } from "./state";
+import type { Alignment, LinkColorMode, Palette, State } from "./state";
 
 export interface ToolbarActions {
 	setPalette(value: Palette): void;
 	setLinkColor(mode: LinkColorMode): void;
+	setAlignment(value: Alignment): void;
 }
 
 // Number of swatches shown per strip — matches the five named palettes'
@@ -29,6 +30,23 @@ export const LINK_COLOR_OPTIONS: Record<LinkColorMode, { label: string; iconId: 
 
 function isLinkColorKey(value: unknown): value is LinkColorMode {
 	return typeof value === "string" && Object.hasOwn(LINK_COLOR_OPTIONS, value);
+}
+
+/**
+ * Own-property guard, same rationale as isLinkColorKey above. index.html's
+ * align-group buttons carry their own static label/icon (unlike the Links
+ * button, which reflects the current mode), so this doesn't need a
+ * label/icon lookup table alongside it.
+ */
+const ALIGNMENT_VALUES: Record<Alignment, true> = {
+	left: true,
+	center: true,
+	right: true,
+	justify: true,
+};
+
+function isAlignmentKey(value: unknown): value is Alignment {
+	return typeof value === "string" && Object.hasOwn(ALIGNMENT_VALUES, value);
 }
 
 function buildSwatchStrip(strip: HTMLElement, palette: Palette): void {
@@ -90,6 +108,15 @@ export function syncToolbar(state: State): void {
 	for (const option of linkColorOptions) {
 		option.setAttribute("aria-pressed", option.dataset.value === linkColor ? "true" : "false");
 	}
+
+	// Document-scoped for the same reason as linkColorOptions above.
+	const alignment = state.settings.alignment;
+	const alignmentOptions = Array.from(
+		document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
+	);
+	for (const option of alignmentOptions) {
+		option.setAttribute("aria-pressed", option.dataset.value === alignment ? "true" : "false");
+	}
 }
 
 /**
@@ -140,6 +167,9 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 			actions.setLinkColor(value);
 			syncToolbar(state);
 			linksDialog?.close();
+		} else if (action === "set-alignment" && isAlignmentKey(value)) {
+			actions.setAlignment(value);
+			syncToolbar(state);
 		}
 	});
 }

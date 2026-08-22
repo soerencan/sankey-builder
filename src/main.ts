@@ -179,10 +179,6 @@ const ioActions: IoActions = {
 };
 
 const controlsActions: ControlsActions = {
-	setAlignment(value) {
-		state.settings.alignment = value;
-		refresh();
-	},
 	setTheme(value) {
 		state.settings.theme = value;
 		applyTheme(value);
@@ -199,6 +195,10 @@ const toolbarActions: ToolbarActions = {
 	},
 	setLinkColor(value) {
 		state.settings.linkColor = value;
+		refresh();
+	},
+	setAlignment(value) {
+		state.settings.alignment = value;
 		refresh();
 	},
 };

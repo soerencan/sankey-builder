@@ -43,8 +43,6 @@
   function syncControls(state2) {
     const root = document.getElementById("controls");
     if (!root) return;
-    const alignmentSelect = root.querySelector("#alignment");
-    if (alignmentSelect) alignmentSelect.value = state2.settings.alignment;
     const themeSelect = root.querySelector("#theme");
     if (themeSelect) themeSelect.value = state2.settings.theme;
   }
@@ -55,9 +53,7 @@
     root.addEventListener("change", (event) => {
       if (!(event.target instanceof HTMLSelectElement)) return;
       const { action } = event.target.dataset;
-      if (action === "update-alignment") {
-        actions.setAlignment(event.target.value);
-      } else if (action === "update-theme") {
+      if (action === "update-theme") {
         actions.setTheme(event.target.value);
       }
     });
@@ -918,6 +914,15 @@ ${xml}`;
   function isLinkColorKey(value) {
     return typeof value === "string" && Object.hasOwn(LINK_COLOR_OPTIONS, value);
   }
+  var ALIGNMENT_VALUES = {
+    left: true,
+    center: true,
+    right: true,
+    justify: true
+  };
+  function isAlignmentKey(value) {
+    return typeof value === "string" && Object.hasOwn(ALIGNMENT_VALUES, value);
+  }
   function buildSwatchStrip(strip, palette) {
     strip.replaceChildren();
     for (const color of paletteColors(palette).slice(0, SWATCH_COUNT)) {
@@ -961,6 +966,13 @@ ${xml}`;
     for (const option of linkColorOptions) {
       option.setAttribute("aria-pressed", option.dataset.value === linkColor ? "true" : "false");
     }
+    const alignment = state2.settings.alignment;
+    const alignmentOptions = Array.from(
+      document.querySelectorAll('[data-action="set-alignment"]')
+    );
+    for (const option of alignmentOptions) {
+      option.setAttribute("aria-pressed", option.dataset.value === alignment ? "true" : "false");
+    }
   }
   function setupToolbar(state2, actions) {
     const panel = document.querySelector(".diagram-panel");
@@ -992,6 +1004,9 @@ ${xml}`;
         actions.setLinkColor(value);
         syncToolbar(state2);
         linksDialog?.close();
+      } else if (action === "set-alignment" && isAlignmentKey(value)) {
+        actions.setAlignment(value);
+        syncToolbar(state2);
       }
     });
   }
@@ -1082,10 +1097,6 @@ ${xml}`;
     }
   };
   var controlsActions = {
-    setAlignment(value) {
-      state.settings.alignment = value;
-      refresh();
-    },
     setTheme(value) {
       state.settings.theme = value;
       applyTheme(value);
@@ -1099,6 +1110,10 @@ ${xml}`;
     },
     setLinkColor(value) {
       state.settings.linkColor = value;
+      refresh();
+    },
+    setAlignment(value) {
+      state.settings.alignment = value;
       refresh();
     }
   };
