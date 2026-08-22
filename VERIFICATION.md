@@ -5,6 +5,21 @@ either via `make dev` (Bun's dev server) or a static host serving a `make
 build` output (`dist/`) — the app loads as an ES module, which requires an
 HTTP(S) origin; `file://` is not supported.
 
+GitHub Pages serves this project from a `/sankey-builder/` subpath, so it's
+worth spot-checking `dist/` under one too (`tests/dist.test.ts` already
+asserts asset URLs are relative, but a real browser catches anything that
+test misses):
+
+```
+rm -rf /tmp/pages-check
+make build
+mkdir -p /tmp/pages-check/sankey-builder && cp -r dist/* /tmp/pages-check/sankey-builder/
+python3 -m http.server 8000 --directory /tmp/pages-check
+```
+
+Then open `http://localhost:8000/sankey-builder/` and confirm the app loads
+and renders with no console errors about failed asset requests.
+
 This list covers only what automation cannot see: rendered visuals, live OS
 theme changes, and pointer-drag feel.
 Everything else from the original checklist — node/link editing, cycle and

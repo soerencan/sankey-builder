@@ -29,7 +29,8 @@ through in a real browser after any change.
 
 Developing the app needs [bun](https://bun.sh) — that's the only required
 tool. Install dependencies once with `bun install`. Tooling runs on Node 24
-(managed via nvm / `.nvmrc`) and Bun 1.3.14 (already pinned in CI).
+(managed via nvm / `.nvmrc`) and Bun 1.3.14 (already pinned in CI); linting
+and formatting run on Biome, and tests run on Vitest against happy-dom.
 
 The app is written in TypeScript under `src/`, entered via `src/main.ts` and
 loaded straight from `index.html` as an ES module — there's no committed
@@ -60,9 +61,16 @@ real d3/SortableJS. `tests/dist.test.ts` goes one step further: it runs
 its asset URLs are relative (so the site works from any subpath) and the
 default diagram renders.
 
-CI runs four jobs in parallel: lint, typecheck, tests (`make test-unit`), and
-an artifact job (`make test-dist`, which builds and boots the real `dist/`
-output) — split that way so `dist/` isn't built twice per run.
+CI runs four jobs in parallel on every PR and push to `main`: lint, typecheck, tests
+(`make test-unit`), and an artifact job (`make test-dist`, which builds and
+boots the real `dist/` output) — split that way so `dist/` isn't built twice
+per run.
+
+A separate workflow, `.github/workflows/pages.yml`, deploys the site: on
+every push to `main`, it reruns lint, typecheck, and the test suite, builds
+`dist/`, and publishes it to GitHub Pages via `actions/deploy-pages`. This
+requires the repository's Pages source to be set to "GitHub Actions" once
+(Settings → Pages) — after that, pushes to `main` deploy automatically.
 
 ## Known limitations
 
