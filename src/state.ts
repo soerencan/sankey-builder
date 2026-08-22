@@ -19,8 +19,8 @@ export function isComplete(link: Link): link is Link & { source: string; target:
 	return link.source !== null && link.target !== null;
 }
 
-// Closed value sets straight from app.js: PALETTES' keys, LINK_COLOR_MODES,
-// ALIGNMENTS, and THEMES (app.js:83-101). Palette itself lives in palette.ts
+// Closed value sets straight from the pre-migration bundle's PALETTES' keys,
+// LINK_COLOR_MODES, ALIGNMENTS, and THEMES. Palette itself lives in palette.ts
 // (a d3-free boundary persist.ts depends on) and is re-exported here so
 // existing `from "./state"` imports keep working.
 import type { Palette } from "./palette";

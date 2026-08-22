@@ -7,10 +7,9 @@ export interface ThemeControlActions {
 }
 
 /**
- * Label and sprite-symbol id per theme mode, keyed by the actual state value
- * (unchanged by this move — see PLAN.md's "Theme"). Values stay
- * auto/light/dark; "System" is only the dialog/button's displayed label for
- * "auto".
+ * Label and sprite-symbol id per theme mode, keyed by the actual state
+ * value. Values stay auto/light/dark; "System" is only the dialog/button's
+ * displayed label for "auto".
  */
 const THEME_OPTIONS: Record<Theme, { label: string; iconId: string }> = {
 	auto: { label: "System", iconId: "icon-theme-system" },
@@ -26,10 +25,10 @@ function isThemeKey(value: unknown): value is Theme {
  * Swaps #theme-button's icon/label and the dialog options' aria-pressed to
  * match state — same full-rebuild-from-state approach as syncToolbar, just
  * scoped to the header button and dialog rather than .diagram-panel, since
- * those two live outside it (PLAN.md's "Theme"). Also called once at boot
- * (after setupThemeControl). Import deliberately does not call this — theme
- * is a per-browser preference, not diagram data, so it's untouched by import
- * and there's nothing here that could go stale (see src/main.ts's
+ * those two live outside it. Also called once at boot (after
+ * setupThemeControl). Import deliberately does not call this — theme is a
+ * per-browser preference, not diagram data, so it's untouched by import and
+ * there's nothing here that could go stale (see app.ts's
  * ioActions.importDiagram).
  */
 export function syncThemeControl(doc: Document, state: State): void {

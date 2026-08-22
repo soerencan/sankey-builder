@@ -38,8 +38,8 @@ export type NodeColorResolver = (node: Node) => string;
 
 /**
  * Built once per refresh pass and reused across the editors and the diagram,
- * rather than a module-level `currentColorScale` singleton (app.js:225) or
- * rebuilding an O(n) ordinal scale on every single lookup.
+ * rather than a module-level `currentColorScale` singleton (the pre-migration
+ * bundle's approach) or rebuilding an O(n) ordinal scale on every single lookup.
  */
 export function createNodeColorResolver(state: State): NodeColorResolver {
 	// Explicit domain (current node ids) so colors stay deterministic and

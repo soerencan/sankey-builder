@@ -11,7 +11,7 @@ export interface RowReorderConfig {
 	 * droppable into the other.
 	 */
 	rowClass: string;
-	/** Applies the reorder to state and rebuilds the box (via main.ts refresh). */
+	/** Applies the reorder to state and rebuilds the box (via app.ts's refresh). */
 	move(from: number, to: number): void;
 	/**
 	 * CSS selector for the handle to refocus after a keyboard move, once the box

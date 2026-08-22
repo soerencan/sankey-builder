@@ -49,8 +49,10 @@ interface RefreshOptions {
  * markup-agnostic and reads no ambient `window`/`document`/`localStorage`
  * itself — this is the sole owner of state, the action objects, the Sortable
  * instances, and the app-scoped AbortController, so a second `startApp` call
- * on the same document never shares mutable state or duplicated listeners
- * with the first (see PLAN.md's "Repeatable application lifecycle").
+ * after `destroy()` on the first never shares mutable state or duplicated
+ * listeners with it. Calling `startApp` again without destroying the first
+ * instance is not supported — both instances would bind listeners to the
+ * same document.
  */
 export function startApp(doc: Document = globalThis.document): AppHandle {
 	const view = doc.defaultView;
@@ -75,11 +77,12 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	applyTheme(doc, state.settings.theme);
 
 	/**
-	 * The current validateAndRender flow (app.js:385), the subtlest behavior in
-	 * the app. Order matters and is preserved exactly:
+	 * The current validateAndRender flow, ported from the pre-migration
+	 * bundle and the subtlest behavior in the app. Order matters and is
+	 * preserved exactly:
 	 *
-	 * 1. Rebuild the color resolver fresh from state (replaces app.js's
-	 *    module-level currentColorScale singleton).
+	 * 1. Rebuild the color resolver fresh from state (replaces the
+	 *    pre-migration bundle's module-level currentColorScale singleton).
 	 * 2. Validate and update the error notice.
 	 * 3. Save — regardless of validity: an invalid *topology* the user is still
 	 *    editing (e.g. a cycle) is retained in the editor and must survive a
@@ -273,9 +276,10 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		if (destroyed) return;
 		destroyed = true;
 		controller.abort();
-		// Reverse of setup order above (setupNodeEditor, setupLinkEditor, ...,
-		// setupPreviewResizer): preview-drag state first, then the link
-		// Sortable, then the node Sortable.
+		// nodeRowSortable/linkRowSortable are (re)created by refresh()'s
+		// renderNodeEditor/renderLinkEditor calls, not by the setup* calls
+		// above, so there's no "setup order" to reverse here — just tear down
+		// preview-drag state, then the link Sortable, then the node Sortable.
 		cancelPreviewDrag();
 		destroySortable(linkRowSortable);
 		destroySortable(nodeRowSortable);

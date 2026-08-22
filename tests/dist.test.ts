@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
+import { stripToBodyMarkup } from "./helpers/fixture";
 
 // Resolved from this file's own location, not process.cwd(), so it's stable
 // regardless of which directory vitest is invoked from.
@@ -67,14 +68,12 @@ describe("production build (dist/)", () => {
 	});
 
 	it("boots the emitted entry against the built markup and renders the default diagram", async () => {
-		const bodyMatch = /<body>([\s\S]*)<\/body>/.exec(distHtml);
-		if (!bodyMatch) throw new Error("dist/index.html has no <body> to extract");
 		// startApp() (invoked by the entry's own top-level call, not a manual
 		// re-invocation here) runs on import — see src/main.ts — so the fixture
 		// document must be installed and already be the global happy-dom
 		// document (per the @vitest-environment pragma above) before the
 		// dynamic import below executes.
-		document.body.innerHTML = bodyMatch[1].replace(/<script[\s\S]*?<\/script>\s*/g, "");
+		document.body.innerHTML = stripToBodyMarkup(distHtml);
 
 		const entryRef = assetRefs(distHtml).find((ref) => !isExternal(ref) && ref.endsWith(".js"));
 		if (!entryRef) throw new Error("dist/index.html has no local script entry");

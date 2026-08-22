@@ -16,9 +16,10 @@ import { MAX_LINK_VALUE } from "./validate";
 export const STORAGE_KEY = "sankey-builder";
 
 // Sole consumers of these four are normalizeSettings/normalizeState below —
-// kept private rather than exported (app.js:99-104). Typed as a set of the
-// state union itself (not ReadonlySet<string>) so a typo'd member fails to
-// compile instead of silently narrowing the set of accepted values.
+// kept private rather than exported (unlike the pre-migration bundle's
+// globals). Typed as a set of the state union itself (not
+// ReadonlySet<string>) so a typo'd member fails to compile instead of
+// silently narrowing the set of accepted values.
 const LINK_COLOR_MODES: ReadonlySet<LinkColorMode> = new Set([
 	"source",
 	"target",

@@ -56,10 +56,10 @@ Available `make` targets:
 Most tests in `tests/` import `src/` directly. `tests/app.test.ts` and
 `tests/lifecycle.test.ts` are broader: they boot the application through
 `startApp()` (`src/app.ts`) against the real `index.html` markup with the
-real d3/SortableJS. `tests/dist.test.ts` goes one step further: it runs
-`make build` itself, then boots the actual emitted `dist/` bundle, asserting
-its asset URLs are relative (so the site works from any subpath) and the
-default diagram renders.
+real d3/SortableJS. `tests/dist.test.ts` goes one step further: it runs the
+build script (`bun run build`) itself, then boots the actual emitted `dist/`
+bundle, asserting its asset URLs are relative (so the site works from any
+subpath) and the default diagram renders.
 
 CI runs four jobs in parallel on every PR and push to `main`: lint, typecheck, tests
 (`make test-unit`), and an artifact job (`make test-dist`, which builds and

@@ -1,4 +1,4 @@
-// Closed value set straight from app.js: PALETTES' keys (app.js:83-101).
+// Closed value set straight from the pre-migration bundle's PALETTES' keys.
 // Defined here (not state.ts) so persist.ts's palette validation stays
 // d3-free — colors.ts, which owns the actual d3 scheme arrays and ordinal-
 // scale construction, imports this module rather than the other way around.
@@ -25,8 +25,8 @@ export const PALETTE_LABELS: Record<Palette, string> = {
 /**
  * Own-property guard against the prototype chain (e.g. a palette key of
  * "toString" resolving to `Object.prototype.toString` instead of failing
- * the lookup) — mirrors app.js's `Object.hasOwn(PALETTES, ...)` checks
- * (app.js:96, 113). Checked against PALETTE_LABELS rather than colors.ts's
+ * the lookup) — mirrors the pre-migration bundle's `Object.hasOwn(PALETTES,
+ * ...)` checks. Checked against PALETTE_LABELS rather than colors.ts's
  * PALETTES map (same key set either way) so this stays callable without
  * importing colors.ts (or the `d3` it pulls in) — persist.ts depends on that.
  */

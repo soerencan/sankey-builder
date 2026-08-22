@@ -9,6 +9,9 @@ permissions:
   contents: read
 
 jobs:
+  # biome's bin is a thin Node launcher that immediately re-spawns the
+  # platform-native binary, so the Node version is immaterial for linting —
+  # no pin needed.
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
@@ -36,6 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
@@ -49,6 +58,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14

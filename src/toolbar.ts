@@ -24,10 +24,9 @@ const SWATCH_COUNT = 5;
 
 /**
  * Label and sprite-symbol id per link-color mode, keyed by the actual state
- * value (unchanged by this UI-only move — see PLAN.md's "Link colors").
- * Exported so tests can pin index.html's hardcoded dialog row labels to this
- * map, the same way tests/app.test.ts already pins the palette dialog to
- * PALETTE_LABELS.
+ * value. Exported so tests can pin index.html's hardcoded dialog row labels
+ * to this map, the same way tests/app.test.ts already pins the palette
+ * dialog to PALETTE_LABELS.
  */
 export const LINK_COLOR_OPTIONS: Record<LinkColorMode, { label: string; iconId: string }> = {
 	source: { label: "Source", iconId: "icon-link-source" },
@@ -181,9 +180,8 @@ export function setupToolbar(
 		: null;
 
 	// The narrow Diagram surface: unlike the other dialogs, choosing an
-	// option here does NOT close it (PLAN.md's Narrow-screen Diagram surface)
-	// — the diagram updates live behind it and the user dismisses it
-	// explicitly (Close, backdrop, Escape).
+	// option here does NOT close it — the diagram updates live behind it and
+	// the user dismisses it explicitly (Close, backdrop, Escape).
 	const displayDialogEl = panel.querySelector<HTMLDialogElement>("#display-dialog");
 	const displayDialog: DialogController | null = displayDialogEl
 		? setupDialog(displayDialogEl, signal)
