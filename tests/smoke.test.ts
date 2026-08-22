@@ -10,8 +10,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { PALETTE_LABELS } from "../src/colors";
 import { serializeState } from "../src/io";
 import { STORAGE_KEY } from "../src/persist";
+import { PREVIEW_HEIGHT_STORAGE_KEY } from "../src/preview-resizer";
 import { defaultState } from "../src/state";
-import { LINK_COLOR_OPTIONS } from "../src/toolbar";
+import { ASPECT_RATIO_OPTIONS, LINK_COLOR_OPTIONS } from "../src/toolbar";
 import { loadD3Global } from "./helpers/d3-global";
 import { loadSortableGlobal } from "./helpers/sortable-global";
 
@@ -82,6 +83,23 @@ describe("artifact smoke test", () => {
 				: 0,
 		).toBeTruthy();
 		expect(document.getElementById("resizer")).toBeNull();
+	});
+
+	it("resizes only the preview through the splitter controls", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const diagram = document.getElementById("diagram");
+		const viewBoxBefore = diagram?.querySelector("svg")?.getAttribute("viewBox");
+		document
+			.querySelector<HTMLElement>('[data-action="preview-larger"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
+		expect(diagram?.querySelector("svg")?.getAttribute("viewBox")).toBe(viewBoxBefore);
+		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("400");
+		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").settings.aspectRatio).toBe("2:1");
 	});
 
 	it("boots without throwing and renders the default diagram", () => {
@@ -374,6 +392,23 @@ describe("artifact smoke test", () => {
 		}
 		expect(dialog.open).toBe(false);
 		expect(document.activeElement).toBe(trigger);
+	});
+
+	it("offers every labelled aspect-ratio preset in the wide picker and narrow Diagram sheet", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		for (const preset of ASPECT_RATIO_OPTIONS) {
+			const copies = document.querySelectorAll<HTMLElement>(
+				`[data-action="set-aspect-ratio"][data-value="${preset.value}"]`,
+			);
+			expect(copies).toHaveLength(2);
+			for (const copy of Array.from(copies)) {
+				expect(copy.textContent).toContain(preset.label);
+				expect(copy.querySelector(".ratio-preview")).not.toBeNull();
+			}
+		}
 	});
 
 	it("clicking the Diagram button opens the diagram-options dialog", () => {

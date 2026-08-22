@@ -822,6 +822,84 @@ ${xml}`;
     });
   }
 
+  // src/preview-resizer.ts
+  var PREVIEW_HEIGHT_STORAGE_KEY = "sankey-builder-preview-height";
+  var MIN_PREVIEW_HEIGHT = 240;
+  var MAX_PREVIEW_HEIGHT = 720;
+  var DEFAULT_PREVIEW_HEIGHT = 360;
+  var PREVIEW_HEIGHT_STEP = 40;
+  function clampPreviewHeight(value) {
+    if (!Number.isFinite(value)) return DEFAULT_PREVIEW_HEIGHT;
+    return Math.min(MAX_PREVIEW_HEIGHT, Math.max(MIN_PREVIEW_HEIGHT, Math.round(value)));
+  }
+  function loadPreviewHeight() {
+    try {
+      const stored = localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY);
+      if (stored === null || stored.trim() === "") return DEFAULT_PREVIEW_HEIGHT;
+      const value = Number(stored);
+      return Number.isFinite(value) ? clampPreviewHeight(value) : DEFAULT_PREVIEW_HEIGHT;
+    } catch {
+      return DEFAULT_PREVIEW_HEIGHT;
+    }
+  }
+  function persistPreviewHeight(value) {
+    try {
+      localStorage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, String(value));
+    } catch {
+    }
+  }
+  function setupPreviewResizer() {
+    const diagram = document.getElementById("diagram");
+    const controls = document.querySelector(".preview-resizer");
+    const splitter = document.getElementById("preview-splitter");
+    if (!diagram || !controls || !splitter) return;
+    let height = loadPreviewHeight();
+    let dragStartY = null;
+    let dragStartHeight = height;
+    const apply = (next, persist = true) => {
+      height = clampPreviewHeight(next);
+      diagram.style.setProperty("--diagram-preview-height", `${height}px`);
+      splitter.setAttribute("aria-valuenow", String(height));
+      splitter.setAttribute("aria-valuetext", `${height} pixels`);
+      if (persist) persistPreviewHeight(height);
+    };
+    splitter.setAttribute("aria-valuemin", String(MIN_PREVIEW_HEIGHT));
+    splitter.setAttribute("aria-valuemax", String(MAX_PREVIEW_HEIGHT));
+    apply(height, false);
+    controls.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const action = event.target.closest("[data-action]")?.dataset.action;
+      if (action === "preview-smaller") apply(height - PREVIEW_HEIGHT_STEP);
+      else if (action === "preview-larger") apply(height + PREVIEW_HEIGHT_STEP);
+      else if (action === "preview-reset") apply(DEFAULT_PREVIEW_HEIGHT);
+    });
+    splitter.addEventListener("keydown", (event) => {
+      let next;
+      if (event.key === "ArrowUp") next = height - PREVIEW_HEIGHT_STEP;
+      else if (event.key === "ArrowDown") next = height + PREVIEW_HEIGHT_STEP;
+      else if (event.key === "Home") next = MIN_PREVIEW_HEIGHT;
+      else if (event.key === "End") next = MAX_PREVIEW_HEIGHT;
+      if (next === void 0) return;
+      event.preventDefault();
+      apply(next);
+    });
+    splitter.addEventListener("pointerdown", (event) => {
+      dragStartY = event.clientY;
+      dragStartHeight = height;
+      splitter.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+    });
+    window.addEventListener("pointermove", (event) => {
+      if (dragStartY === null) return;
+      apply(dragStartHeight + event.clientY - dragStartY);
+    });
+    window.addEventListener("pointerup", (event) => {
+      if (dragStartY === null) return;
+      dragStartY = null;
+      splitter.releasePointerCapture?.(event.pointerId);
+    });
+  }
+
   // src/render.ts
   function alignFn(name) {
     const table = {
@@ -1007,6 +1085,7 @@ ${xml}`;
     const diagram = document.getElementById("diagram");
     const ratio = aspectRatioOption(aspectRatio);
     diagram?.style.setProperty("--diagram-aspect-ratio", `${ratio.width} / ${ratio.height}`);
+    diagram?.style.setProperty("--diagram-aspect-number", String(ratio.width / ratio.height));
   }
   function setupToolbar(state2, actions) {
     const panel = document.querySelector(".diagram-panel");
@@ -1174,6 +1253,7 @@ ${xml}`;
     setupLinkEditor(linkEditorActions, state);
     setupThemeControl(state, themeControlActions);
     setupToolbar(state, toolbarActions);
+    setupPreviewResizer();
     setupIo(state, ioActions);
     refresh();
     syncToolbar(state);

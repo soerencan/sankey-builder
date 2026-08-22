@@ -141,6 +141,7 @@ export function syncToolbar(state: State): void {
 	const diagram = document.getElementById("diagram");
 	const ratio = aspectRatioOption(aspectRatio);
 	diagram?.style.setProperty("--diagram-aspect-ratio", `${ratio.width} / ${ratio.height}`);
+	diagram?.style.setProperty("--diagram-aspect-number", String(ratio.width / ratio.height));
 }
 
 /**

@@ -445,6 +445,7 @@ select {
      viewport and the Data card's own layout query. */
   container-type: inline-size;
   container-name: diagram-panel;
+  background: var(--surface);
 }
 
 .diagram-toolbar {
@@ -459,8 +460,14 @@ select {
 }
 
 #diagram {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
+  width: min(
+    100%,
+    calc(var(--diagram-preview-height, 360px) * var(--diagram-aspect-number, 2))
+  );
+  aspect-ratio: var(--diagram-aspect-ratio, 2 / 1);
+  align-self: center;
   /* Read directly by io-controls.ts (getComputedStyle of the svg's
      parentElement) as the SVG/PNG export background, so it stays opaque. */
   background: var(--surface);
@@ -475,7 +482,49 @@ select {
 #diagram svg {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+}
+
+.preview-resizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.preview-size-button,
+#preview-splitter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.preview-size-button {
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+}
+
+#preview-splitter {
+  width: 4.5rem;
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.preview-grip {
+  width: 2.5rem;
+  height: 0.3rem;
+  border-block: 1px solid currentColor;
+  opacity: 0.55;
+}
+
+.preview-reset {
+  margin-inline-start: 0.5rem;
+  border-inline-start: 1px solid var(--border);
 }
 
 /* ==========================================================================
@@ -621,6 +670,14 @@ select {
 
   .toolbar-narrow {
     display: flex;
+  }
+
+  #diagram {
+    width: 100%;
+  }
+
+  .preview-resizer {
+    display: none;
   }
 }
 
@@ -851,7 +908,8 @@ dialog [role="group"] + [role="group"] {
      are narrow icon-only buttons — min-height alone leaves them ~32px wide,
      so pin min-width too. */
   .toolbar-button,
-  .align-option {
+  .align-option,
+  .preview-size-button {
     min-width: 44px;
   }
 

@@ -6,6 +6,7 @@ import { renderLinkEditor, setupLinkEditor } from "./link-editor";
 import type { NodeEditorActions } from "./node-editor";
 import { renderNodeEditor, setupNodeEditor } from "./node-editor";
 import { loadState, saveState } from "./persist";
+import { setupPreviewResizer } from "./preview-resizer";
 import { renderDiagram } from "./render";
 import type { State } from "./state";
 import {
@@ -214,6 +215,7 @@ function init(): void {
 	setupLinkEditor(linkEditorActions, state);
 	setupThemeControl(state, themeControlActions);
 	setupToolbar(state, toolbarActions);
+	setupPreviewResizer();
 	setupIo(state, ioActions);
 	refresh();
 	// setupToolbar/setupThemeControl wire listeners only (see their own docs) —
