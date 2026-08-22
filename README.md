@@ -70,14 +70,11 @@ CI runs four jobs in parallel: lint, typecheck, tests, and an artifact job
 Except for the third-party components listed below, this project is licensed
 under the [MIT License](LICENSE).
 
-The following vendored components retain their original copyright and license
-terms and are not relicensed under the MIT License:
+[`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) is the authoritative
+notice list: it attributes the full production dependency closure of the
+bundled site (D3 and its `d3-*` modules, d3-sankey, and SortableJS), plus
+Open Props, which is linked directly by `index.html` and shipped in full.
+None of these are relicensed under the MIT License above.
 
-- `vendor/d3.min.js` — D3 7.9.0, ISC License
-  ([license](vendor/LICENSE-d3), [source](https://github.com/d3/d3))
-- `vendor/d3-sankey.min.js` — d3-sankey 0.12.3, BSD 3-Clause License
-  ([license](vendor/LICENSE-d3-sankey), [source](https://github.com/d3/d3-sankey))
-- `vendor/open-props.min.css` — Open Props 1.7.14, MIT License
-  ([license](vendor/LICENSE-open-props), [source](https://github.com/argyleink/open-props))
-- `vendor/sortable.min.js` — SortableJS 1.15.7, MIT License
-  ([license](vendor/LICENSE-sortablejs), [source](https://github.com/SortableJS/Sortable))
+The `vendor/LICENSE-*` files are the in-tree copies of the individual
+upstream licenses these notices are drawn from.
