@@ -22,7 +22,7 @@ export function renderNodeEditor(
 ): void {
 	const root = d3.select("#node-editor");
 	root.html("");
-	root.append("h2").attr("id", "node-editor-heading").text("Nodes");
+	root.append("h3").attr("id", "node-editor-heading").text("Nodes");
 
 	const rowsContainer = root.append("div").attr("class", "node-rows");
 

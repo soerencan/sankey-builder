@@ -99,7 +99,7 @@ export function syncToolbar(state: State): void {
 	}
 
 	// Document-scoped (not panel-scoped) rather than following the
-	// panel-only pattern above: the narrow Display dialog holds a second copy
+	// panel-only pattern above: the narrow Diagram dialog holds a second copy
 	// of these buttons, and both copies must stay in sync without this
 	// function needing to know where they live.
 	const linkColorOptions = Array.from(
@@ -140,8 +140,8 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 	const linksDialogEl = panel.querySelector<HTMLDialogElement>("#links-dialog");
 	const linksDialog: DialogController | null = linksDialogEl ? setupDialog(linksDialogEl) : null;
 
-	// The narrow Display surface: unlike the other dialogs, choosing an
-	// option here does NOT close it (PLAN.md's Narrow-screen Display surface)
+	// The narrow Diagram surface: unlike the other dialogs, choosing an
+	// option here does NOT close it (PLAN.md's Narrow-screen Diagram surface)
 	// — the diagram updates live behind it and the user dismisses it
 	// explicitly (Close, backdrop, Escape).
 	const displayDialogEl = panel.querySelector<HTMLDialogElement>("#display-dialog");
@@ -177,7 +177,7 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 		} else if (action === "set-link-color" && isLinkColorKey(value)) {
 			actions.setLinkColor(value);
 			syncToolbar(state);
-			// Only the links dialog's own copy closes on choice — the Display
+			// Only the links dialog's own copy closes on choice — the Diagram
 			// dialog's copy (same data-action/data-value) stays open.
 			if (trigger.closest("dialog") === linksDialogEl) linksDialog?.close();
 		} else if (action === "set-alignment" && isAlignmentKey(value)) {

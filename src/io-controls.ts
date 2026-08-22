@@ -1,3 +1,4 @@
+import { setupDialog } from "./dialog";
 import { rasterizeSvg, serializeDiagramSvg } from "./export";
 import { type ImportState, parseImport, serializeState } from "./io";
 import { DIAGRAM_HEIGHT, DIAGRAM_WIDTH } from "./render";
@@ -18,45 +19,67 @@ export interface IoActions {
 }
 
 /**
- * DOM glue for the Export/Import buttons in .io-actions, using the browser's
+ * DOM glue for the contextual Export/Import controls, using the browser's
  * built-in download (Blob + object URL) and file-picker mechanisms — no
  * dependencies. Parsing and state mutation live elsewhere (io.ts is pure,
  * main.ts owns the state reference and feedback); this only bridges the DOM.
  */
 export function setupIo(state: State, actions: IoActions): void {
 	const exportButton = document.getElementById("export-button");
-	const exportSvgButton = document.getElementById("export-svg-button");
-	const exportPngButton = document.getElementById("export-png-button");
+	const diagramExportButton = document.getElementById("diagram-export-button");
+	const diagramExportDialogEl = document.getElementById("diagram-export-dialog");
 	const importButton = document.getElementById("import-button");
 	const fileInput = document.getElementById("import-file");
 	if (!(fileInput instanceof HTMLInputElement)) return;
+	const diagramExportDialog =
+		diagramExportDialogEl instanceof HTMLDialogElement
+			? setupDialog(diagramExportDialogEl)
+			: undefined;
 
 	exportButton?.addEventListener("click", () => {
 		const blob = new Blob([serializeState(state)], { type: "application/json" });
 		download(blob, EXPORT_JSON_FILENAME);
 		actions.reportExportSuccess(EXPORT_JSON_FILENAME);
 	});
-	exportSvgButton?.addEventListener("click", () => {
-		const svg = serializeVisibleDiagram(actions);
-		if (!svg) return;
-		download(new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
-		actions.reportExportSuccess(EXPORT_SVG_FILENAME);
+	diagramExportButton?.addEventListener("click", () => {
+		if (diagramExportButton instanceof HTMLElement) {
+			diagramExportDialog?.open(diagramExportButton);
+		}
 	});
-	exportPngButton?.addEventListener("click", () => {
-		const svg = serializeVisibleDiagram(actions);
-		if (!svg) return;
-		rasterizeSvg(svg, DIAGRAM_WIDTH, DIAGRAM_HEIGHT, PNG_EXPORT_SCALE)
-			.then((blob) => {
-				download(blob, EXPORT_PNG_FILENAME);
-				actions.reportExportSuccess(EXPORT_PNG_FILENAME);
-			})
-			.catch((err) => {
-				// The notice stays generic; log the specific cause so a field report
-				// ("PNG export failed") is diagnosable from the console.
-				console.error(err);
-				actions.reportExportError("PNG export failed. Try the SVG export instead.");
-			});
-	});
+
+	for (const exportSvgButton of Array.from(
+		document.querySelectorAll<HTMLElement>('[data-action="export-svg"]'),
+	)) {
+		exportSvgButton.addEventListener("click", () => {
+			const svg = serializeVisibleDiagram(actions);
+			if (svg) {
+				download(new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
+				actions.reportExportSuccess(EXPORT_SVG_FILENAME);
+			}
+			closeContainingDialog(exportSvgButton);
+		});
+	}
+	for (const exportPngButton of Array.from(
+		document.querySelectorAll<HTMLElement>('[data-action="export-png"]'),
+	)) {
+		exportPngButton.addEventListener("click", () => {
+			const svg = serializeVisibleDiagram(actions);
+			if (svg) {
+				rasterizeSvg(svg, DIAGRAM_WIDTH, DIAGRAM_HEIGHT, PNG_EXPORT_SCALE)
+					.then((blob) => {
+						download(blob, EXPORT_PNG_FILENAME);
+						actions.reportExportSuccess(EXPORT_PNG_FILENAME);
+					})
+					.catch((err) => {
+						// The notice stays generic; log the specific cause so a field report
+						// ("PNG export failed") is diagnosable from the console.
+						console.error(err);
+						actions.reportExportError("PNG export failed. Try the SVG export instead.");
+					});
+			}
+			closeContainingDialog(exportPngButton);
+		});
+	}
 	importButton?.addEventListener("click", () => fileInput.click());
 
 	fileInput.addEventListener("change", async () => {
@@ -77,6 +100,16 @@ export function setupIo(state: State, actions: IoActions): void {
 		if (result.ok) actions.importDiagram(result.state, result.repairs);
 		else actions.reportImportError(result.error);
 	});
+}
+
+/**
+ * Format actions appear in both the wide export dialog and the narrow
+ * Diagram sheet. Close whichever surface owns the activated copy; its
+ * setupDialog close listener restores focus to the corresponding trigger.
+ */
+function closeContainingDialog(control: HTMLElement): void {
+	const dialog = control.closest("dialog");
+	if (dialog instanceof HTMLDialogElement && dialog.open) dialog.close();
 }
 
 /**

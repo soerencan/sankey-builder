@@ -60,6 +60,16 @@ beforeEach(() => {
 	localStorage.clear();
 });
 
+function removeAllNodes(): void {
+	// Query fresh each time: deleting a node rebuilds the editor rows wholesale,
+	// detaching any earlier button reference from the document.
+	let deleteButton = document.querySelector<HTMLButtonElement>('[data-action="delete-node"]');
+	while (deleteButton) {
+		deleteButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		deleteButton = document.querySelector<HTMLButtonElement>('[data-action="delete-node"]');
+	}
+}
+
 describe("artifact smoke test", () => {
 	it("boots without throwing and renders the default diagram", () => {
 		// Indirect eval, same pattern as the d3-global helper: runs as global
@@ -269,7 +279,7 @@ describe("artifact smoke test", () => {
 		globalEval(bundle);
 
 		// Two DOM copies of each alignment button exist (the wide toolbar's
-		// .align-group and the narrow Display dialog) — syncToolbar keeps both
+		// .align-group and the narrow Diagram dialog) — syncToolbar keeps both
 		// in lockstep, so every pressed button must share the same value.
 		const pressed = Array.from(
 			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
@@ -324,7 +334,7 @@ describe("artifact smoke test", () => {
 		}
 	});
 
-	it("clicking the Display button opens the display dialog", () => {
+	it("clicking the Diagram button opens the diagram-options dialog", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;
 		globalEval(bundle);
@@ -377,7 +387,7 @@ describe("artifact smoke test", () => {
 			document.getElementById("diagram")?.querySelector('path[stroke="url(#link-grad-0)"]'),
 		).not.toBeNull();
 
-		// Both copies of the choice — the Display dialog's own and the wide
+		// Both copies of the choice — the Diagram dialog's own and the wide
 		// toolbar's #links-dialog — must reflect the new value.
 		expect(gradientOption?.getAttribute("aria-pressed")).toBe("true");
 		const linksDialogGradientOption = linksDialog.querySelector<HTMLButtonElement>(
@@ -388,7 +398,7 @@ describe("artifact smoke test", () => {
 			"Links: Source to target (gradient)",
 		);
 
-		// Unlike the links dialog, choosing inside Display does not close it.
+		// Unlike the links dialog, choosing inside Diagram does not close it.
 		expect(displayDialog.open).toBe(true);
 		expect(document.activeElement).not.toBe(displayButton);
 	});
@@ -421,7 +431,7 @@ describe("artifact smoke test", () => {
 		expect(displayDialog.open).toBe(true);
 	});
 
-	it("closing the display dialog via its Close button returns focus to the Display button", () => {
+	it("closing the diagram-options dialog via its Close button returns focus to the Diagram button", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;
 		globalEval(bundle);
@@ -977,7 +987,46 @@ describe("artifact smoke test", () => {
 		expect(document.getElementById("io-notice")?.textContent).toBe("Exported sankey.json.");
 	});
 
-	it("reports 'nothing to export' for PNG export on an empty diagram, without rasterizing", () => {
+	it("opens the diagram export dialog and moves focus into its format choices", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const trigger = document.getElementById("diagram-export-button");
+		const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
+		expect(trigger).not.toBeNull();
+		expect(dialog).toBeInstanceOf(HTMLDialogElement);
+		expect(dialog.open).toBe(false);
+
+		trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(dialog.open).toBe(true);
+		expect(document.activeElement).toBe(dialog.querySelector('[data-action="export-svg"]'));
+	});
+
+	it("reports 'nothing to export' for SVG and closes the export dialog with focus restored", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		removeAllNodes();
+		expect(document.querySelector("#diagram svg")).toBeNull();
+
+		const trigger = document.getElementById("diagram-export-button");
+		const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
+		trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		dialog
+			.querySelector<HTMLElement>('[data-action="export-svg"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(document.getElementById("io-notice")?.textContent).toBe(
+			"Nothing to export — the diagram is empty.",
+		);
+		expect(dialog.open).toBe(false);
+		expect(document.activeElement).toBe(trigger);
+	});
+
+	it("wires both wide and narrow export choices; empty PNG closes the Diagram dialog", () => {
 		// Rasterization itself (Image/canvas) isn't exercisable under happy-dom —
 		// this only proves the empty-diagram guard fires before any of that runs,
 		// same as the SVG export's guard.
@@ -985,22 +1034,24 @@ describe("artifact smoke test", () => {
 		const globalEval = eval;
 		globalEval(bundle);
 
-		// Query fresh each time, not a snapshot: deleting a node rebuilds the
-		// editor rows wholesale, detaching earlier buttons from the document.
-		let deleteButton: HTMLButtonElement | null;
-		// biome-ignore lint/suspicious/noAssignInExpressions: tightest way to express "query, then loop while found"
-		while ((deleteButton = document.querySelector('[data-action="delete-node"]'))) {
-			deleteButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-		}
+		expect(document.querySelectorAll('[data-action="export-svg"]')).toHaveLength(2);
+		expect(document.querySelectorAll('[data-action="export-png"]')).toHaveLength(2);
+
+		removeAllNodes();
 		expect(document.querySelector("#diagram svg")).toBeNull();
 
-		document
-			.getElementById("export-png-button")
+		const displayButton = document.getElementById("display-button");
+		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
+		displayButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		displayDialog
+			.querySelector<HTMLElement>('[data-action="export-png"]')
 			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Nothing to export — the diagram is empty.",
 		);
+		expect(displayDialog.open).toBe(false);
+		expect(document.activeElement).toBe(displayButton);
 	});
 
 	it("keyboard-reorders a node row: order, dropdowns, storage, and focus all follow", () => {

@@ -39,6 +39,39 @@
     return (node) => scale(node.id);
   }
 
+  // src/dialog.ts
+  var FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  function setupDialog(dialog) {
+    let trigger = null;
+    function close() {
+      if (!dialog.open) return;
+      dialog.close();
+    }
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) {
+        close();
+        return;
+      }
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest('[data-action="close-dialog"]')) close();
+    });
+    dialog.addEventListener("close", () => {
+      trigger?.focus();
+    });
+    function open(el) {
+      trigger = el;
+      try {
+        dialog.showModal();
+      } catch {
+        dialog.setAttribute("open", "");
+      }
+      const pressed = dialog.querySelector('[aria-pressed="true"]');
+      const initial = pressed ?? dialog.querySelector(FOCUSABLE_SELECTOR);
+      initial?.focus();
+    }
+    return { open, close };
+  }
+
   // src/state.ts
   function isComplete(link) {
     return link.source !== null && link.target !== null;
@@ -473,33 +506,51 @@ ${xml}`;
   var PNG_EXPORT_SCALE = 2;
   function setupIo(state2, actions) {
     const exportButton = document.getElementById("export-button");
-    const exportSvgButton = document.getElementById("export-svg-button");
-    const exportPngButton = document.getElementById("export-png-button");
+    const diagramExportButton = document.getElementById("diagram-export-button");
+    const diagramExportDialogEl = document.getElementById("diagram-export-dialog");
     const importButton = document.getElementById("import-button");
     const fileInput = document.getElementById("import-file");
     if (!(fileInput instanceof HTMLInputElement)) return;
+    const diagramExportDialog = diagramExportDialogEl instanceof HTMLDialogElement ? setupDialog(diagramExportDialogEl) : void 0;
     exportButton?.addEventListener("click", () => {
       const blob = new Blob([serializeState(state2)], { type: "application/json" });
       download(blob, EXPORT_JSON_FILENAME);
       actions.reportExportSuccess(EXPORT_JSON_FILENAME);
     });
-    exportSvgButton?.addEventListener("click", () => {
-      const svg = serializeVisibleDiagram(actions);
-      if (!svg) return;
-      download(new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
-      actions.reportExportSuccess(EXPORT_SVG_FILENAME);
+    diagramExportButton?.addEventListener("click", () => {
+      if (diagramExportButton instanceof HTMLElement) {
+        diagramExportDialog?.open(diagramExportButton);
+      }
     });
-    exportPngButton?.addEventListener("click", () => {
-      const svg = serializeVisibleDiagram(actions);
-      if (!svg) return;
-      rasterizeSvg(svg, DIAGRAM_WIDTH, DIAGRAM_HEIGHT, PNG_EXPORT_SCALE).then((blob) => {
-        download(blob, EXPORT_PNG_FILENAME);
-        actions.reportExportSuccess(EXPORT_PNG_FILENAME);
-      }).catch((err) => {
-        console.error(err);
-        actions.reportExportError("PNG export failed. Try the SVG export instead.");
+    for (const exportSvgButton of Array.from(
+      document.querySelectorAll('[data-action="export-svg"]')
+    )) {
+      exportSvgButton.addEventListener("click", () => {
+        const svg = serializeVisibleDiagram(actions);
+        if (svg) {
+          download(new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
+          actions.reportExportSuccess(EXPORT_SVG_FILENAME);
+        }
+        closeContainingDialog(exportSvgButton);
       });
-    });
+    }
+    for (const exportPngButton of Array.from(
+      document.querySelectorAll('[data-action="export-png"]')
+    )) {
+      exportPngButton.addEventListener("click", () => {
+        const svg = serializeVisibleDiagram(actions);
+        if (svg) {
+          rasterizeSvg(svg, DIAGRAM_WIDTH, DIAGRAM_HEIGHT, PNG_EXPORT_SCALE).then((blob) => {
+            download(blob, EXPORT_PNG_FILENAME);
+            actions.reportExportSuccess(EXPORT_PNG_FILENAME);
+          }).catch((err) => {
+            console.error(err);
+            actions.reportExportError("PNG export failed. Try the SVG export instead.");
+          });
+        }
+        closeContainingDialog(exportPngButton);
+      });
+    }
     importButton?.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", async () => {
       const file = fileInput.files?.[0];
@@ -516,6 +567,10 @@ ${xml}`;
       if (result.ok) actions.importDiagram(result.state, result.repairs);
       else actions.reportImportError(result.error);
     });
+  }
+  function closeContainingDialog(control) {
+    const dialog = control.closest("dialog");
+    if (dialog instanceof HTMLDialogElement && dialog.open) dialog.close();
   }
   function serializeVisibleDiagram(actions) {
     const svgEl = document.querySelector("#diagram svg");
@@ -608,7 +663,7 @@ ${xml}`;
   function renderLinkEditor(state2, moveLink2) {
     const root = d3.select("#link-editor");
     root.html("");
-    root.append("h2").attr("id", "link-editor-heading").text("Links");
+    root.append("h3").attr("id", "link-editor-heading").text("Links");
     const rowsContainer = root.append("div").attr("class", "link-rows");
     const row = rowsContainer.selectAll(".link-row").data(state2.links).join("div").attr("class", "link-row");
     row.append("button").attr("type", "button").attr("class", "drag-handle").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Reorder link ${i + 1}`).text("\u283F");
@@ -727,7 +782,7 @@ ${xml}`;
   function renderNodeEditor(state2, nodeColor, moveNode2) {
     const root = d3.select("#node-editor");
     root.html("");
-    root.append("h2").attr("id", "node-editor-heading").text("Nodes");
+    root.append("h3").attr("id", "node-editor-heading").text("Nodes");
     const rowsContainer = root.append("div").attr("class", "node-rows");
     const row = rowsContainer.selectAll(".node-row").data(state2.nodes, (d) => d.id).join("div").attr("class", "node-row");
     row.append("button").attr("type", "button").attr("class", "drag-handle").attr("data-index", (_d, i) => i).attr("data-id", (d) => d.id).attr("aria-label", (d) => `Reorder ${d.name}`).text("\u283F");
@@ -848,39 +903,6 @@ ${xml}`;
     } else {
       document.documentElement.setAttribute("data-theme", theme);
     }
-  }
-
-  // src/dialog.ts
-  var FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-  function setupDialog(dialog) {
-    let trigger = null;
-    function close() {
-      if (!dialog.open) return;
-      dialog.close();
-    }
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) {
-        close();
-        return;
-      }
-      if (!(event.target instanceof Element)) return;
-      if (event.target.closest('[data-action="close-dialog"]')) close();
-    });
-    dialog.addEventListener("close", () => {
-      trigger?.focus();
-    });
-    function open(el) {
-      trigger = el;
-      try {
-        dialog.showModal();
-      } catch {
-        dialog.setAttribute("open", "");
-      }
-      const pressed = dialog.querySelector('[aria-pressed="true"]');
-      const initial = pressed ?? dialog.querySelector(FOCUSABLE_SELECTOR);
-      initial?.focus();
-    }
-    return { open, close };
   }
 
   // src/theme-control.ts
