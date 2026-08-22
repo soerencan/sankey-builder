@@ -1,19 +1,6 @@
 "use strict";
 (() => {
-  // src/colors.ts
-  var PALETTES = {
-    observable10: () => d3.schemeObservable10,
-    tableau10: () => d3.schemeTableau10,
-    category10: () => d3.schemeCategory10,
-    set2: () => d3.schemeSet2,
-    dark2: () => d3.schemeDark2
-  };
-  function isPaletteKey(key) {
-    return typeof key === "string" && Object.hasOwn(PALETTES, key);
-  }
-  function activePalette(key) {
-    return (isPaletteKey(key) ? PALETTES[key] : PALETTES.observable10)();
-  }
+  // src/palette.ts
   var PALETTE_ORDER = [
     "observable10",
     "tableau10",
@@ -28,6 +15,21 @@
     set2: "Set 2",
     dark2: "Dark 2"
   };
+  function isPaletteKey(key) {
+    return typeof key === "string" && Object.hasOwn(PALETTE_LABELS, key);
+  }
+
+  // src/colors.ts
+  var PALETTES = {
+    observable10: () => d3.schemeObservable10,
+    tableau10: () => d3.schemeTableau10,
+    category10: () => d3.schemeCategory10,
+    set2: () => d3.schemeSet2,
+    dark2: () => d3.schemeDark2
+  };
+  function activePalette(key) {
+    return (isPaletteKey(key) ? PALETTES[key] : PALETTES.observable10)();
+  }
   function paletteColors(key) {
     return PALETTES[key]();
   }

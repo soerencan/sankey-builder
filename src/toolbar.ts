@@ -4,9 +4,10 @@ import {
 	aspectRatioOption,
 	isAspectRatio,
 } from "./aspect-ratio";
-import { PALETTE_LABELS, PALETTE_ORDER, isPaletteKey, paletteColors } from "./colors";
+import { paletteColors } from "./colors";
 import type { DialogController } from "./dialog";
 import { setupDialog } from "./dialog";
+import { PALETTE_LABELS, PALETTE_ORDER, isPaletteKey } from "./palette";
 import type { Alignment, LinkColorMode, Palette, State } from "./state";
 
 export interface ToolbarActions {

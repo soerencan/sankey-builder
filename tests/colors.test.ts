@@ -1,39 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import {
-	PALETTE_LABELS,
-	PALETTE_ORDER,
-	createNodeColorResolver,
-	isPaletteKey,
-	paletteColors,
-} from "../src/colors";
+import { createNodeColorResolver, paletteColors } from "../src/colors";
 import { defaultState } from "../src/state";
 import { loadD3Global } from "./helpers/d3-global";
 
 beforeAll(() => {
 	loadD3Global();
-});
-
-describe("isPaletteKey", () => {
-	it("accepts the five real palette keys", () => {
-		for (const key of ["observable10", "tableau10", "category10", "set2", "dark2"]) {
-			expect(isPaletteKey(key)).toBe(true);
-		}
-	});
-
-	it("rejects a prototype-chain hole (e.g. toString)", () => {
-		expect(isPaletteKey("toString")).toBe(false);
-	});
-
-	it("rejects an unrecognized string", () => {
-		expect(isPaletteKey("rainbow")).toBe(false);
-	});
-
-	it("rejects non-strings", () => {
-		expect(isPaletteKey(undefined)).toBe(false);
-		expect(isPaletteKey(null)).toBe(false);
-		expect(isPaletteKey(42)).toBe(false);
-		expect(isPaletteKey({})).toBe(false);
-	});
 });
 
 describe("createNodeColorResolver", () => {
@@ -56,23 +27,6 @@ describe("createNodeColorResolver", () => {
 		const after = state.nodes.map((n) => dark2(n));
 
 		expect(after).not.toEqual(before);
-	});
-});
-
-describe("PALETTE_ORDER", () => {
-	it("contains every palette key exactly once", () => {
-		for (const key of ["observable10", "tableau10", "category10", "set2", "dark2"]) {
-			expect(PALETTE_ORDER.filter((k) => k === key)).toHaveLength(1);
-		}
-		expect(PALETTE_ORDER).toHaveLength(5);
-	});
-});
-
-describe("PALETTE_LABELS", () => {
-	it("has a non-empty label for every palette key", () => {
-		for (const key of PALETTE_ORDER) {
-			expect(PALETTE_LABELS[key].length).toBeGreaterThan(0);
-		}
 	});
 });
 

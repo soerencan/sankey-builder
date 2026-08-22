@@ -20,8 +20,11 @@ export function isComplete(link: Link): link is Link & { source: string; target:
 }
 
 // Closed value sets straight from app.js: PALETTES' keys, LINK_COLOR_MODES,
-// ALIGNMENTS, and THEMES (app.js:83-101).
-export type Palette = "observable10" | "tableau10" | "category10" | "set2" | "dark2";
+// ALIGNMENTS, and THEMES (app.js:83-101). Palette itself lives in palette.ts
+// (a d3-free boundary persist.ts depends on) and is re-exported here so
+// existing `from "./state"` imports keep working.
+import type { Palette } from "./palette";
+export type { Palette } from "./palette";
 export type LinkColorMode = "source" | "target" | "source-target" | "static";
 export type Alignment = "left" | "right" | "center" | "justify";
 export type Theme = "auto" | "light" | "dark";

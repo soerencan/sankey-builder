@@ -1,5 +1,5 @@
 import { isAspectRatio } from "./aspect-ratio";
-import { isPaletteKey } from "./colors";
+import { isPaletteKey } from "./palette";
 import type {
 	Alignment,
 	Link,

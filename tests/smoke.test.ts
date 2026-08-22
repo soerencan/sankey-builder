@@ -7,8 +7,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { PALETTE_LABELS } from "../src/colors";
 import { serializeState } from "../src/io";
+import { PALETTE_LABELS } from "../src/palette";
 import { STORAGE_KEY } from "../src/persist";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../src/preview-resizer";
 import { defaultState } from "../src/state";
@@ -171,7 +171,7 @@ describe("artifact smoke test", () => {
 
 		expect((dialog as HTMLDialogElement).open).toBe(true);
 
-		// Pin index.html's hardcoded option labels to PALETTE_LABELS (src/colors.ts)
+		// Pin index.html's hardcoded option labels to PALETTE_LABELS (src/palette.ts)
 		// so the two can't drift apart.
 		for (const option of Array.from(
 			dialog?.querySelectorAll<HTMLElement>(".palette-option") ?? [],
