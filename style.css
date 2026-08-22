@@ -453,16 +453,6 @@ select {
   cursor: grabbing;
 }
 
-.control-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.control-row + .control-row {
-  margin-top: 0.5rem;
-}
-
 /*
  * App-level Export/Import actions, standing apart from the settings boxes:
  * the two buttons split the top row, and #io-notice spans beneath them.
@@ -475,16 +465,6 @@ select {
 
 .io-actions #io-notice {
   grid-column: 1 / -1;
-}
-
-.control-row label {
-  flex: 0 0 auto;
-  min-width: 5rem;
-}
-
-.control-row select {
-  flex: 1 1 auto;
-  min-width: 0;
 }
 
 /*

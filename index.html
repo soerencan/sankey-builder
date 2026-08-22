@@ -189,10 +189,6 @@
         <h2 id="link-editor-heading">Links</h2>
       </section>
 
-      <section id="controls" aria-labelledby="controls-heading">
-        <h2 id="controls-heading">Diagram controls</h2>
-      </section>
-
       <!-- App-level actions, deliberately outside the settings boxes above. -->
       <div class="io-actions" role="group" aria-label="Diagram file actions">
         <button type="button" id="export-button" data-action="export">Export JSON</button>
@@ -308,7 +304,7 @@
             class="palette-option"
             data-action="set-palette"
             data-value="observable10"
-            aria-pressed="false"
+            aria-pressed="true"
           >
             <span class="palette-option-label">Observable 10</span>
             <span class="swatch-strip"></span>
@@ -375,7 +371,7 @@
             class="choice-option"
             data-action="set-link-color"
             data-value="source-target"
-            aria-pressed="false"
+            aria-pressed="true"
           >
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-gradient"></use></svg>
             <span class="choice-option-label">Source to target (gradient)</span>

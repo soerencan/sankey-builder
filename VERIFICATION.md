@@ -35,6 +35,7 @@ covers it.
 ## Layout feel
 
 - [ ] Dragging the divider between the editor column and the diagram resizes the column smoothly within its 240–640px bounds and reflows the diagram live.
+- [ ] The editor column contains only Nodes, Links, and the file actions area — no empty leftover box or stray gap where the old Diagram controls box used to sit.
 
 ## Responsive
 

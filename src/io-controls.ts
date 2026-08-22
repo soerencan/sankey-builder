@@ -18,7 +18,7 @@ export interface IoActions {
 }
 
 /**
- * DOM glue for the Export/Import buttons in #controls, using the browser's
+ * DOM glue for the Export/Import buttons in .io-actions, using the browser's
  * built-in download (Blob + object URL) and file-picker mechanisms — no
  * dependencies. Parsing and state mutation live elsewhere (io.ts is pure,
  * main.ts owns the state reference and feedback); this only bridges the DOM.
