@@ -1,10 +1,11 @@
-/* Token layer, remapped onto Open Props (vendor/open-props.min.css, linked
-   before this file). Convention: each app token keeps its existing name —
-   --surface/--ink/--border/--accent/--danger — but its value becomes an OP
-   gray/indigo/red step instead of a hand-picked hex, so the ~500 lines below
-   that already consume these names via var() need no changes. --border stays
-   a color-mix() off --ink rather than its own OP step, since that formula
-   already tracks whatever --ink resolves to. */
+/* Design-token primitives below (gray/indigo/red steps, font-sans, radii,
+   ease-2, shadow-2/shadow-3) are literal values copied from Open Props
+   1.7.14 rather than sourced from a vendored Open Props stylesheet — see
+   THIRD_PARTY_LICENSES.md. The local semantic names — --surface/--ink/
+   --border/--accent/--danger — and the light/dark theme-switching structure
+   are unchanged; only where the raw values come from differs. --border
+   stays a color-mix() off --ink rather than its own step, since that
+   formula already tracks whatever --ink resolves to. */
 /* Chromium's UA [hidden] { display: none } rule is scoped to the HTML
    namespace and doesn't reach an SVG-namespace root, so index.html's icon
    sprite (<svg hidden>) needs an explicit rule or it renders as an empty
@@ -16,11 +17,47 @@ svg[hidden] {
 :root {
   color-scheme: light dark;
 
-  --surface: var(--gray-0);
-  --ink: var(--gray-11);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu,
+    Cantarell, "Noto Sans", sans-serif;
+  --radius-1: 2px;
+  --radius-2: 5px;
+  --radius-round: 1e5px;
+  --ease-2: cubic-bezier(0.25, 0, 0.4, 1);
+  --shadow-2:
+    0 3px 5px -2px hsl(220 3% 15% / 4%),
+    0 7px 14px -5px hsl(220 3% 15% / 6%);
+  --shadow-3:
+    0 -1px 3px 0 hsl(220 3% 15% / 3%),
+    0 1px 2px -5px hsl(220 3% 15% / 3%),
+    0 2px 5px -5px hsl(220 3% 15% / 5%),
+    0 4px 12px -5px hsl(220 3% 15% / 6%),
+    0 12px 15px -5px hsl(220 3% 15% / 8%);
+
+  --surface: #f8f9fa; /* gray-0 */
+  --ink: #0d0f12; /* gray-11 */
   --border: color-mix(in srgb, var(--ink) 10%, transparent);
-  --accent: var(--indigo-7);
-  --danger: var(--red-9);
+  --accent: #4263eb; /* indigo-7 */
+  --danger: #c92a2a; /* red-9 */
+}
+
+/* Open Props's own shadow-2/shadow-3 tokens (which shadow-2/shadow-3 above
+   are copied from) resolve through a shadow-color/shadow-strength pair that
+   Open Props itself darkens under this same OS-level media query,
+   independent of any app-level theme toggle — so this override, unlike the
+   ones below, isn't gated by :not([data-theme="light"]); replicating that
+   keeps rendering identical to when Open Props supplied these values. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --shadow-2:
+      0 3px 5px -2px hsl(220 40% 2% / 28%),
+      0 7px 14px -5px hsl(220 40% 2% / 30%);
+    --shadow-3:
+      0 -1px 3px 0 hsl(220 40% 2% / 27%),
+      0 1px 2px -5px hsl(220 40% 2% / 27%),
+      0 2px 5px -5px hsl(220 40% 2% / 29%),
+      0 4px 12px -5px hsl(220 40% 2% / 30%),
+      0 12px 15px -5px hsl(220 40% 2% / 32%);
+  }
 }
 
 /* :not([data-theme="light"]) lets an explicit light override win even when
@@ -34,19 +71,19 @@ svg[hidden] {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --surface: var(--gray-10);
-    --ink: var(--gray-0);
-    --accent: var(--indigo-3);
-    --danger: var(--red-5);
+    --surface: #16191d; /* gray-10 */
+    --ink: #f8f9fa; /* gray-0 */
+    --accent: #91a7ff; /* indigo-3 */
+    --danger: #ff6b6b; /* red-5 */
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --surface: var(--gray-10);
-  --ink: var(--gray-0);
-  --accent: var(--indigo-3);
-  --danger: var(--red-5);
+  --surface: #16191d; /* gray-10 */
+  --ink: #f8f9fa; /* gray-0 */
+  --accent: #91a7ff; /* indigo-3 */
+  --danger: #ff6b6b; /* red-5 */
 }
 
 :root[data-theme="light"] {

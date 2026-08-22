@@ -10,10 +10,11 @@ notice applies whether or not the emitted bundle happens to still contain
 that module's code. The same reasoning covers `d3-sankey` and `sortablejs`.
 Over-attribution here is safe; under-attribution is not.
 
-`vendor/open-props.min.css` — the full Open Props stylesheet — is still
-vendored in-tree and linked directly by `index.html`; `bun build` bundles it
-into the built site's stylesheet alongside `style.css`, which consumes its
-custom properties. Its license and copyright are included below.
+Open Props is no longer vendored or shipped as a stylesheet; `style.css`
+instead defines a handful of design-token custom properties (color steps,
+font stack, radii, an easing curve, two shadow presets) whose values are
+copied from Open Props 1.7.14. Its license and copyright are included below,
+since the derived values still originate from that package.
 
 ## D3 (7.9.0)
 
@@ -172,9 +173,10 @@ SOFTWARE.
 
 ## Open Props (1.7.14)
 
-MIT License, Copyright (c) 2021 Adam Argyle. Open Props ships in full: it's
-vendored in-tree as `vendor/open-props.min.css` and linked directly by
-`index.html`, and `bun build` bundles it into the built site's stylesheet:
+MIT License, Copyright (c) 2021 Adam Argyle. The package itself is not
+shipped; only a handful of design-token values it defines (color steps,
+font stack, radii, an easing curve, two shadow presets) are copied directly
+into `style.css`:
 
 ```
 MIT License

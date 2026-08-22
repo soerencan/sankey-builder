@@ -16,9 +16,9 @@ which browsers block from `file://` origins for security reasons.
 ## Dependencies
 
 d3 7.9.0, d3-sankey 0.12.3, and SortableJS 1.15.7 are real npm dependencies,
-bundled by `bun build`. Open Props 1.7.14 is still vendored as standalone CSS
-in `vendor/`; see [`vendor/README.md`](vendor/README.md) for its source and
-update instructions.
+bundled by `bun build`. `style.css` also defines a handful of design-token
+custom properties whose values are copied from Open Props 1.7.14; the
+package itself isn't vendored or shipped.
 
 ## Verification
 
@@ -83,8 +83,6 @@ under the [MIT License](LICENSE).
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) is the authoritative
 notice list: it attributes the full production dependency closure of the
 bundled site (D3 and its `d3-*` modules, d3-sankey, and SortableJS), plus
-Open Props, which is linked directly by `index.html` and shipped in full.
-None of these are relicensed under the MIT License above.
-
-The `vendor/LICENSE-*` files are the in-tree copies of the individual
-upstream licenses these notices are drawn from.
+Open Props, whose license is retained because `style.css` derives a handful
+of design-token values from it. None of these are relicensed under the MIT
+License above.
