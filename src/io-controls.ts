@@ -1,12 +1,15 @@
+import { serializeDiagramSvg } from "./export";
 import { type ImportState, parseImport, serializeState } from "./io";
 import type { State } from "./state";
 
-const EXPORT_FILENAME = "sankey.json";
+const EXPORT_JSON_FILENAME = "sankey.json";
+const EXPORT_SVG_FILENAME = "sankey.svg";
 
 export interface IoActions {
 	importDiagram(imported: ImportState, repairs: string[]): void;
 	reportImportError(message: string): void;
 	reportExportSuccess(filename: string): void;
+	reportExportError(message: string): void;
 }
 
 /**
@@ -17,13 +20,35 @@ export interface IoActions {
  */
 export function setupIo(state: State, actions: IoActions): void {
 	const exportButton = document.getElementById("export-button");
+	const exportSvgButton = document.getElementById("export-svg-button");
 	const importButton = document.getElementById("import-button");
 	const fileInput = document.getElementById("import-file");
 	if (!(fileInput instanceof HTMLInputElement)) return;
 
 	exportButton?.addEventListener("click", () => {
-		downloadJson(serializeState(state));
-		actions.reportExportSuccess(EXPORT_FILENAME);
+		const blob = new Blob([serializeState(state)], { type: "application/json" });
+		download(blob, EXPORT_JSON_FILENAME);
+		actions.reportExportSuccess(EXPORT_JSON_FILENAME);
+	});
+	exportSvgButton?.addEventListener("click", () => {
+		// Exports whatever is on screen. When state is topologically invalid,
+		// refresh() keeps the last good diagram visible — exporting that stale
+		// render is deliberate ("export what you see"), not an oversight.
+		const svgEl = document.querySelector("#diagram svg");
+		if (!(svgEl instanceof SVGSVGElement)) {
+			actions.reportExportError("Nothing to export — the diagram is empty.");
+			return;
+		}
+		// Read resolved colors from the live page (theme-aware): currentColor's
+		// on-screen resolution for labels, and the diagram container's own
+		// background — both would otherwise default to black/transparent once
+		// the svg is detached from the page. svgEl.parentElement is #diagram
+		// itself, since renderDiagram appends the svg directly into it.
+		const labelColor = getComputedStyle(svgEl).color;
+		const background = getComputedStyle(svgEl.parentElement as Element).backgroundColor;
+		const svg = serializeDiagramSvg(svgEl, { labelColor, background });
+		download(new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
+		actions.reportExportSuccess(EXPORT_SVG_FILENAME);
 	});
 	importButton?.addEventListener("click", () => fileInput.click());
 
@@ -47,12 +72,11 @@ export function setupIo(state: State, actions: IoActions): void {
 	});
 }
 
-function downloadJson(json: string): void {
-	const blob = new Blob([json], { type: "application/json" });
+function download(blob: Blob, filename: string): void {
 	const url = URL.createObjectURL(blob);
 	const anchor = document.createElement("a");
 	anchor.href = url;
-	anchor.download = EXPORT_FILENAME;
+	anchor.download = filename;
 	anchor.click();
 	// Defer the revoke: some engines resolve the blob: URL only after click()
 	// returns, and Safari historically failed the download on a synchronous

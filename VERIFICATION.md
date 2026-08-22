@@ -88,10 +88,12 @@ the real browser download dialog and native file picker aren't reachable from
 happy-dom — verify those, and confirm they work under `file://` where storage
 and origin behavior differ.
 
-- [ ] Export (served): click Export → the browser downloads `sankey.json`; opening it shows a pretty-printed `{nodes, links, settings}` with no `theme` key and no incomplete links.
+- [ ] Export (served): click Export JSON → the browser downloads `sankey.json`; opening it shows a pretty-printed `{nodes, links, settings}` with no `theme` key and no incomplete links.
 - [ ] Import (served): click Import → the native file picker opens; choosing a previously exported file replaces the diagram, editors, and controls, and the theme in use does not change.
 - [ ] Import repairs: hand-edit an exported file to introduce a bad color, an unknown palette, and a dangling link endpoint, then import → the diagram loads and the notice lists the adjustments made.
 - [ ] Import rejection: pick an unrelated `.json` file → the diagram is left untouched and the notice says it doesn't look like a diagram export.
 - [ ] Import a topologically-invalid file (e.g. a cycle A→B→A): state is replaced and saved, `#error` shows the cycle message, the previous diagram stays rendered (refresh bails before re-render on an invalid graph), and `#io-notice` still reports the import — confirm that three-way combination reads acceptably rather than confusingly.
-- [ ] `file://` export: double-click `index.html` from disk, click Export → the download still lands in Downloads (no console errors about blob URLs or the object-URL lifecycle).
+- [ ] `file://` export: double-click `index.html` from disk, click Export JSON → the download still lands in Downloads (no console errors about blob URLs or the object-URL lifecycle).
 - [ ] `file://` import: from the same `file://` page, import a file via the picker → the diagram updates with zero console errors.
+- [ ] Export SVG: click Export SVG → `sankey.svg` downloads and opens standalone in a browser with an opaque background and legible node labels matching the current theme's colors (light theme → light background with dark labels; dark theme → dark background with light labels — each theme's own text color).
+- [ ] Export SVG on an empty diagram (delete all links first): clicking Export SVG downloads nothing; `#io-notice` shows "Nothing to export — the diagram is empty."

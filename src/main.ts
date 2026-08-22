@@ -174,6 +174,9 @@ const ioActions: IoActions = {
 	reportImportError(message) {
 		d3.select("#io-notice").text(message);
 	},
+	reportExportError(message) {
+		d3.select("#io-notice").text(message);
+	},
 	reportExportSuccess(filename) {
 		// Not preceded by refresh() (export doesn't touch state), so no risk of
 		// this being cleared before it's shown; it retires the same way import's

@@ -138,6 +138,74 @@
     moveWithin(state2.links, from, to);
   }
 
+  // src/render.ts
+  var DIAGRAM_WIDTH = 960;
+  var DIAGRAM_HEIGHT = 480;
+  function alignFn(name) {
+    const table = {
+      left: d3.sankeyLeft,
+      right: d3.sankeyRight,
+      center: d3.sankeyCenter
+    };
+    return table[name] ?? d3.sankeyJustify;
+  }
+  function layout(state2, sourceLinks) {
+    const { nodes, links } = structuredClone({ nodes: state2.nodes, links: sourceLinks });
+    const graph = d3.sankey().nodeId((d) => d.id).nodeAlign(alignFn(state2.settings.alignment)).nodeWidth(15).nodePadding(10).extent([
+      [1, 5],
+      [DIAGRAM_WIDTH - 1, DIAGRAM_HEIGHT - 5]
+    ])({ nodes, links });
+    return graph;
+  }
+  function linkStroke(mode, nodeColor) {
+    if (mode === "source") return (d) => nodeColor(d.source);
+    if (mode === "target") return (d) => nodeColor(d.target);
+    if (mode === "static") return () => "#aaa";
+    return (d) => `url(#link-grad-${d.index})`;
+  }
+  function renderDiagram(state2, nodeColor) {
+    const container = d3.select("#diagram");
+    container.html("");
+    if (state2.nodes.length === 0) return;
+    const completeLinks = state2.links.filter(isComplete);
+    if (completeLinks.length === 0) return;
+    const { nodes, links } = layout(state2, completeLinks);
+    const svg = container.append("svg").attr("viewBox", `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
+    const linkGroup = svg.append("g").attr("fill", "none").attr("stroke-opacity", 0.5).selectAll("g").data(links).join("g");
+    if (state2.settings.linkColor === "source-target") {
+      linkGroup.append("linearGradient").attr("id", (d) => `link-grad-${d.index}`).attr("gradientUnits", "userSpaceOnUse").attr("x1", (d) => d.source.x1).attr("x2", (d) => d.target.x0).call(
+        (g) => g.append("stop").attr("offset", "0%").attr("stop-color", (d) => nodeColor(d.source))
+      ).call(
+        (g) => g.append("stop").attr("offset", "100%").attr("stop-color", (d) => nodeColor(d.target))
+      );
+    }
+    linkGroup.append("path").attr("d", d3.sankeyLinkHorizontal()).attr("stroke", linkStroke(state2.settings.linkColor, nodeColor)).attr("stroke-width", (d) => Math.max(1, d.width));
+    svg.append("g").selectAll("rect").data(nodes).join("rect").attr("x", (d) => d.x0).attr("y", (d) => d.y0).attr("width", (d) => d.x1 - d.x0).attr("height", (d) => Math.max(1, d.y1 - d.y0)).attr("fill", (d) => nodeColor(d));
+    svg.append("g").attr("font-family", "system-ui, sans-serif").attr("font-size", 10).selectAll("text").data(nodes).join("text").attr("x", (d) => d.x0 < DIAGRAM_WIDTH / 2 ? d.x1 + 6 : d.x0 - 6).attr("y", (d) => (d.y0 + d.y1) / 2).attr("dy", "0.35em").attr("text-anchor", (d) => d.x0 < DIAGRAM_WIDTH / 2 ? "start" : "end").attr("fill", "currentColor").text((d) => d.name);
+  }
+
+  // src/export.ts
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  function serializeDiagramSvg(svg, opts) {
+    const clone = svg.cloneNode(true);
+    clone.setAttribute("xmlns", SVG_NS);
+    clone.setAttribute("width", String(DIAGRAM_WIDTH));
+    clone.setAttribute("height", String(DIAGRAM_HEIGHT));
+    for (const el of Array.from(clone.querySelectorAll('[fill="currentColor"]'))) {
+      el.setAttribute("fill", opts.labelColor);
+    }
+    const background = clone.ownerDocument.createElementNS(SVG_NS, "rect");
+    background.setAttribute("x", "0");
+    background.setAttribute("y", "0");
+    background.setAttribute("width", String(DIAGRAM_WIDTH));
+    background.setAttribute("height", String(DIAGRAM_HEIGHT));
+    background.setAttribute("fill", opts.background);
+    clone.insertBefore(background, clone.firstChild);
+    const xml = new XMLSerializer().serializeToString(clone);
+    return `<?xml version="1.0" encoding="UTF-8"?>
+${xml}`;
+  }
+
   // src/validate.ts
   var MAX_LINK_VALUE = 1e15;
   var LINK_VALUE_RE = /^(\d+(\.\d*)?|\.\d+)$/;
@@ -407,15 +475,30 @@
   }
 
   // src/io-controls.ts
-  var EXPORT_FILENAME = "sankey.json";
+  var EXPORT_JSON_FILENAME = "sankey.json";
+  var EXPORT_SVG_FILENAME = "sankey.svg";
   function setupIo(state2, actions) {
     const exportButton = document.getElementById("export-button");
+    const exportSvgButton = document.getElementById("export-svg-button");
     const importButton = document.getElementById("import-button");
     const fileInput = document.getElementById("import-file");
     if (!(fileInput instanceof HTMLInputElement)) return;
     exportButton?.addEventListener("click", () => {
-      downloadJson(serializeState(state2));
-      actions.reportExportSuccess(EXPORT_FILENAME);
+      const blob = new Blob([serializeState(state2)], { type: "application/json" });
+      download(blob, EXPORT_JSON_FILENAME);
+      actions.reportExportSuccess(EXPORT_JSON_FILENAME);
+    });
+    exportSvgButton?.addEventListener("click", () => {
+      const svgEl = document.querySelector("#diagram svg");
+      if (!(svgEl instanceof SVGSVGElement)) {
+        actions.reportExportError("Nothing to export \u2014 the diagram is empty.");
+        return;
+      }
+      const labelColor = getComputedStyle(svgEl).color;
+      const background = getComputedStyle(svgEl.parentElement).backgroundColor;
+      const svg = serializeDiagramSvg(svgEl, { labelColor, background });
+      download(new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
+      actions.reportExportSuccess(EXPORT_SVG_FILENAME);
     });
     importButton?.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", async () => {
@@ -434,12 +517,11 @@
       else actions.reportImportError(result.error);
     });
   }
-  function downloadJson(json) {
-    const blob = new Blob([json], { type: "application/json" });
+  function download(blob, filename) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = EXPORT_FILENAME;
+    anchor.download = filename;
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
@@ -698,52 +780,6 @@
     });
   }
 
-  // src/render.ts
-  var DIAGRAM_WIDTH = 960;
-  var DIAGRAM_HEIGHT = 480;
-  function alignFn(name) {
-    const table = {
-      left: d3.sankeyLeft,
-      right: d3.sankeyRight,
-      center: d3.sankeyCenter
-    };
-    return table[name] ?? d3.sankeyJustify;
-  }
-  function layout(state2, sourceLinks) {
-    const { nodes, links } = structuredClone({ nodes: state2.nodes, links: sourceLinks });
-    const graph = d3.sankey().nodeId((d) => d.id).nodeAlign(alignFn(state2.settings.alignment)).nodeWidth(15).nodePadding(10).extent([
-      [1, 5],
-      [DIAGRAM_WIDTH - 1, DIAGRAM_HEIGHT - 5]
-    ])({ nodes, links });
-    return graph;
-  }
-  function linkStroke(mode, nodeColor) {
-    if (mode === "source") return (d) => nodeColor(d.source);
-    if (mode === "target") return (d) => nodeColor(d.target);
-    if (mode === "static") return () => "#aaa";
-    return (d) => `url(#link-grad-${d.index})`;
-  }
-  function renderDiagram(state2, nodeColor) {
-    const container = d3.select("#diagram");
-    container.html("");
-    if (state2.nodes.length === 0) return;
-    const completeLinks = state2.links.filter(isComplete);
-    if (completeLinks.length === 0) return;
-    const { nodes, links } = layout(state2, completeLinks);
-    const svg = container.append("svg").attr("viewBox", `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
-    const linkGroup = svg.append("g").attr("fill", "none").attr("stroke-opacity", 0.5).selectAll("g").data(links).join("g");
-    if (state2.settings.linkColor === "source-target") {
-      linkGroup.append("linearGradient").attr("id", (d) => `link-grad-${d.index}`).attr("gradientUnits", "userSpaceOnUse").attr("x1", (d) => d.source.x1).attr("x2", (d) => d.target.x0).call(
-        (g) => g.append("stop").attr("offset", "0%").attr("stop-color", (d) => nodeColor(d.source))
-      ).call(
-        (g) => g.append("stop").attr("offset", "100%").attr("stop-color", (d) => nodeColor(d.target))
-      );
-    }
-    linkGroup.append("path").attr("d", d3.sankeyLinkHorizontal()).attr("stroke", linkStroke(state2.settings.linkColor, nodeColor)).attr("stroke-width", (d) => Math.max(1, d.width));
-    svg.append("g").selectAll("rect").data(nodes).join("rect").attr("x", (d) => d.x0).attr("y", (d) => d.y0).attr("width", (d) => d.x1 - d.x0).attr("height", (d) => Math.max(1, d.y1 - d.y0)).attr("fill", (d) => nodeColor(d));
-    svg.append("g").attr("font-family", "system-ui, sans-serif").attr("font-size", 10).selectAll("text").data(nodes).join("text").attr("x", (d) => d.x0 < DIAGRAM_WIDTH / 2 ? d.x1 + 6 : d.x0 - 6).attr("y", (d) => (d.y0 + d.y1) / 2).attr("dy", "0.35em").attr("text-anchor", (d) => d.x0 < DIAGRAM_WIDTH / 2 ? "start" : "end").attr("fill", "currentColor").text((d) => d.name);
-  }
-
   // src/resizer.ts
   var EDITOR_COLUMN_MIN_WIDTH = 240;
   var EDITOR_COLUMN_MAX_WIDTH = 640;
@@ -895,6 +931,9 @@
       d3.select("#io-notice").text(message);
     },
     reportImportError(message) {
+      d3.select("#io-notice").text(message);
+    },
+    reportExportError(message) {
       d3.select("#io-notice").text(message);
     },
     reportExportSuccess(filename) {
