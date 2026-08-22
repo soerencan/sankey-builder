@@ -1,5 +1,11 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { createNodeColorResolver, isPaletteKey } from "../src/colors";
+import {
+	PALETTE_LABELS,
+	PALETTE_ORDER,
+	createNodeColorResolver,
+	isPaletteKey,
+	paletteColors,
+} from "../src/colors";
 import { defaultState } from "../src/state";
 import { loadD3Global } from "./helpers/d3-global";
 
@@ -50,5 +56,32 @@ describe("createNodeColorResolver", () => {
 		const after = state.nodes.map((n) => dark2(n));
 
 		expect(after).not.toEqual(before);
+	});
+});
+
+describe("PALETTE_ORDER", () => {
+	it("contains every palette key exactly once", () => {
+		for (const key of ["observable10", "tableau10", "category10", "set2", "dark2"]) {
+			expect(PALETTE_ORDER.filter((k) => k === key)).toHaveLength(1);
+		}
+		expect(PALETTE_ORDER).toHaveLength(5);
+	});
+});
+
+describe("PALETTE_LABELS", () => {
+	it("has a non-empty label for every palette key", () => {
+		for (const key of PALETTE_ORDER) {
+			expect(PALETTE_LABELS[key].length).toBeGreaterThan(0);
+		}
+	});
+});
+
+describe("paletteColors", () => {
+	it("returns the real d3 scheme array for each palette", () => {
+		expect(paletteColors("observable10")).toEqual(d3.schemeObservable10);
+		expect(paletteColors("tableau10")).toEqual(d3.schemeTableau10);
+		expect(paletteColors("category10")).toEqual(d3.schemeCategory10);
+		expect(paletteColors("set2")).toEqual(d3.schemeSet2);
+		expect(paletteColors("dark2")).toEqual(d3.schemeDark2);
 	});
 });

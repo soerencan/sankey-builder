@@ -22,6 +22,8 @@ import {
 	updateLink,
 } from "./state";
 import { applyTheme } from "./theme";
+import type { ToolbarActions } from "./toolbar";
+import { setupToolbar, syncToolbar } from "./toolbar";
 import { validate } from "./validate";
 
 const STORAGE_NOTICE =
@@ -153,6 +155,7 @@ const ioActions: IoActions = {
 		// theme is deliberately untouched — a per-browser preference, not
 		// diagram data, so it survives an import.
 		syncControls(state);
+		syncToolbar(state);
 		refresh();
 		let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
 		if (repairs.length > 0) message += ` Adjustments: ${repairs.join("; ")}.`;
@@ -184,10 +187,6 @@ const controlsActions: ControlsActions = {
 		state.settings.alignment = value;
 		refresh();
 	},
-	setPalette(value) {
-		state.settings.palette = value;
-		refresh();
-	},
 	setTheme(value) {
 		state.settings.theme = value;
 		applyTheme(value);
@@ -197,15 +196,26 @@ const controlsActions: ControlsActions = {
 	},
 };
 
+const toolbarActions: ToolbarActions = {
+	setPalette(value) {
+		state.settings.palette = value;
+		refresh();
+	},
+};
+
 function init(): void {
 	state = loadState();
 	applyTheme(state.settings.theme);
 	setupNodeEditor(nodeEditorActions);
 	setupLinkEditor(linkEditorActions, state);
 	setupControls(state, controlsActions);
+	setupToolbar(state, toolbarActions);
 	setupIo(state, ioActions);
 	setupResizer();
 	refresh();
+	// setupToolbar wires listeners only (see its own doc) — sync the initial
+	// preview/dialog rows here, against the state loadState() just restored.
+	syncToolbar(state);
 }
 
 init();

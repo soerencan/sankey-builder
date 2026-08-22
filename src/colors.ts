@@ -26,6 +26,33 @@ function activePalette(key: string): readonly string[] {
 	return (isPaletteKey(key) ? PALETTES[key] : PALETTES.observable10)();
 }
 
+/** Display order for the toolbar carousel — also PALETTES' full key set. */
+export const PALETTE_ORDER: readonly Palette[] = [
+	"observable10",
+	"tableau10",
+	"category10",
+	"set2",
+	"dark2",
+];
+
+/** Human-readable names, matching the labels index.html's palette chooser rows use. */
+export const PALETTE_LABELS: Record<Palette, string> = {
+	observable10: "Observable 10",
+	tableau10: "Tableau 10",
+	category10: "Category 10",
+	set2: "Set 2",
+	dark2: "Dark 2",
+};
+
+/**
+ * The raw scheme array for a given palette, for building swatch strips.
+ * Resolves `d3.scheme*` lazily (same reason as PALETTES/activePalette above)
+ * so this stays callable without the `d3` global loaded.
+ */
+export function paletteColors(key: Palette): readonly string[] {
+	return PALETTES[key]();
+}
+
 export type NodeColorResolver = (node: Node) => string;
 
 /**

@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { PALETTE_LABELS } from "../src/colors";
 import { serializeState } from "../src/io";
 import { STORAGE_KEY } from "../src/persist";
 import { defaultState } from "../src/state";
@@ -75,6 +76,92 @@ describe("artifact smoke test", () => {
 		expect(diagram?.querySelectorAll("svg path")).toHaveLength(3);
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(4);
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
+	});
+
+	it("palette-next advances the carousel: state, preview label, and rendered colors all follow", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const fills = () =>
+			Array.from(document.querySelectorAll("#diagram svg rect")).map((r) => r.getAttribute("fill"));
+		const before = fills();
+
+		document
+			.querySelector<HTMLButtonElement>('[data-action="palette-next"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const preview = document.getElementById("palette-preview");
+		expect(preview?.getAttribute("aria-label")).toBe("Palette: Tableau 10");
+		expect(fills()).not.toEqual(before);
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.palette).toBe("tableau10");
+	});
+
+	it("palette-prev wraps from the first palette (observable10) to the last (dark2)", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		document
+			.querySelector<HTMLButtonElement>('[data-action="palette-prev"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const preview = document.getElementById("palette-preview");
+		expect(preview?.getAttribute("aria-label")).toBe("Palette: Dark 2");
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.palette).toBe("dark2");
+	});
+
+	it("clicking the palette preview opens the palette dialog", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const dialog = document.getElementById("palette-dialog");
+		expect(dialog).toBeInstanceOf(HTMLDialogElement);
+		expect((dialog as HTMLDialogElement).open).toBe(false);
+
+		document
+			.getElementById("palette-preview")
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect((dialog as HTMLDialogElement).open).toBe(true);
+
+		// Pin index.html's hardcoded option labels to PALETTE_LABELS (src/colors.ts)
+		// so the two can't drift apart.
+		for (const option of Array.from(
+			dialog?.querySelectorAll<HTMLElement>(".palette-option") ?? [],
+		)) {
+			const value = option.getAttribute("data-value");
+			expect(value).toBeTruthy();
+			expect(option.querySelector(".palette-option-label")?.textContent).toBe(
+				PALETTE_LABELS[value as keyof typeof PALETTE_LABELS],
+			);
+		}
+	});
+
+	it("choosing a palette in the dialog sets state, updates aria-pressed, and closes with focus back on the preview", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const preview = document.getElementById("palette-preview");
+		preview?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
+		const set2Option = dialog.querySelector<HTMLButtonElement>('[data-value="set2"]');
+		set2Option?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.palette).toBe("set2");
+		expect(set2Option?.getAttribute("aria-pressed")).toBe("true");
+		expect(dialog.querySelector('[data-value="observable10"]')?.getAttribute("aria-pressed")).toBe(
+			"false",
+		);
+		expect(dialog.open).toBe(false);
+		expect(document.activeElement).toBe(preview);
 	});
 
 	it("round-trips a basic mutation: add node updates editor, diagram, and storage", () => {
@@ -396,6 +483,10 @@ describe("artifact smoke test", () => {
 		expect(stored.settings.linkColor).toBe("static");
 		// Theme stays the pre-import "light", NOT the file's "dark".
 		expect(stored.settings.theme).toBe("light");
+		// The toolbar's carousel preview follows the import too (syncToolbar).
+		expect(document.getElementById("palette-preview")?.getAttribute("aria-label")).toBe(
+			"Palette: Set 2",
+		);
 
 		expect(document.getElementById("io-notice")?.textContent).toBe("Imported 3 nodes, 2 links.");
 

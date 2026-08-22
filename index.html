@@ -8,6 +8,32 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Inline icon sprite: small currentColor pictograms, no icon-font/image
+       dependency. Referenced elsewhere via <use href="#icon-name">. More
+       symbols land alongside later toolbar controls (link color, alignment). -->
+  <svg hidden>
+    <symbol id="icon-chevron-left" viewBox="0 0 24 24">
+      <polyline
+        points="15 6 9 12 15 18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </symbol>
+    <symbol id="icon-chevron-right" viewBox="0 0 24 24">
+      <polyline
+        points="9 6 15 12 9 18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </symbol>
+  </svg>
+
   <header class="app-header">
     <h1>Sankey Builder</h1>
   </header>
@@ -27,16 +53,6 @@
 
       <section id="controls" aria-labelledby="controls-heading">
         <h2 id="controls-heading">Diagram controls</h2>
-        <div class="control-row">
-          <label for="palette">Palette</label>
-          <select id="palette" data-action="update-palette">
-            <option value="observable10">Observable 10</option>
-            <option value="tableau10">Tableau 10</option>
-            <option value="category10">Category 10</option>
-            <option value="set2">Set 2</option>
-            <option value="dark2">Dark 2</option>
-          </select>
-        </div>
         <div class="control-row">
           <label for="link-color">Link color</label>
           <select id="link-color" data-action="update-link-color">
@@ -85,7 +101,86 @@
       tabindex="0"
     ></div>
 
-    <section id="diagram" aria-label="Sankey diagram"></section>
+    <section class="diagram-panel" aria-labelledby="diagram-heading">
+      <header class="diagram-toolbar">
+        <h2 id="diagram-heading" class="visually-hidden">Diagram</h2>
+        <button type="button" class="toolbar-button" data-action="palette-prev" aria-label="Previous palette">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-chevron-left"></use></svg>
+        </button>
+        <button
+          type="button"
+          id="palette-preview"
+          class="toolbar-button"
+          data-action="open-palette-dialog"
+          aria-haspopup="dialog"
+          aria-label="Palette"
+        >
+          <span class="swatch-strip"></span>
+        </button>
+        <button type="button" class="toolbar-button" data-action="palette-next" aria-label="Next palette">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-chevron-right"></use></svg>
+        </button>
+      </header>
+
+      <div id="diagram" aria-label="Sankey diagram"></div>
+
+      <dialog id="palette-dialog" aria-labelledby="palette-dialog-heading">
+        <h3 id="palette-dialog-heading">Palette</h3>
+        <div class="palette-options" role="group" aria-label="Palette">
+          <button
+            type="button"
+            class="palette-option"
+            data-action="set-palette"
+            data-value="observable10"
+            aria-pressed="false"
+          >
+            <span class="palette-option-label">Observable 10</span>
+            <span class="swatch-strip"></span>
+          </button>
+          <button
+            type="button"
+            class="palette-option"
+            data-action="set-palette"
+            data-value="tableau10"
+            aria-pressed="false"
+          >
+            <span class="palette-option-label">Tableau 10</span>
+            <span class="swatch-strip"></span>
+          </button>
+          <button
+            type="button"
+            class="palette-option"
+            data-action="set-palette"
+            data-value="category10"
+            aria-pressed="false"
+          >
+            <span class="palette-option-label">Category 10</span>
+            <span class="swatch-strip"></span>
+          </button>
+          <button
+            type="button"
+            class="palette-option"
+            data-action="set-palette"
+            data-value="set2"
+            aria-pressed="false"
+          >
+            <span class="palette-option-label">Set 2</span>
+            <span class="swatch-strip"></span>
+          </button>
+          <button
+            type="button"
+            class="palette-option"
+            data-action="set-palette"
+            data-value="dark2"
+            aria-pressed="false"
+          >
+            <span class="palette-option-label">Dark 2</span>
+            <span class="swatch-strip"></span>
+          </button>
+        </div>
+        <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
+      </dialog>
+    </section>
   </main>
 
   <script src="vendor/d3.min.js"></script>

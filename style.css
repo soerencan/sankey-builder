@@ -49,6 +49,21 @@
   box-sizing: border-box;
 }
 
+/* Visible to assistive tech, invisible on screen — for headings that give a
+   region its accessible name without duplicating a heading already shown
+   elsewhere (e.g. the diagram toolbar's own "Diagram" h2). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
@@ -456,16 +471,48 @@ select {
   min-width: 0;
 }
 
-#diagram {
+/*
+ * Card wrapper around the toolbar + diagram: the flex-item role, border, and
+ * radius all moved here from #diagram (Step 2) so the renderer can keep
+ * clearing #diagram wholesale without also wiping out the toolbar.
+ */
+.diagram-panel {
   flex: 1 1 auto;
   /* Without this, a flex item's min-width defaults to its content size, which
      for an SVG-filled box can resist shrinking below the diagram's natural
      width — blocking the editor column from growing past its own basis. */
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-2);
-  /* Opaque, not transparent: in the stacked mobile layout the diagram is
-     sticky and the editor rows scroll beneath it. */
+  /* Clips #diagram's square corners to the card's own rounding, and bounds
+     the sticky mobile cap below. */
+  overflow: hidden;
+  /* --toolbar-height is read from both .diagram-toolbar (its own height) and
+     #diagram svg's mobile max-height calc() below — defined here, on their
+     shared ancestor, so both can see it via inheritance. */
+  --toolbar-height: 3rem;
+}
+
+.diagram-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  min-width: 0;
+  height: var(--toolbar-height);
+  padding-inline: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+#diagram {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* Opaque, not transparent: in the stacked mobile layout the panel is
+     sticky and the editor rows scroll beneath it. Also read directly by
+     io-controls.ts (getComputedStyle of the svg's parentElement) as the
+     SVG/PNG export background — must stay opaque for that too. */
   background: var(--surface);
 }
 
@@ -483,6 +530,110 @@ select {
   display: block;
   width: 100%;
   height: auto;
+}
+
+/* ==========================================================================
+   Diagram toolbar: the palette carousel now; link-color and alignment
+   groups land in later steps, in the same row.
+   ========================================================================== */
+
+.toolbar-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  border-color: transparent;
+  padding: 0.35rem;
+}
+
+.toolbar-button:hover {
+  background: var(--border);
+}
+
+/* The carousel's central trigger — a button, not a plain icon, so its
+   swatch-strip content can also shrink/scroll rather than forcing the
+   toolbar to wrap. */
+#palette-preview {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.icon {
+  width: 1.25em;
+  height: 1.25em;
+  display: block;
+}
+
+.swatch-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-wrap: nowrap;
+}
+
+.swatch {
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+  border-radius: var(--radius-round);
+  /* Thin border so a light swatch (e.g. Set 2's pale entries) still reads as
+     a distinct shape against the equally-light --surface. */
+  border: 1px solid var(--border);
+}
+
+/* ==========================================================================
+   Dialogs (native <dialog>, wired by src/dialog.ts). The palette chooser is
+   the first; future toolbar/Display surfaces reuse the same base styles.
+   ========================================================================== */
+
+dialog {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-3);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 1rem;
+  max-width: min(90vw, 22rem);
+}
+
+dialog::backdrop {
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+dialog h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.palette-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.palette-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+}
+
+/* Selected state must not rely on color alone: a background fill plus an
+   inset ring (not just a border-color swap) so it also reads under
+   grayscale/contrast-reduced rendering. box-shadow instead of outline so
+   it doesn't collide with the global :focus-visible outline below — the
+   dialog helper focuses the selected option on open, and that focus ring
+   needs to stay visible alongside the selection ring. */
+.palette-option[aria-pressed="true"] {
+  background: var(--border);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.dialog-close {
+  margin-top: 1rem;
 }
 
 /* ==========================================================================
@@ -509,23 +660,25 @@ select {
     align-items: stretch;
   }
 
-  /* Diagram on top, editor column below — reordered via `order`, no DOM change. */
-  #diagram {
+  /* Diagram panel (toolbar + diagram) on top, editor column below —
+     reordered via `order`, no DOM change. */
+  .diagram-panel {
     order: -1;
     position: sticky;
     top: 0;
     z-index: 1;
     max-height: 45vh;
     overflow: hidden;
-    /* Opaque so editor rows scrolling underneath don't show through the SVG's
-       letterbox margins. */
+    /* Opaque so editor rows scrolling underneath don't show through the
+       toolbar or the SVG's letterbox margins. */
     background: var(--surface);
   }
 
-  /* Cap the SVG so it letterboxes (default preserveAspectRatio meet) inside the
-     capped box rather than growing the sticky header past 45vh. */
+  /* Cap the SVG so it letterboxes (default preserveAspectRatio meet) inside
+     the capped panel rather than growing the sticky header past 45vh — minus
+     the toolbar's own height, which shares the same 45vh cap. */
   #diagram svg {
-    max-height: 45vh;
+    max-height: calc(45vh - var(--toolbar-height, 3rem));
   }
 
   /* Override the base 480px empty-height: it wins over max-height, so a stacked
@@ -610,8 +763,21 @@ select {
     font-size: 1.4rem;
   }
 
+  /* The chevron buttons (palette-prev/palette-next) are narrow icon-only
+     buttons — min-height alone leaves them ~32px wide, so pin min-width too. */
+  .toolbar-button {
+    min-width: 44px;
+  }
+
   .node-rows,
   .link-rows {
     gap: 0.75rem;
+  }
+
+  /* Toolbar buttons are already 44px tall via the shared `button` rule above;
+     this grows the toolbar's own row height (and the mobile SVG cap that's
+     computed from it) to actually fit them, rather than clipping. */
+  .diagram-panel {
+    --toolbar-height: 3.75rem;
   }
 }

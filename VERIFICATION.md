@@ -37,16 +37,25 @@ Media/container queries do no real layout under happy-dom, so none of this is
 automated — verify in a real browser (resize the window and use device
 emulation).
 
-- [ ] Above 820px: side-by-side layout with a working divider; the diagram hugs its own SVG height (no extra whitespace below it).
-- [ ] Just below 820px: layout stacks to one column with the **diagram on top** and the editor column below; the divider is gone.
-- [ ] While stacked, scrolling the editor content keeps the diagram pinned at the top (sticky), capped at ~45vh, with the SVG **letterboxed not cropped**, and editor rows do not show through the diagram's margins.
+- [ ] Above 820px: side-by-side layout with a working divider; the diagram panel hugs its own toolbar-plus-SVG height (no extra whitespace below it).
+- [ ] Just below 820px: layout stacks to one column with the **diagram panel (toolbar + SVG) on top** and the editor column below; the divider is gone.
+- [ ] While stacked, scrolling the editor content keeps the diagram panel pinned at the top (sticky), capped at ~45vh **including the toolbar**, with the SVG **letterboxed not cropped** inside the space the toolbar leaves it, and editor rows do not show through the panel's margins.
 - [ ] No horizontal scrollbar at 360px, 390px, and 768px widths.
-- [ ] Stacked with an EMPTY diagram (delete all links at phone width): the diagram box collapses to a small placeholder rather than an opaque ~480px block, and the editors below stay usable.
-- [ ] Focus-under-sticky at phone width: Tab through the editor controls and confirm each focused field scrolls clear of the sticky diagram, never hidden behind it.
+- [ ] Stacked with an EMPTY diagram (delete all links at phone width): the diagram box collapses to a small placeholder rather than an opaque ~480px block (the toolbar above it stays visible and usable), and the editors below stay usable.
+- [ ] Focus-under-sticky at phone width: Tab through the editor controls and confirm each focused field scrolls clear of the sticky diagram panel, never hidden behind it.
 - [ ] On desktop, drag the column narrow (~240px): link rows wrap to two lines (source/target on top; handle, value, delete below with the handle leftmost). The same wrap appears purely from column width, independent of window width.
 - [ ] Tab order through a wrapped link row is still handle → source → target → value → delete.
 - [ ] On a real phone (coarse pointer): buttons, the drag handles, selects, and inputs are comfortably tappable (~44px), with slightly larger row spacing.
-- [ ] Dark mode in the stacked layout: the sticky diagram's background matches the surface, no light seams.
+- [ ] Dark mode in the stacked layout: the sticky diagram panel's background (toolbar and diagram both) matches the surface, no light seams.
+
+**Pending:** the toolbar's narrow/`Display`-mode layout (container-query breakpoint) hasn't landed yet — at present the wide toolbar content is always shown, so a very narrow diagram panel (e.g. the desktop divider dragged close to the diagram, or a narrow phone) may clip or crowd the toolbar. This is expected until that step lands; don't file it as a regression yet.
+
+## Diagram toolbar
+
+- [ ] The toolbar renders as its own header bar above the diagram, on a visually distinct row — it never floats over or obscures the SVG at any width.
+- [ ] The palette carousel's swatches (both the preview button and the dialog's rows) visually match the actual rendered node colors in the diagram, in both light and dark theme.
+- [ ] With the palette dialog open, pressing Escape closes it (native `<dialog>` cancel behavior — not exercised by the automated suite, since happy-dom doesn't simulate a real Escape-triggered cancel).
+- [ ] After closing the palette dialog (Escape, Close button, or backdrop click), focus visibly returns to the palette preview button — a visible focus ring lands there, not somewhere else on the page.
 
 ## Row reordering (drag feel)
 

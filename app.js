@@ -14,6 +14,23 @@
   function activePalette(key) {
     return (isPaletteKey(key) ? PALETTES[key] : PALETTES.observable10)();
   }
+  var PALETTE_ORDER = [
+    "observable10",
+    "tableau10",
+    "category10",
+    "set2",
+    "dark2"
+  ];
+  var PALETTE_LABELS = {
+    observable10: "Observable 10",
+    tableau10: "Tableau 10",
+    category10: "Category 10",
+    set2: "Set 2",
+    dark2: "Dark 2"
+  };
+  function paletteColors(key) {
+    return PALETTES[key]();
+  }
   function createNodeColorResolver(state2) {
     const scale = d3.scaleOrdinal(
       state2.nodes.map((n) => n.id),
@@ -32,8 +49,6 @@
     if (alignmentSelect) alignmentSelect.value = state2.settings.alignment;
     const themeSelect = root.querySelector("#theme");
     if (themeSelect) themeSelect.value = state2.settings.theme;
-    const paletteSelect = root.querySelector("#palette");
-    if (paletteSelect) paletteSelect.value = state2.settings.palette;
   }
   function setupControls(state2, actions) {
     const root = document.getElementById("controls");
@@ -46,8 +61,6 @@
         actions.setLinkColor(event.target.value);
       } else if (action === "update-alignment") {
         actions.setAlignment(event.target.value);
-      } else if (action === "update-palette") {
-        actions.setPalette(event.target.value);
       } else if (action === "update-theme") {
         actions.setTheme(event.target.value);
       }
@@ -865,6 +878,97 @@ ${xml}`;
     }
   }
 
+  // src/dialog.ts
+  var FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  function setupDialog(dialog) {
+    let trigger = null;
+    function close() {
+      if (!dialog.open) return;
+      dialog.close();
+    }
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) {
+        close();
+        return;
+      }
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest('[data-action="close-dialog"]')) close();
+    });
+    dialog.addEventListener("close", () => {
+      trigger?.focus();
+    });
+    function open(el) {
+      trigger = el;
+      try {
+        dialog.showModal();
+      } catch {
+        dialog.setAttribute("open", "");
+      }
+      const pressed = dialog.querySelector('[aria-pressed="true"]');
+      const initial = pressed ?? dialog.querySelector(FOCUSABLE_SELECTOR);
+      initial?.focus();
+    }
+    return { open, close };
+  }
+
+  // src/toolbar.ts
+  var SWATCH_COUNT = 5;
+  function buildSwatchStrip(strip, palette) {
+    strip.replaceChildren();
+    for (const color of paletteColors(palette).slice(0, SWATCH_COUNT)) {
+      const swatch = document.createElement("span");
+      swatch.className = "swatch";
+      swatch.style.backgroundColor = color;
+      strip.appendChild(swatch);
+    }
+  }
+  function syncToolbar(state2) {
+    const panel = document.querySelector(".diagram-panel");
+    if (!panel) return;
+    const palette = state2.settings.palette;
+    const preview = panel.querySelector("#palette-preview");
+    if (preview) {
+      const strip = preview.querySelector(".swatch-strip");
+      if (strip) buildSwatchStrip(strip, palette);
+      preview.setAttribute("aria-label", `Palette: ${PALETTE_LABELS[palette]}`);
+    }
+    const options = Array.from(
+      panel.querySelectorAll('[data-action="set-palette"]')
+    );
+    for (const option of options) {
+      const value = option.dataset.value;
+      if (!isPaletteKey(value)) continue;
+      option.setAttribute("aria-pressed", value === palette ? "true" : "false");
+      const strip = option.querySelector(".swatch-strip");
+      if (strip) buildSwatchStrip(strip, value);
+    }
+  }
+  function setupToolbar(state2, actions) {
+    const panel = document.querySelector(".diagram-panel");
+    if (!panel) return;
+    const dialogEl = panel.querySelector("#palette-dialog");
+    const dialog = dialogEl ? setupDialog(dialogEl) : null;
+    panel.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const trigger = event.target.closest("[data-action]");
+      if (!trigger) return;
+      const { action, value } = trigger.dataset;
+      if (action === "palette-prev" || action === "palette-next") {
+        const current = PALETTE_ORDER.indexOf(state2.settings.palette);
+        const step = action === "palette-prev" ? -1 : 1;
+        const next = (current + step + PALETTE_ORDER.length) % PALETTE_ORDER.length;
+        actions.setPalette(PALETTE_ORDER[next]);
+        syncToolbar(state2);
+      } else if (action === "open-palette-dialog") {
+        dialog?.open(trigger);
+      } else if (action === "set-palette" && isPaletteKey(value)) {
+        actions.setPalette(value);
+        syncToolbar(state2);
+        dialog?.close();
+      }
+    });
+  }
+
   // src/main.ts
   var STORAGE_NOTICE = "Changes can't be saved in this browser right now (storage may be full or unavailable). The diagram keeps working, but edits won't survive closing or reloading this tab \u2014 try freeing up space or leaving private/incognito mode.";
   var state;
@@ -934,6 +1038,7 @@ ${xml}`;
       state.settings.linkColor = imported.settings.linkColor;
       state.settings.alignment = imported.settings.alignment;
       syncControls(state);
+      syncToolbar(state);
       refresh();
       let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
       if (repairs.length > 0) message += ` Adjustments: ${repairs.join("; ")}.`;
@@ -958,14 +1063,16 @@ ${xml}`;
       state.settings.alignment = value;
       refresh();
     },
-    setPalette(value) {
-      state.settings.palette = value;
-      refresh();
-    },
     setTheme(value) {
       state.settings.theme = value;
       applyTheme(value);
       refresh({ rebuildNodes: false, rebuildLinks: false });
+    }
+  };
+  var toolbarActions = {
+    setPalette(value) {
+      state.settings.palette = value;
+      refresh();
     }
   };
   function init() {
@@ -974,9 +1081,11 @@ ${xml}`;
     setupNodeEditor(nodeEditorActions);
     setupLinkEditor(linkEditorActions, state);
     setupControls(state, controlsActions);
+    setupToolbar(state, toolbarActions);
     setupIo(state, ioActions);
     setupResizer();
     refresh();
+    syncToolbar(state);
   }
   init();
 })();
