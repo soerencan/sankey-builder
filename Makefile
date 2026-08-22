@@ -1,4 +1,27 @@
-.PHONY: lint format typecheck freshness check build watch test
+.PHONY: dev build test test-unit test-dist lint format typecheck check
+
+# Serve the app locally with Bun's dev server (HMR, on-the-fly TS/bundling)
+dev:
+	bun run dev
+
+# Canonical clean production build: emits dist/ (hashed JS/CSS bundle plus
+# THIRD_PARTY_LICENSES.md) via `bun build`. This is what CI's artifact job
+# and tests/dist.test.ts exercise — always run this rather than the bare
+# `bun build` invocation to get the licenses file and a clean dist/ dir.
+build:
+	bun run build
+
+# Run all tests
+test:
+	bun run test
+
+# Run tests except the build-running dist smoke test — fast local loop
+test-unit:
+	bun run test:unit
+
+# Run the dist smoke test (builds dist/ from scratch, then boots it)
+test-dist:
+	bun run test:dist
 
 # Lint (no fixes)
 lint:
@@ -12,28 +35,4 @@ format:
 typecheck:
 	bun run check
 
-# Build the committed app.js bundle from src/
-#
-# The esbuild option set (bundle, format=iife, no minify, no extra flags)
-# lives once in package.json's "bundle" script; this target, watch, and
-# freshness all invoke it rather than repeating the flags, so the artifact
-# they build/check can't drift.
-build:
-	bun run build
-
-# Rebuild on change, for local dev against the file:// artifact
-watch:
-	bun run watch
-
-# Verify the committed app.js is up to date with src/, without assuming a
-# clean worktree (no git diff — see PLAN.md "Committed bundle").
-freshness:
-	mkdir -p .scratch
-	bun run bundle --outfile=.scratch/app.js
-	cmp app.js .scratch/app.js || { echo "app.js is stale — run make build"; exit 1; }
-
-check: typecheck freshness
-
-# Run all tests
-test:
-	bun run test
+check: typecheck

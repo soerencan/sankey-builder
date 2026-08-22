@@ -29,6 +29,9 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: make typecheck
 
+  # Excludes tests/dist.test.ts (which runs its own production build) to
+  # avoid building dist/ twice in CI — that coverage lives in the artifact
+  # job below.
   tests:
     runs-on: ubuntu-latest
     steps:
@@ -37,12 +40,11 @@ jobs:
         with:
           bun-version: 1.3.14
       - run: bun install --frozen-lockfile
-      - run: make test
+      - run: make test-unit
 
-  # Artifact boot coverage (building app.js and evaluating it) is retired now
-  # that tests/app.test.ts boots the app through startApp() directly instead
-  # of a freshly built bundle; it returns as a small dist/ smoke test in the
-  # upcoming delivery flip (see PLAN.md).
+  # Artifact boot coverage: runs the canonical production build (make build,
+  # via tests/dist.test.ts) and boots the emitted dist/ bundle against a
+  # fresh document, asserting the default diagram renders.
   artifact:
     runs-on: ubuntu-latest
     steps:
@@ -51,4 +53,4 @@ jobs:
         with:
           bun-version: 1.3.14
       - run: bun install --frozen-lockfile
-      - run: make freshness
+      - run: make test-dist

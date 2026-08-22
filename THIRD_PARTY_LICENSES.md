@@ -1,16 +1,19 @@
 # Third-Party Licenses
 
 This file attributes every third-party package in the production dependency
-closure of the site as shipped. `vendor/d3.min.js` is the complete, unmodified
-`d3` 7.9.0 bundle — every one of its constituent `d3-*` modules is present
-in full, not tree-shaken — so every module's license notice applies, not
-just the ones the app happens to call. The same is true of the `d3-sankey`
-and `sortablejs` vendored bundles. Over-attribution here is safe;
-under-attribution is not.
+closure of the site as shipped. `d3`, `d3-sankey`, and `sortablejs` are real
+npm dependencies, imported from source and bundled (tree-shaken and
+minified) into the site's JavaScript by `bun build`; this file nonetheless
+attributes the full `d3@7.9.0` dependency closure — every constituent `d3-*`
+module, not just the ones tree-shaking keeps — so every module's license
+notice applies whether or not the emitted bundle happens to still contain
+that module's code. The same reasoning covers `d3-sankey` and `sortablejs`.
+Over-attribution here is safe; under-attribution is not.
 
-`vendor/open-props.min.css` — the full Open Props stylesheet — is linked
-directly by `index.html` and shipped as-is alongside `style.css`, which
-consumes its custom properties. Its license and copyright are included below.
+`vendor/open-props.min.css` — the full Open Props stylesheet — is still
+vendored in-tree and linked directly by `index.html`; `bun build` bundles it
+into the built site's stylesheet alongside `style.css`, which consumes its
+custom properties. Its license and copyright are included below.
 
 ## D3 (7.9.0)
 
@@ -169,8 +172,9 @@ SOFTWARE.
 
 ## Open Props (1.7.14)
 
-MIT License, Copyright (c) 2021 Adam Argyle. Open Props ships in full as
-`vendor/open-props.min.css`, linked directly by `index.html`:
+MIT License, Copyright (c) 2021 Adam Argyle. Open Props ships in full: it's
+vendored in-tree as `vendor/open-props.min.css` and linked directly by
+`index.html`, and `bun build` bundles it into the built site's stylesheet:
 
 ```
 MIT License

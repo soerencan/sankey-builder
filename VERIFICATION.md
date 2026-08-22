@@ -1,11 +1,12 @@
 # Verification checklist
 
-Manual acceptance pass for Sankey Builder. Run in a real browser — open
-`index.html` directly (`file://`, double-click) for the file:// items; a
-static server works fine for the rest.
+Manual acceptance pass for Sankey Builder. Run in a real browser, served
+either via `make dev` (Bun's dev server) or a static host serving a `make
+build` output (`dist/`) — the app loads as an ES module, which requires an
+HTTP(S) origin; `file://` is not supported.
 
 This list covers only what automation cannot see: rendered visuals, live OS
-theme changes, `file://` origin/storage behavior, and pointer-drag feel.
+theme changes, and pointer-drag feel.
 Everything else from the original checklist — node/link editing, cycle and
 value validation, link color modes, alignment, palette switching, and
 reload persistence — was verified once by a full scripted
@@ -30,10 +31,10 @@ covers it.
 - [ ] The theme selector supports keyboard and touch operation: Tab/Shift+Tab reach every choice, Enter/Space activates the focused choice, touch does not depend on hover, and Escape closes it.
 - [ ] After the theme selector closes through a choice, Escape, backdrop click, or its Close control, focus visibly returns to the app-header theme button.
 
-## Cold start / file:// load
+## Cold start / served load
 
-- [ ] Double-click `index.html` from disk (`file://`) with no prior localStorage entry → the default diagram renders, with zero errors or warnings in the browser console.
-- [ ] With a prior localStorage entry already saved (e.g. from a previous `file://` session in the same browser profile), double-clicking `index.html` again restores that state with zero console errors.
+- [ ] Load the app (via `make dev` or a served `dist/`) with no prior localStorage entry → the default diagram renders, with zero errors or warnings in the browser console.
+- [ ] With a prior localStorage entry already saved (e.g. from a previous session in the same browser profile), reloading the page restores that state with zero console errors.
 
 ## Layout feel
 
@@ -102,8 +103,9 @@ container queries, so none of this is automated.
 
 ## Row reordering (drag feel)
 
-Reordering is driven by SortableJS (`vendor/sortable.min.js`, `forceFallback`
-mode — a synthetic drag on every platform, not native HTML5 DnD). The
+Reordering is driven by SortableJS (an npm dependency bundled into the site's
+JavaScript, `forceFallback` mode — a synthetic drag on every platform, not
+native HTML5 DnD). The
 keyboard path (focus a handle, Arrow up/down) and the resulting state/DOM
 changes are automated, as is the Sortable wiring itself (instance options,
 cross-box group separation, the `onEnd` commit); the actual drag *feel* is
@@ -137,22 +139,19 @@ pipeline), so verify per engine which behavior actually occurs.
 
 The parse/serialize logic and the DOM wiring are automated (unit + integration), but
 the real browser download dialog and native file picker aren't reachable from
-happy-dom — verify those, and confirm they work under `file://` where storage
-and origin behavior differ.
+happy-dom — verify those against a served app (`make dev` or a served
+`dist/`).
 
 - [ ] The Data card header contains Import and Export JSON only; the diagram toolbar/sheet contains SVG and PNG only, keeping data-file and rendered-diagram actions in their respective contexts.
-- [ ] Export (served): click Export JSON in the Data header → the browser downloads `sankey.json`; opening it shows a pretty-printed `{nodes, links, settings}` with no `theme` key and no incomplete links.
-- [ ] Import (served): click Import in the Data header → the native file picker opens; choosing a previously exported file replaces the diagram, editors, and controls, and the theme in use does not change.
+- [ ] Export: click Export JSON in the Data header → the download lands in Downloads as `sankey.json` with no console errors about blob URLs or the object-URL lifecycle; opening it shows a pretty-printed `{nodes, links, settings}` with no `theme` key and no incomplete links.
+- [ ] Import: click Import in the Data header → the native file picker opens; choosing a previously exported file replaces the diagram, editors, and controls with zero console errors, and the theme in use does not change.
 - [ ] Import repairs: hand-edit an exported file to introduce an unknown palette and a dangling link endpoint, then import → the diagram loads and the notice lists the adjustments made.
 - [ ] Legacy manual-color import: hand-edit an exported file to add `"colorMode": "manual"` and hex `color` values on the nodes, then import → the diagram loads using the file's named palette, the per-node colors are ignored, and the notice mentions manual colors are no longer supported.
 - [ ] Import rejection: pick an unrelated `.json` file → the diagram is left untouched and the notice says it doesn't look like a diagram export.
 - [ ] Import a topologically-invalid file (e.g. a cycle A→B→A): state is replaced and saved, `#error` shows the cycle message, the previous diagram stays rendered (refresh bails before re-render on an invalid graph), and `#io-notice` still reports the import — confirm that three-way combination reads acceptably rather than confusingly.
-- [ ] `file://` export: double-click `index.html` from disk, click Export JSON in the Data header → the download still lands in Downloads (no console errors about blob URLs or the object-URL lifecycle).
-- [ ] `file://` import: from the same `file://` page, use Import in the Data header and choose a file → the diagram updates with zero console errors.
 - [ ] Export SVG: use Export diagram → SVG on a wide layout and Diagram → SVG on a narrow layout → `sankey.svg` downloads and opens standalone in a browser with an opaque background and legible node labels matching the current theme's colors (light theme → light background with dark labels; dark theme → dark background with light labels — each theme's own text color).
 - [ ] Export SVG on an empty diagram (delete all links first): clicking Export SVG downloads nothing; `#io-notice` shows "Nothing to export — the diagram is empty."
-- [ ] Export PNG: use Export diagram → PNG on a wide layout and Diagram → PNG on a narrow layout → `sankey.png` downloads at 1920x960 with an opaque background and legible node labels matching the current theme's colors — check both light and dark theme, and both link color modes (single color and source→target gradient, which must rasterize as a real gradient, not a solid fallback).
+- [ ] Export PNG: use Export diagram → PNG on a wide layout and Diagram → PNG on a narrow layout → `sankey.png` downloads at 1920x960 with an opaque background and legible node labels matching the current theme's colors, with no console errors about blob URLs, canvas tainting, or the object-URL lifecycle — check both light and dark theme, and both link color modes (single color and source→target gradient, which must rasterize as a real gradient, not a solid fallback).
 - [ ] Export PNG on an empty diagram (delete all links first): clicking Export PNG downloads nothing; `#io-notice` shows "Nothing to export — the diagram is empty."
-- [ ] `file://` PNG export: double-click `index.html` from disk, click Export PNG → the download still lands in Downloads (no console errors about blob URLs, canvas tainting, or the object-URL lifecycle).
-- [ ] Safari PNG export specifically: repeat the above (served and `file://`) in Safari — canvas + SVG rasterization (drawImage of an svg: URL, toBlob) is the part most likely to diverge from Chrome/Firefox; confirm the PNG downloads and its colors/dimensions match.
-- [ ] Feedback from both contexts appears in the shared status toast: import/JSON notices and SVG/PNG success or empty-diagram errors remain visible after menus/sheets close and do not cause overlap or horizontal overflow at 360px or 390px.
+- [ ] Safari PNG export specifically: repeat the above in Safari — canvas + SVG rasterization (drawImage of an svg: URL, toBlob) is the part most likely to diverge from Chrome/Firefox; confirm the PNG downloads and its colors/dimensions match.
+- [ ] Feedback appears in the shared status toast: import/JSON notices and SVG/PNG success or empty-diagram errors remain visible after menus/sheets close and do not cause overlap or horizontal overflow at 360px or 390px.
