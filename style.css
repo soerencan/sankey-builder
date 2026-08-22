@@ -150,110 +150,20 @@ body {
 }
 
 .app-layout {
-  display: flex;
-  /* Half of the old 1.5rem gap on each side of the resizer — its own hit
-     area supplies the rest, so the column/diagram spacing reads about the
-     same as before. */
-  gap: 0.75rem;
-  padding: 1.5rem;
-  align-items: start;
-}
-
-.editor-column {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 1.5rem;
-  /* flex-basis must stay "auto" (not a fixed length) so the flex algorithm
-     reads its main size from `width` — which is exactly what setupResizer()
-     mutates via pointer/keyboard drag. */
-  flex: 0 0 auto;
-  width: 320px;
-  min-width: 240px;
-  max-width: 640px;
+  width: min(100%, 96rem);
+  margin-inline: auto;
+  padding: 1.5rem;
 }
 
-/*
- * Full-height vertical divider between the editor column and the diagram.
- * align-self: stretch (rather than changing .app-layout's align-items)
- * spans it to the tallest sibling's height without also stretching the
- * diagram section, which should stay its own natural height.
- */
-.resizer {
-  align-self: stretch;
-  flex: 0 0 auto;
-  width: 9px;
-  position: relative;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.resizer::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-  background: var(--border);
-  transition: background-color 150ms var(--ease-2);
-}
-
-.resizer:hover::before,
-.resizer.is-dragging::before {
-  background: var(--accent);
-}
-
-/* Grip pill: the hairline alone is a near-invisible discovery cue, so this
-   adds a short, always-visible affordance centered on it — a stronger tint
-   than the hairline's --border so it reads as "grabbable" at rest, then
-   swaps to --accent on hover/focus/drag like the hairline does. */
-.resizer::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 4px;
-  height: 28px;
-  transform: translate(-50%, -50%);
-  border-radius: var(--radius-1);
-  background: color-mix(in srgb, var(--ink) 20%, transparent);
-  transition: background-color 150ms var(--ease-2);
-}
-
-.resizer:hover::after,
-.resizer.is-dragging::after {
-  background: var(--accent);
-}
-
-/* The hairline color swap above is the focus affordance for this element —
-   the default box outline (from the global :focus-visible rule) would draw
-   a rectangle around the 9px strip, and Chromium treats a pointerdown-driven
-   .focus() as focus-visible too, so it can't be left to the heuristic and
-   must be suppressed outright rather than merely deferred to :focus-visible. */
-.resizer:focus {
-  outline: none;
-}
-
-.resizer:focus-visible::before,
-.resizer:focus-visible::after {
-  background: var(--accent);
-}
-
-/* Suppresses selection-highlight flicker while dragging the divider across
-   text-bearing siblings (labels, inputs). Row dragging doesn't need an entry
-   here — SortableJS suppresses selection itself for the duration of a drag
-   (preventDefault on selectstart plus clearing any existing selection
-   everywhere; body user-select: none only on Safari specifically). */
-body.resizing {
-  user-select: none;
-}
-
-.editor-column > .data-card {
+.data-card {
   border: 1px solid var(--border);
   border-radius: var(--radius-2);
   box-shadow: var(--shadow-2);
   overflow: hidden;
+  container-type: inline-size;
+  container-name: data-card;
 }
 
 .data-card-header {
@@ -291,8 +201,13 @@ body.resizing {
   padding: 1rem;
 }
 
+.data-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .data-section + .data-section {
-  border-top: 1px solid var(--border);
+  border-inline-start: 1px solid var(--border);
 }
 
 .data-section h2,
@@ -513,33 +428,21 @@ select {
   cursor: grabbing;
 }
 
-/*
- * Card wrapper around the toolbar + diagram: the flex-item role, border, and
- * radius all moved here from #diagram (Step 2) so the renderer can keep
- * clearing #diagram wholesale without also wiping out the toolbar.
- */
+/* Card wrapper around the toolbar + diagram. Keeping the border and radius
+   outside #diagram lets the renderer clear that element wholesale without
+   wiping out the toolbar. */
 .diagram-panel {
-  flex: 1 1 auto;
-  /* Without this, a flex item's min-width defaults to its content size, which
-     for an SVG-filled box can resist shrinking below the diagram's natural
-     width — blocking the editor column from growing past its own basis. */
   min-width: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-2);
-  /* Clips #diagram's square corners to the card's own rounding, and bounds
-     the sticky mobile cap below. */
+  /* Clips #diagram's square corners to the card's own rounding. */
   overflow: hidden;
-  /* --toolbar-height is read from both .diagram-toolbar (its own height) and
-     #diagram svg's mobile max-height calc() below — defined here, on their
-     shared ancestor, so both can see it via inheritance. */
+  /* Shared with the coarse-pointer override below. */
   --toolbar-height: 3rem;
-  /* Named (not just typed) because the page now nests two unrelated sets of
-     container queries: this one (the wide/narrow toolbar swap, below) and
-     the editor-column sections' own row-wrap query further down. Naming
-     keeps each @container rule unambiguous about which ancestor it queries,
-     even though the two never actually overlap in the DOM. */
+  /* Named because the toolbar adapts to this card, independently of the
+     viewport and the Data card's own layout query. */
   container-type: inline-size;
   container-name: diagram-panel;
 }
@@ -558,21 +461,15 @@ select {
 #diagram {
   flex: 1 1 auto;
   min-width: 0;
-  /* Opaque, not transparent: in the stacked mobile layout the panel is
-     sticky and the editor rows scroll beneath it. Also read directly by
-     io-controls.ts (getComputedStyle of the svg's parentElement) as the
-     SVG/PNG export background — must stay opaque for that too. */
+  /* Read directly by io-controls.ts (getComputedStyle of the svg's
+     parentElement) as the SVG/PNG export background, so it stays opaque. */
   background: var(--surface);
 }
 
-/* An unconditional min-height here would outlive the SVG's own rendered
-   height once the section narrows below the viewBox's 960px intrinsic width
-   (the SVG scales to width/2 via its 2:1 viewBox, so the box would hang
-   below it) — :empty scopes the minimum to the no-nodes/no-links bail-out
-   in renderDiagram(), where nothing is appended and the section would
-   otherwise collapse to a stray sliver. */
+/* Match the rendered SVG's 2:1 viewBox when renderDiagram() has no content to
+   append, instead of collapsing the full-width preview to a toolbar sliver. */
 #diagram:empty {
-  min-height: 480px;
+  aspect-ratio: 2 / 1;
 }
 
 #diagram svg {
@@ -829,61 +726,16 @@ dialog [role="group"] + [role="group"] {
 }
 
 /* ==========================================================================
-   Responsive layout (three tiers). The SVG keeps its fixed 960×480 viewBox
-   scaling — width-aware re-layout is a separate future concern.
+   Responsive layout. The page itself always follows normal document flow;
+   only the Data card's internal columns and modal presentation adapt.
    ========================================================================== */
 
-/*
- * Tier 1 — stack below 820px. Above it, the 240px column minimum plus the
- * resizer, gaps, and 1.5rem padding still leave the diagram a sane width;
- * below it, side-by-side would squeeze the diagram too far, so stack instead.
- */
 @media (max-width: 820px) {
-  /* Keep focus from landing behind the sticky diagram: reserve just past its
-     45vh height so tabbing/scrolling to an editor control scrolls it clear. */
-  html {
-    scroll-padding-top: 46vh;
-  }
-
   .app-layout {
-    flex-direction: column;
-    /* Stretch children to full width (the base align-items: start would leave
-       them at their own inline size when stacked). */
-    align-items: stretch;
+    padding: 1rem;
   }
 
-  /* Diagram panel (toolbar + diagram) on top, editor column below —
-     reordered via `order`, no DOM change. */
-  .diagram-panel {
-    order: -1;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    max-height: 45vh;
-    overflow: hidden;
-    /* Opaque so editor rows scrolling underneath don't show through the
-       toolbar or the SVG's letterbox margins. */
-    background: var(--surface);
-  }
-
-  /* Cap the SVG so it letterboxes (default preserveAspectRatio meet) inside
-     the capped panel rather than growing the sticky header past 45vh — minus
-     the toolbar's own height, which shares the same 45vh cap. */
-  #diagram svg {
-    max-height: calc(45vh - var(--toolbar-height, 3rem));
-  }
-
-  /* Override the base 480px empty-height: it wins over max-height, so a stacked
-     empty diagram (all links deleted) would otherwise be an opaque sticky block
-     covering most of a phone viewport. Collapse it to a small placeholder. */
-  #diagram:empty {
-    min-height: 6rem;
-  }
-
-  /* The Diagram and theme dialogs read as bottom sheets at this width rather than
-     small centered card: a native <dialog> renders in the top layer, so this
-     doesn't interact with .diagram-panel's own sticky/overflow above — it's
-     free to pin to the viewport edge regardless of where the panel sits. */
+  /* Diagram and theme controls read as bottom sheets on narrow viewports. */
   #display-dialog,
   #theme-dialog {
     position: fixed;
@@ -900,35 +752,28 @@ dialog [role="group"] + [role="group"] {
   #theme-dialog::backdrop {
     background: color-mix(in srgb, var(--ink) 40%, transparent);
   }
+}
 
-  /* Meaningless when stacked; its pointer/keyboard logic is inert while hidden. */
-  .resizer {
-    display: none;
+/* Stack the Data card's sections when each would otherwise become too narrow
+   for its editor controls. The breakpoint follows the card, not the viewport. */
+@container data-card (max-width: 52rem) {
+  .data-sections {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  /* !important beats the inline width setupResizer() may have set, so the
-     stacked column fills the width instead of being pinned to a dragged px. */
-  .editor-column {
-    width: auto !important;
-    min-width: 0;
-    max-width: none;
+  .data-section + .data-section {
+    border-inline-start: 0;
+    border-top: 1px solid var(--border);
   }
 }
 
-/*
- * Tier 2 — wrap cramped rows by the editor box's OWN width (container query,
- * not viewport), so dragging the desktop column narrow wraps the same way a
- * small screen does.
- */
+/* Wrap cramped link rows by their section's own content width. */
 .data-section {
   container-type: inline-size;
 }
 
-/* Wrapping starts at 260px of box CONTENT width — a ~294px column (260 +
-   2rem padding + 2px border). So the 320px default stays single-line and the
-   240px column minimum wraps, as intended. Below the threshold the link row's
-   two selects can't share a line with value/delete/handle, so those drop to a
-   second line, handle kept leftmost for drag consistency. */
+/* Below the threshold the two selects can't share a line with
+   value/delete/handle, so those drop to a second line. */
 @container (max-width: 260px) {
   .link-row {
     grid-template-columns: repeat(6, 1fr);
@@ -961,7 +806,7 @@ dialog [role="group"] + [role="group"] {
   }
 }
 
-/* Tier 3 — coarse pointers (touch) get larger tap targets. */
+/* Coarse pointers (touch) get larger tap targets. */
 @media (pointer: coarse) {
   button,
   select,
@@ -990,8 +835,7 @@ dialog [role="group"] + [role="group"] {
   }
 
   /* Toolbar buttons are already 44px tall via the shared `button` rule above;
-     this grows the toolbar's own row height (and the mobile SVG cap that's
-     computed from it) to actually fit them, rather than clipping. */
+     grow the toolbar row to fit them rather than clipping. */
   .diagram-panel {
     --toolbar-height: 3.75rem;
   }

@@ -834,68 +834,6 @@ ${xml}`;
     });
   }
 
-  // src/resizer.ts
-  var EDITOR_COLUMN_MIN_WIDTH = 240;
-  var EDITOR_COLUMN_MAX_WIDTH = 640;
-  var EDITOR_COLUMN_ARROW_STEP = 16;
-  function setupResizer() {
-    const dividerEl = document.getElementById("resizer");
-    const editorColumnEl = document.querySelector(".editor-column");
-    if (!dividerEl || !editorColumnEl) return;
-    const divider = dividerEl;
-    const editorColumn = editorColumnEl;
-    function clamp(width) {
-      return Math.min(EDITOR_COLUMN_MAX_WIDTH, Math.max(EDITOR_COLUMN_MIN_WIDTH, width));
-    }
-    function setWidth(width) {
-      const clamped = clamp(width);
-      editorColumn.style.width = `${clamped}px`;
-      divider.setAttribute("aria-valuenow", String(Math.round(clamped)));
-    }
-    divider.setAttribute("aria-valuemin", String(EDITOR_COLUMN_MIN_WIDTH));
-    divider.setAttribute("aria-valuemax", String(EDITOR_COLUMN_MAX_WIDTH));
-    divider.setAttribute(
-      "aria-valuenow",
-      String(Math.round(editorColumn.getBoundingClientRect().width))
-    );
-    let startX = 0;
-    let startWidth = 0;
-    function onPointerMove(event) {
-      setWidth(startWidth + (event.clientX - startX));
-    }
-    function onPointerUp(event) {
-      divider.releasePointerCapture(event.pointerId);
-      divider.removeEventListener("pointermove", onPointerMove);
-      divider.removeEventListener("pointerup", onPointerUp);
-      divider.removeEventListener("pointercancel", onPointerUp);
-      divider.classList.remove("is-dragging");
-      document.body.classList.remove("resizing");
-    }
-    divider.addEventListener("pointerdown", (event) => {
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-      divider.focus();
-      startX = event.clientX;
-      startWidth = editorColumn.getBoundingClientRect().width;
-      divider.setPointerCapture(event.pointerId);
-      divider.classList.add("is-dragging");
-      document.body.classList.add("resizing");
-      divider.addEventListener("pointermove", onPointerMove);
-      divider.addEventListener("pointerup", onPointerUp);
-      divider.addEventListener("pointercancel", onPointerUp);
-      event.preventDefault();
-    });
-    divider.addEventListener("keydown", (event) => {
-      const current = editorColumn.getBoundingClientRect().width;
-      if (event.key === "ArrowLeft") {
-        setWidth(current - EDITOR_COLUMN_ARROW_STEP);
-        event.preventDefault();
-      } else if (event.key === "ArrowRight") {
-        setWidth(current + EDITOR_COLUMN_ARROW_STEP);
-        event.preventDefault();
-      }
-    });
-  }
-
   // src/theme.ts
   function applyTheme(theme) {
     if (theme === "auto") {
@@ -1177,7 +1115,6 @@ ${xml}`;
     setupThemeControl(state, themeControlActions);
     setupToolbar(state, toolbarActions);
     setupIo(state, ioActions);
-    setupResizer();
     refresh();
     syncToolbar(state);
     syncThemeControl(state);

@@ -71,6 +71,19 @@ function removeAllNodes(): void {
 }
 
 describe("artifact smoke test", () => {
+	it("places the diagram before the data editor and has no obsolete resize control", () => {
+		const diagramPanel = document.querySelector(".diagram-panel");
+		const dataCard = document.querySelector(".data-card");
+		expect(diagramPanel).not.toBeNull();
+		expect(dataCard).not.toBeNull();
+		expect(
+			diagramPanel && dataCard
+				? diagramPanel.compareDocumentPosition(dataCard) & Node.DOCUMENT_POSITION_FOLLOWING
+				: 0,
+		).toBeTruthy();
+		expect(document.getElementById("resizer")).toBeNull();
+	});
+
 	it("boots without throwing and renders the default diagram", () => {
 		// Indirect eval, same pattern as the d3-global helper: runs as global
 		// code so the IIFE's own top-level `init()` call executes against the
