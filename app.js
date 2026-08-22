@@ -205,6 +205,39 @@
     return `<?xml version="1.0" encoding="UTF-8"?>
 ${xml}`;
   }
+  function rasterizeSvg(xml, width, height, scale) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = width * scale;
+          canvas.height = height * scale;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            URL.revokeObjectURL(url);
+            reject(new Error("Could not get a 2d canvas context to rasterize the diagram."));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url);
+            if (blob) resolve(blob);
+            else reject(new Error("Rasterizing the diagram to PNG failed."));
+          }, "image/png");
+        } catch (err) {
+          URL.revokeObjectURL(url);
+          reject(err);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Could not load the diagram svg for rasterization."));
+      };
+      img.src = url;
+    });
+  }
 
   // src/validate.ts
   var MAX_LINK_VALUE = 1e15;
@@ -477,9 +510,12 @@ ${xml}`;
   // src/io-controls.ts
   var EXPORT_JSON_FILENAME = "sankey.json";
   var EXPORT_SVG_FILENAME = "sankey.svg";
+  var EXPORT_PNG_FILENAME = "sankey.png";
+  var PNG_EXPORT_SCALE = 2;
   function setupIo(state2, actions) {
     const exportButton = document.getElementById("export-button");
     const exportSvgButton = document.getElementById("export-svg-button");
+    const exportPngButton = document.getElementById("export-png-button");
     const importButton = document.getElementById("import-button");
     const fileInput = document.getElementById("import-file");
     if (!(fileInput instanceof HTMLInputElement)) return;
@@ -489,16 +525,21 @@ ${xml}`;
       actions.reportExportSuccess(EXPORT_JSON_FILENAME);
     });
     exportSvgButton?.addEventListener("click", () => {
-      const svgEl = document.querySelector("#diagram svg");
-      if (!(svgEl instanceof SVGSVGElement)) {
-        actions.reportExportError("Nothing to export \u2014 the diagram is empty.");
-        return;
-      }
-      const labelColor = getComputedStyle(svgEl).color;
-      const background = getComputedStyle(svgEl.parentElement).backgroundColor;
-      const svg = serializeDiagramSvg(svgEl, { labelColor, background });
+      const svg = serializeVisibleDiagram(actions);
+      if (!svg) return;
       download(new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
       actions.reportExportSuccess(EXPORT_SVG_FILENAME);
+    });
+    exportPngButton?.addEventListener("click", () => {
+      const svg = serializeVisibleDiagram(actions);
+      if (!svg) return;
+      rasterizeSvg(svg, DIAGRAM_WIDTH, DIAGRAM_HEIGHT, PNG_EXPORT_SCALE).then((blob) => {
+        download(blob, EXPORT_PNG_FILENAME);
+        actions.reportExportSuccess(EXPORT_PNG_FILENAME);
+      }).catch((err) => {
+        console.error(err);
+        actions.reportExportError("PNG export failed. Try the SVG export instead.");
+      });
     });
     importButton?.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", async () => {
@@ -516,6 +557,16 @@ ${xml}`;
       if (result.ok) actions.importDiagram(result.state, result.repairs);
       else actions.reportImportError(result.error);
     });
+  }
+  function serializeVisibleDiagram(actions) {
+    const svgEl = document.querySelector("#diagram svg");
+    if (!(svgEl instanceof SVGSVGElement)) {
+      actions.reportExportError("Nothing to export \u2014 the diagram is empty.");
+      return void 0;
+    }
+    const labelColor = getComputedStyle(svgEl).color;
+    const background = getComputedStyle(svgEl.parentElement).backgroundColor;
+    return serializeDiagramSvg(svgEl, { labelColor, background });
   }
   function download(blob, filename) {
     const url = URL.createObjectURL(blob);

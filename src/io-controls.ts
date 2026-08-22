@@ -1,9 +1,14 @@
-import { serializeDiagramSvg } from "./export";
+import { rasterizeSvg, serializeDiagramSvg } from "./export";
 import { type ImportState, parseImport, serializeState } from "./io";
+import { DIAGRAM_HEIGHT, DIAGRAM_WIDTH } from "./render";
 import type { State } from "./state";
 
 const EXPORT_JSON_FILENAME = "sankey.json";
 const EXPORT_SVG_FILENAME = "sankey.svg";
+const EXPORT_PNG_FILENAME = "sankey.png";
+// Hidpi-crisp output (1920x960 at the diagram's 960x480 base size) without
+// making the caller reason about canvas pixel math.
+const PNG_EXPORT_SCALE = 2;
 
 export interface IoActions {
 	importDiagram(imported: ImportState, repairs: string[]): void;
@@ -21,6 +26,7 @@ export interface IoActions {
 export function setupIo(state: State, actions: IoActions): void {
 	const exportButton = document.getElementById("export-button");
 	const exportSvgButton = document.getElementById("export-svg-button");
+	const exportPngButton = document.getElementById("export-png-button");
 	const importButton = document.getElementById("import-button");
 	const fileInput = document.getElementById("import-file");
 	if (!(fileInput instanceof HTMLInputElement)) return;
@@ -31,24 +37,25 @@ export function setupIo(state: State, actions: IoActions): void {
 		actions.reportExportSuccess(EXPORT_JSON_FILENAME);
 	});
 	exportSvgButton?.addEventListener("click", () => {
-		// Exports whatever is on screen. When state is topologically invalid,
-		// refresh() keeps the last good diagram visible — exporting that stale
-		// render is deliberate ("export what you see"), not an oversight.
-		const svgEl = document.querySelector("#diagram svg");
-		if (!(svgEl instanceof SVGSVGElement)) {
-			actions.reportExportError("Nothing to export — the diagram is empty.");
-			return;
-		}
-		// Read resolved colors from the live page (theme-aware): currentColor's
-		// on-screen resolution for labels, and the diagram container's own
-		// background — both would otherwise default to black/transparent once
-		// the svg is detached from the page. svgEl.parentElement is #diagram
-		// itself, since renderDiagram appends the svg directly into it.
-		const labelColor = getComputedStyle(svgEl).color;
-		const background = getComputedStyle(svgEl.parentElement as Element).backgroundColor;
-		const svg = serializeDiagramSvg(svgEl, { labelColor, background });
+		const svg = serializeVisibleDiagram(actions);
+		if (!svg) return;
 		download(new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
 		actions.reportExportSuccess(EXPORT_SVG_FILENAME);
+	});
+	exportPngButton?.addEventListener("click", () => {
+		const svg = serializeVisibleDiagram(actions);
+		if (!svg) return;
+		rasterizeSvg(svg, DIAGRAM_WIDTH, DIAGRAM_HEIGHT, PNG_EXPORT_SCALE)
+			.then((blob) => {
+				download(blob, EXPORT_PNG_FILENAME);
+				actions.reportExportSuccess(EXPORT_PNG_FILENAME);
+			})
+			.catch((err) => {
+				// The notice stays generic; log the specific cause so a field report
+				// ("PNG export failed") is diagnosable from the console.
+				console.error(err);
+				actions.reportExportError("PNG export failed. Try the SVG export instead.");
+			});
 	});
 	importButton?.addEventListener("click", () => fileInput.click());
 
@@ -70,6 +77,31 @@ export function setupIo(state: State, actions: IoActions): void {
 		if (result.ok) actions.importDiagram(result.state, result.repairs);
 		else actions.reportImportError(result.error);
 	});
+}
+
+/**
+ * Grabs the on-screen diagram svg and serializes it (see serializeDiagramSvg
+ * for why: explicit dimensions, resolved colors, opaque background), shared
+ * by both the SVG and PNG export handlers. Exports whatever is on screen:
+ * when state is topologically invalid, refresh() keeps the last good diagram
+ * visible — exporting that stale render is deliberate ("export what you
+ * see"), not an oversight. Returns undefined (after reporting the error) when
+ * there's nothing to export.
+ */
+function serializeVisibleDiagram(actions: IoActions): string | undefined {
+	const svgEl = document.querySelector("#diagram svg");
+	if (!(svgEl instanceof SVGSVGElement)) {
+		actions.reportExportError("Nothing to export — the diagram is empty.");
+		return undefined;
+	}
+	// Read resolved colors from the live page (theme-aware): currentColor's
+	// on-screen resolution for labels, and the diagram container's own
+	// background — both would otherwise default to black/transparent once
+	// the svg is detached from the page. svgEl.parentElement is #diagram
+	// itself, since renderDiagram appends the svg directly into it.
+	const labelColor = getComputedStyle(svgEl).color;
+	const background = getComputedStyle(svgEl.parentElement as Element).backgroundColor;
+	return serializeDiagramSvg(svgEl, { labelColor, background });
 }
 
 function download(blob: Blob, filename: string): void {

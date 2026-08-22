@@ -518,6 +518,32 @@ describe("artifact smoke test", () => {
 		expect(document.getElementById("io-notice")?.textContent).toBe("Exported sankey.json.");
 	});
 
+	it("reports 'nothing to export' for PNG export on an empty diagram, without rasterizing", () => {
+		// Rasterization itself (Image/canvas) isn't exercisable under happy-dom —
+		// this only proves the empty-diagram guard fires before any of that runs,
+		// same as the SVG export's guard.
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		// Query fresh each time, not a snapshot: deleting a node rebuilds the
+		// editor rows wholesale, detaching earlier buttons from the document.
+		let deleteButton: HTMLButtonElement | null;
+		// biome-ignore lint/suspicious/noAssignInExpressions: tightest way to express "query, then loop while found"
+		while ((deleteButton = document.querySelector('[data-action="delete-node"]'))) {
+			deleteButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		}
+		expect(document.querySelector("#diagram svg")).toBeNull();
+
+		document
+			.getElementById("export-png-button")
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(document.getElementById("io-notice")?.textContent).toBe(
+			"Nothing to export — the diagram is empty.",
+		);
+	});
+
 	it("keyboard-reorders a node row: order, dropdowns, storage, and focus all follow", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;

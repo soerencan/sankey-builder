@@ -40,3 +40,52 @@ export function serializeDiagramSvg(
 	const xml = new XMLSerializer().serializeToString(clone);
 	return `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
 }
+
+/**
+ * Rasterizes a standalone svg document (as produced by serializeDiagramSvg)
+ * into a PNG blob via an offscreen canvas, drawn at width*scale by
+ * height*scale.
+ */
+export function rasterizeSvg(
+	xml: string,
+	width: number,
+	height: number,
+	scale: number,
+): Promise<Blob> {
+	return new Promise((resolve, reject) => {
+		const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
+		const img = new Image();
+		img.onload = () => {
+			// drawImage and toBlob can throw synchronously (e.g. SecurityError on a
+			// tainted canvas); without the catch, that escapes as an uncaught error
+			// event — the URL leaks and the promise never settles, so the caller's
+			// error notice never shows. Double-revoke can't happen: the toBlob
+			// callback only runs when the call didn't throw.
+			try {
+				const canvas = document.createElement("canvas");
+				canvas.width = width * scale;
+				canvas.height = height * scale;
+				const ctx = canvas.getContext("2d");
+				if (!ctx) {
+					URL.revokeObjectURL(url);
+					reject(new Error("Could not get a 2d canvas context to rasterize the diagram."));
+					return;
+				}
+				ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+				canvas.toBlob((blob) => {
+					URL.revokeObjectURL(url);
+					if (blob) resolve(blob);
+					else reject(new Error("Rasterizing the diagram to PNG failed."));
+				}, "image/png");
+			} catch (err) {
+				URL.revokeObjectURL(url);
+				reject(err);
+			}
+		};
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			reject(new Error("Could not load the diagram svg for rasterization."));
+		};
+		img.src = url;
+	});
+}
