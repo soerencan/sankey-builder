@@ -112,7 +112,7 @@
       <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" fill="currentColor" />
     </symbol>
 
-    <!-- Display (narrow-toolbar trigger): three sliders, each an offset knob
+    <!-- Diagram options (narrow-toolbar trigger): three sliders, each an offset knob
          on a track — a settings pictogram distinct from the theme dialog's
          gear-free System glyph and from a generic gear, per PLAN.md. -->
     <symbol id="icon-display" viewBox="0 0 24 24">
@@ -122,6 +122,23 @@
       <circle cx="15" cy="12" r="2.5" fill="currentColor" />
       <path d="M3 18 L21 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
       <circle cx="11" cy="18" r="2.5" fill="currentColor" />
+    </symbol>
+
+    <!-- File actions use the same document outline, with the arrow direction
+         distinguishing bringing data in from sending it out. -->
+    <symbol id="icon-import" viewBox="0 0 24 24">
+      <path d="M14 3 H6 A2 2 0 0 0 4 5 V19 A2 2 0 0 0 6 21 H18 A2 2 0 0 0 20 19 V9 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+      <path d="M14 3 V9 H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+      <path d="M12 11 V17 M9.5 14.5 L12 17 L14.5 14.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </symbol>
+    <symbol id="icon-export" viewBox="0 0 24 24">
+      <path d="M14 3 H6 A2 2 0 0 0 4 5 V19 A2 2 0 0 0 6 21 H18 A2 2 0 0 0 20 19 V9 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+      <path d="M14 3 V9 H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+      <path d="M12 17 V11 M9.5 13.5 L12 11 L14.5 13.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24">
+      <path d="M12 3 V15 M7.5 10.5 L12 15 L16.5 10.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M4 20 H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </symbol>
   </svg>
 
@@ -178,26 +195,46 @@
 
   <div id="error" role="status" aria-live="polite"></div>
   <div id="storage-notice" role="status" aria-live="polite"></div>
+  <div id="io-notice" role="status" aria-live="polite"></div>
 
   <main class="app-layout">
     <aside class="editor-column">
-      <section id="node-editor" aria-labelledby="node-editor-heading">
-        <h2 id="node-editor-heading">Nodes</h2>
-      </section>
+      <section class="data-card" aria-labelledby="data-heading">
+        <header class="data-card-header">
+          <h2 id="data-heading">Data</h2>
+          <div class="data-actions" role="group" aria-label="Data file actions">
+            <button
+              type="button"
+              id="import-button"
+              class="data-action"
+              data-action="import"
+              aria-label="Import data"
+              title="Import data"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-import"></use></svg>
+            </button>
+            <button
+              type="button"
+              id="export-button"
+              class="data-action"
+              data-action="export"
+              aria-label="Export data as JSON"
+              title="Export data as JSON"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-export"></use></svg>
+            </button>
+            <input type="file" id="import-file" accept=".json,application/json" hidden />
+          </div>
+        </header>
 
-      <section id="link-editor" aria-labelledby="link-editor-heading">
-        <h2 id="link-editor-heading">Links</h2>
-      </section>
+        <section id="node-editor" class="data-section" aria-labelledby="node-editor-heading">
+          <h3 id="node-editor-heading">Nodes</h3>
+        </section>
 
-      <!-- App-level actions, deliberately outside the settings boxes above. -->
-      <div class="io-actions" role="group" aria-label="Diagram file actions">
-        <button type="button" id="export-button" data-action="export">Export JSON</button>
-        <button type="button" id="export-svg-button" data-action="export-svg">Export SVG</button>
-        <button type="button" id="export-png-button" data-action="export-png">Export PNG</button>
-        <button type="button" id="import-button" data-action="import">Import</button>
-        <input type="file" id="import-file" accept=".json,application/json" hidden />
-        <div id="io-notice" role="status" aria-live="polite"></div>
-      </div>
+        <section id="link-editor" class="data-section" aria-labelledby="link-editor-heading">
+          <h3 id="link-editor-heading">Links</h3>
+        </section>
+      </section>
     </aside>
 
     <div
@@ -281,6 +318,16 @@
               <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-justify"></use></svg>
             </button>
           </div>
+          <button
+            type="button"
+            id="diagram-export-button"
+            class="toolbar-button"
+            data-action="open-diagram-export-dialog"
+            aria-haspopup="dialog"
+          >
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
+            Export
+          </button>
         </div>
         <button
           type="button"
@@ -290,7 +337,7 @@
           aria-haspopup="dialog"
         >
           <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-display"></use></svg>
-          Display
+          Diagram
         </button>
       </header>
 
@@ -400,6 +447,15 @@
         <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
       </dialog>
 
+      <dialog id="diagram-export-dialog" aria-labelledby="diagram-export-dialog-heading">
+        <h3 id="diagram-export-dialog-heading">Export diagram</h3>
+        <div class="export-options" role="group" aria-label="Export diagram format">
+          <button type="button" id="export-svg-button" data-action="export-svg">SVG</button>
+          <button type="button" id="export-png-button" data-action="export-png">PNG</button>
+        </div>
+        <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
+      </dialog>
+
       <!-- Narrow-toolbar equivalent of the wide Links button + .align-group
            above: same classes/data-actions (COPIES, not new ids on the
            options), so the panel's delegated listener and syncToolbar's
@@ -407,7 +463,7 @@
            them. Unlike the other dialogs, choosing here does not close the
            dialog — see src/toolbar.ts. -->
       <dialog id="display-dialog" aria-labelledby="display-dialog-heading">
-        <h3 id="display-dialog-heading">Display</h3>
+        <h3 id="display-dialog-heading">Diagram</h3>
         <div role="group" aria-labelledby="display-link-colors-heading">
           <h4 id="display-link-colors-heading">Link colors</h4>
           <div class="choice-options">
@@ -496,6 +552,13 @@
               <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-justify"></use></svg>
               <span class="choice-option-label">Justify</span>
             </button>
+          </div>
+        </div>
+        <div role="group" aria-labelledby="display-export-heading">
+          <h4 id="display-export-heading">Export diagram</h4>
+          <div class="export-options">
+            <button type="button" data-action="export-svg">SVG</button>
+            <button type="button" data-action="export-png">PNG</button>
           </div>
         </div>
         <button type="button" class="dialog-close" data-action="close-dialog">Close</button>

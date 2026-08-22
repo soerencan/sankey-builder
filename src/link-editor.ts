@@ -86,7 +86,7 @@ let rowSortable: Sortable | null = null;
 export function renderLinkEditor(state: State, moveLink: (from: number, to: number) => void): void {
 	const root = d3.select("#link-editor");
 	root.html("");
-	root.append("h2").attr("id", "link-editor-heading").text("Links");
+	root.append("h3").attr("id", "link-editor-heading").text("Links");
 
 	const rowsContainer = root.append("div").attr("class", "link-rows");
 

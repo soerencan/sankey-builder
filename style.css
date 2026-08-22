@@ -127,9 +127,22 @@ body {
 }
 
 #io-notice {
+  position: fixed;
+  z-index: 10;
+  inset-inline: 1rem;
+  bottom: 1rem;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  margin-inline: auto;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-3);
+  background: var(--surface);
   color: color-mix(in srgb, var(--ink) 80%, transparent);
   font-size: 0.85rem;
   line-height: 1.4;
+  pointer-events: none;
 }
 
 #io-notice:empty {
@@ -236,16 +249,55 @@ body.resizing {
   user-select: none;
 }
 
-.editor-column section {
+.editor-column > .data-card {
   border: 1px solid var(--border);
   border-radius: var(--radius-2);
-  padding: 1rem;
   box-shadow: var(--shadow-2);
+  overflow: hidden;
 }
 
-.editor-column h2 {
-  margin: 0 0 0.75rem;
+.data-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 3rem;
+  padding: 0.4rem 0.75rem 0.4rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-card-header h2,
+.data-section h2,
+.data-section h3 {
+  margin: 0;
   font-size: 0.95rem;
+}
+
+.data-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.data-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border-color: transparent;
+}
+
+.data-section {
+  padding: 1rem;
+}
+
+.data-section + .data-section {
+  border-top: 1px solid var(--border);
+}
+
+.data-section h2,
+.data-section h3 {
+  margin-bottom: 0.75rem;
 }
 
 button,
@@ -462,20 +514,6 @@ select {
 }
 
 /*
- * App-level Export/Import actions, standing apart from the settings boxes:
- * the two buttons split the top row, and #io-notice spans beneath them.
- */
-.io-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-}
-
-.io-actions #io-notice {
-  grid-column: 1 / -1;
-}
-
-/*
  * Card wrapper around the toolbar + diagram: the flex-item role, border, and
  * radius all moved here from #diagram (Step 2) so the renderer can keep
  * clearing #diagram wholesale without also wiping out the toolbar.
@@ -566,13 +604,14 @@ select {
    icon, unlike the icon-only carousel buttons above — extra inline padding
    keeps the label from crowding the button's edges. */
 #links-button,
-#display-button {
+#display-button,
+#diagram-export-button {
   padding-inline: 0.6rem;
 }
 
 /* Wide/narrow toolbar swap (PLAN.md's "Use an adaptive diagram toolbar").
    .toolbar-wide holds the Links button + alignment group; .toolbar-narrow is
-   the single Display trigger. Both live in the DOM at all times (so tests
+   the single Diagram trigger. Both live in the DOM at all times (so tests
    under happy-dom, which doesn't evaluate container queries, can exercise
    either); only one is shown at a time, switched by the @container rule
    below. */
@@ -587,7 +626,7 @@ select {
 
 .toolbar-narrow {
   display: none;
-  /* Pushes the Display button to the toolbar's trailing edge, matching
+  /* Pushes the Diagram button to the toolbar's trailing edge, matching
      PLAN.md's narrow-toolbar mock. Harmless while display:none above. */
   margin-inline-start: auto;
 }
@@ -672,12 +711,12 @@ select {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-/* Narrow toolbar: swap the wide Links button + alignment group for the
-   single Display trigger once the diagram panel's own inline size (not the
-   viewport) gets tight. 540px is a starting value, tuned to where the wide
-   row's controls actually stop fitting — see VERIFICATION.md's "Diagram
+/* Narrow toolbar: swap the wide Links button + alignment/export group for the
+   single Diagram trigger once the diagram panel's own inline size (not the
+   viewport) gets tight. 680px is tuned to include the grouped Export action
+   without crowding the other controls; see VERIFICATION.md's "Diagram
    toolbar" section if it needs adjusting; this is its only definition. */
-@container diagram-panel (max-width: 540px) {
+@container diagram-panel (max-width: 680px) {
   .toolbar-wide {
     display: none;
   }
@@ -689,7 +728,7 @@ select {
 
 /* ==========================================================================
    Dialogs (native <dialog>, wired by src/dialog.ts). The palette chooser,
-   link color/theme dialogs, and the narrow Display surface all share
+   link color/theme dialogs, and the narrow Diagram surface all share
    these base styles.
    ========================================================================== */
 
@@ -703,6 +742,23 @@ dialog {
   max-width: min(90vw, 22rem);
 }
 
+/* Theme is a lightweight app preference on wide screens, so its modal is
+   visually anchored to the control that opens it instead of floating in the
+   middle of the workspace. Native dialog behavior still supplies focus
+   trapping, Escape handling, and the backdrop. */
+#theme-dialog {
+  position: fixed;
+  inset: 4.25rem 1.5rem auto auto;
+  margin: 0;
+  width: min(15rem, calc(100vw - 3rem));
+}
+
+/* The desktop treatment reads as a lightweight anchored popover. It remains
+   modal for focus management, but does not visually dim the whole workspace. */
+#theme-dialog::backdrop {
+  background: transparent;
+}
+
 dialog::backdrop {
   background: color-mix(in srgb, var(--ink) 40%, transparent);
 }
@@ -712,7 +768,7 @@ dialog h3 {
   font-size: 1rem;
 }
 
-/* Sub-group headings inside the Display dialog, which (unlike the other
+/* Sub-group headings inside the Diagram dialog, which (unlike the other
    dialogs) holds two labelled option groups under one h3 — Link colors and
    Alignment each need their own visible heading to stay distinguishable. */
 dialog h4 {
@@ -764,6 +820,12 @@ dialog [role="group"] + [role="group"] {
 
 .dialog-close {
   margin-top: 1rem;
+}
+
+.export-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
 }
 
 /* ==========================================================================
@@ -818,16 +880,25 @@ dialog [role="group"] + [role="group"] {
     min-height: 6rem;
   }
 
-  /* The Display dialog reads as a bottom sheet at this width rather than a
+  /* The Diagram and theme dialogs read as bottom sheets at this width rather than
      small centered card: a native <dialog> renders in the top layer, so this
      doesn't interact with .diagram-panel's own sticky/overflow above — it's
      free to pin to the viewport edge regardless of where the panel sits. */
-  #display-dialog {
+  #display-dialog,
+  #theme-dialog {
+    position: fixed;
+    inset: auto 0 0 0;
     margin-block-end: 0;
     margin-block-start: auto;
     width: 100%;
     max-width: none;
+    max-height: min(85vh, 42rem);
+    overflow-y: auto;
     border-radius: var(--radius-2) var(--radius-2) 0 0;
+  }
+
+  #theme-dialog::backdrop {
+    background: color-mix(in srgb, var(--ink) 40%, transparent);
   }
 
   /* Meaningless when stacked; its pointer/keyboard logic is inert while hidden. */
@@ -849,7 +920,7 @@ dialog [role="group"] + [role="group"] {
  * not viewport), so dragging the desktop column narrow wraps the same way a
  * small screen does.
  */
-.editor-column section {
+.data-section {
   container-type: inline-size;
 }
 
