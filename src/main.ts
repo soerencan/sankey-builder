@@ -151,6 +151,7 @@ const ioActions: IoActions = {
 		state.settings.palette = imported.settings.palette;
 		state.settings.linkColor = imported.settings.linkColor;
 		state.settings.alignment = imported.settings.alignment;
+		state.settings.aspectRatio = imported.settings.aspectRatio;
 		// theme is deliberately untouched — a per-browser preference, not
 		// diagram data, so it survives an import. No syncThemeControl call
 		// here for that reason: nothing about the theme control could go stale.
@@ -198,6 +199,10 @@ const toolbarActions: ToolbarActions = {
 	},
 	setAlignment(value) {
 		state.settings.alignment = value;
+		refresh();
+	},
+	setAspectRatio(value) {
+		state.settings.aspectRatio = value;
 		refresh();
 	},
 };

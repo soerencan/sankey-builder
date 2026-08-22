@@ -30,6 +30,7 @@ export interface Settings {
 	palette: Palette;
 	linkColor: LinkColorMode;
 	alignment: Alignment;
+	aspectRatio: AspectRatio;
 	theme: Theme;
 }
 
@@ -56,6 +57,7 @@ export function defaultState(): State {
 			palette: "observable10",
 			linkColor: "source-target",
 			alignment: "justify",
+			aspectRatio: "2:1",
 			theme: "auto",
 		},
 	};
@@ -133,3 +135,4 @@ export function moveNode(state: State, from: number, to: number): void {
 export function moveLink(state: State, from: number, to: number): void {
 	moveWithin(state.links, from, to);
 }
+import type { AspectRatio } from "./aspect-ratio";

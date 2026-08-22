@@ -21,6 +21,7 @@ describe("defaultState", () => {
 			palette: "observable10",
 			linkColor: "source-target",
 			alignment: "justify",
+			aspectRatio: "2:1",
 			theme: "auto",
 		});
 	});

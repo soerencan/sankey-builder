@@ -347,6 +347,35 @@ describe("artifact smoke test", () => {
 		}
 	});
 
+	it("changes the intrinsic diagram and both selectors when an aspect ratio is chosen", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const trigger = document.getElementById("aspect-ratio-button");
+		trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
+		expect(dialog.open).toBe(true);
+
+		dialog
+			.querySelector<HTMLButtonElement>('[data-action="set-aspect-ratio"][data-value="3:1"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(document.querySelector("#diagram svg")?.getAttribute("viewBox")).toBe("0 0 1440 480");
+		expect(trigger?.textContent).toContain("Aspect 3:1");
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.aspectRatio).toBe("3:1");
+		for (const option of Array.from(
+			document.querySelectorAll<HTMLButtonElement>('[data-action="set-aspect-ratio"]'),
+		)) {
+			expect(option.getAttribute("aria-pressed")).toBe(
+				option.dataset.value === "3:1" ? "true" : "false",
+			);
+		}
+		expect(dialog.open).toBe(false);
+		expect(document.activeElement).toBe(trigger);
+	});
+
 	it("clicking the Diagram button opens the diagram-options dialog", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;

@@ -1,10 +1,19 @@
-import { DIAGRAM_HEIGHT, DIAGRAM_WIDTH } from "./render";
-
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 export interface SerializeSvgOptions {
 	labelColor: string;
 	background: string;
+}
+
+export function svgViewBoxSize(svg: SVGSVGElement): { width: number; height: number } {
+	const values = (svg.getAttribute("viewBox") ?? "")
+		.trim()
+		.split(/[\s,]+/)
+		.map(Number);
+	if (values.length !== 4 || !values.every(Number.isFinite) || values[2] <= 0 || values[3] <= 0) {
+		throw new Error("The diagram SVG has no valid viewBox.");
+	}
+	return { width: values[2], height: values[3] };
 }
 
 /**
@@ -20,10 +29,11 @@ export function serializeDiagramSvg(
 	svg: SVGSVGElement,
 	opts: { labelColor: string; background: string },
 ): string {
+	const { width, height } = svgViewBoxSize(svg);
 	const clone = svg.cloneNode(true) as SVGSVGElement;
 	clone.setAttribute("xmlns", SVG_NS);
-	clone.setAttribute("width", String(DIAGRAM_WIDTH));
-	clone.setAttribute("height", String(DIAGRAM_HEIGHT));
+	clone.setAttribute("width", String(width));
+	clone.setAttribute("height", String(height));
 
 	for (const el of Array.from(clone.querySelectorAll('[fill="currentColor"]'))) {
 		el.setAttribute("fill", opts.labelColor);
@@ -32,8 +42,8 @@ export function serializeDiagramSvg(
 	const background = clone.ownerDocument.createElementNS(SVG_NS, "rect");
 	background.setAttribute("x", "0");
 	background.setAttribute("y", "0");
-	background.setAttribute("width", String(DIAGRAM_WIDTH));
-	background.setAttribute("height", String(DIAGRAM_HEIGHT));
+	background.setAttribute("width", String(width));
+	background.setAttribute("height", String(height));
 	background.setAttribute("fill", opts.background);
 	clone.insertBefore(background, clone.firstChild);
 

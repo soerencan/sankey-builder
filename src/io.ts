@@ -28,6 +28,7 @@ export function serializeState(state: State): string {
 			palette: state.settings.palette,
 			linkColor: state.settings.linkColor,
 			alignment: state.settings.alignment,
+			aspectRatio: state.settings.aspectRatio,
 		},
 	};
 	return JSON.stringify(exported, null, 2);
@@ -68,6 +69,7 @@ export function parseImport(text: string): ImportResult {
 		palette: normalized.palette,
 		linkColor: normalized.linkColor,
 		alignment: normalized.alignment,
+		aspectRatio: normalized.aspectRatio,
 	};
 	return { ok: true, state: { nodes, links, settings }, repairs };
 }

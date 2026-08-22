@@ -27,6 +27,24 @@ describe("renderDiagram", () => {
 		expect(diagram?.querySelectorAll("path")).toHaveLength(state.links.length);
 	});
 
+	it("uses the selected aspect ratio for the viewBox and layout extent", () => {
+		const state = defaultState();
+		state.settings.aspectRatio = "3:1";
+		const nodeColor = createNodeColorResolver(state);
+
+		renderDiagram(state, nodeColor);
+
+		const svg = document.querySelector("#diagram svg");
+		expect(svg?.getAttribute("viewBox")).toBe("0 0 1440 480");
+		const rightmostNode = Math.max(
+			...Array.from(
+				document.querySelectorAll("#diagram svg rect"),
+				(rect) => Number(rect.getAttribute("x")) + Number(rect.getAttribute("width")),
+			),
+		);
+		expect(rightmostNode).toBeCloseTo(1439);
+	});
+
 	it("wires up per-link gradients in source-target link-color mode", () => {
 		const state = defaultState();
 		const nodeColor = createNodeColorResolver(state);

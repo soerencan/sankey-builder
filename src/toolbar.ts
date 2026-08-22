@@ -1,3 +1,9 @@
+import {
+	ASPECT_RATIO_OPTIONS,
+	type AspectRatio,
+	aspectRatioOption,
+	isAspectRatio,
+} from "./aspect-ratio";
 import { PALETTE_LABELS, PALETTE_ORDER, isPaletteKey, paletteColors } from "./colors";
 import type { DialogController } from "./dialog";
 import { setupDialog } from "./dialog";
@@ -7,6 +13,7 @@ export interface ToolbarActions {
 	setPalette(value: Palette): void;
 	setLinkColor(mode: LinkColorMode): void;
 	setAlignment(value: Alignment): void;
+	setAspectRatio(value: AspectRatio): void;
 }
 
 // Number of swatches shown per strip — matches the five named palettes'
@@ -117,6 +124,23 @@ export function syncToolbar(state: State): void {
 	for (const option of alignmentOptions) {
 		option.setAttribute("aria-pressed", option.dataset.value === alignment ? "true" : "false");
 	}
+
+	const aspectRatio = state.settings.aspectRatio;
+	const ratioButton = panel.querySelector<HTMLButtonElement>("#aspect-ratio-button");
+	if (ratioButton) {
+		ratioButton
+			.querySelector<HTMLElement>(".aspect-ratio-current")
+			?.replaceChildren(`Aspect ${aspectRatioOption(aspectRatio).label}`);
+		ratioButton.setAttribute("aria-label", `Aspect ratio: ${aspectRatioOption(aspectRatio).label}`);
+	}
+	for (const option of Array.from(
+		document.querySelectorAll<HTMLButtonElement>('[data-action="set-aspect-ratio"]'),
+	)) {
+		option.setAttribute("aria-pressed", option.dataset.value === aspectRatio ? "true" : "false");
+	}
+	const diagram = document.getElementById("diagram");
+	const ratio = aspectRatioOption(aspectRatio);
+	diagram?.style.setProperty("--diagram-aspect-ratio", `${ratio.width} / ${ratio.height}`);
 }
 
 /**
@@ -139,6 +163,9 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 
 	const linksDialogEl = panel.querySelector<HTMLDialogElement>("#links-dialog");
 	const linksDialog: DialogController | null = linksDialogEl ? setupDialog(linksDialogEl) : null;
+
+	const aspectDialogEl = panel.querySelector<HTMLDialogElement>("#aspect-ratio-dialog");
+	const aspectDialog: DialogController | null = aspectDialogEl ? setupDialog(aspectDialogEl) : null;
 
 	// The narrow Diagram surface: unlike the other dialogs, choosing an
 	// option here does NOT close it (PLAN.md's Narrow-screen Diagram surface)
@@ -172,6 +199,8 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 			dialog?.close();
 		} else if (action === "open-links-dialog") {
 			linksDialog?.open(trigger);
+		} else if (action === "open-aspect-ratio-dialog") {
+			aspectDialog?.open(trigger);
 		} else if (action === "open-display-dialog") {
 			displayDialog?.open(trigger);
 		} else if (action === "set-link-color" && isLinkColorKey(value)) {
@@ -183,6 +212,14 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 		} else if (action === "set-alignment" && isAlignmentKey(value)) {
 			actions.setAlignment(value);
 			syncToolbar(state);
+		} else if (action === "set-aspect-ratio" && isAspectRatio(value)) {
+			actions.setAspectRatio(value);
+			syncToolbar(state);
+			if (trigger.closest("dialog") === aspectDialogEl) aspectDialog?.close();
 		}
 	});
 }
+
+// Exported so markup tests can ensure every hand-authored option stays in
+// lockstep with the single source of truth used by rendering and persistence.
+export { ASPECT_RATIO_OPTIONS };

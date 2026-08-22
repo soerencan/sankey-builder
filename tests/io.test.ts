@@ -13,6 +13,7 @@ function sampleState(): State {
 			palette: "dark2",
 			linkColor: "static",
 			alignment: "center",
+			aspectRatio: "16:9",
 			theme: "dark",
 		},
 	};
@@ -25,8 +26,14 @@ describe("serializeState", () => {
 			palette: "dark2",
 			linkColor: "static",
 			alignment: "center",
+			aspectRatio: "16:9",
 		});
 		expect("theme" in parsed.settings).toBe(false);
+	});
+
+	it("includes the output aspect ratio in diagram JSON", () => {
+		const parsed = JSON.parse(serializeState(sampleState()));
+		expect(parsed.settings.aspectRatio).toBe("16:9");
 	});
 
 	it("omits colorMode from the exported settings", () => {
@@ -76,6 +83,7 @@ describe("parseImport round-trip", () => {
 				palette: "dark2",
 				linkColor: "static",
 				alignment: "center",
+				aspectRatio: "16:9",
 			},
 		});
 	});

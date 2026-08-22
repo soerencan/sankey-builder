@@ -229,6 +229,18 @@ describe("loadState", () => {
 			expect(loadWithSettings({ alignment: "center" }).alignment).toBe("center");
 		});
 
+		it("defaults legacy diagrams without an aspect ratio to 2:1", () => {
+			expect(loadWithSettings({}).aspectRatio).toBe("2:1");
+		});
+
+		it("keeps a recognized aspect ratio", () => {
+			expect(loadWithSettings({ aspectRatio: "16:9" }).aspectRatio).toBe("16:9");
+		});
+
+		it("falls back to 2:1 for an unknown aspect ratio", () => {
+			expect(loadWithSettings({ aspectRatio: "portrait" }).aspectRatio).toBe("2:1");
+		});
+
 		it("falls back to auto for an unknown theme", () => {
 			expect(loadWithSettings({ theme: "bogus" }).theme).toBe("auto");
 		});

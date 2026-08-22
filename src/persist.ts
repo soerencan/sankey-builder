@@ -1,3 +1,4 @@
+import { isAspectRatio } from "./aspect-ratio";
 import { isPaletteKey } from "./colors";
 import type {
 	Alignment,
@@ -71,9 +72,15 @@ export function normalizeSettings(settings: unknown, repairs?: string[]): Settin
 	if (isAlignment(s.alignment)) alignment = s.alignment;
 	else if (s.alignment !== undefined) repairs?.push("settings: unknown alignment — using default");
 
+	let aspectRatio: Settings["aspectRatio"] = "2:1";
+	if (isAspectRatio(s.aspectRatio)) aspectRatio = s.aspectRatio;
+	else if (s.aspectRatio !== undefined) {
+		repairs?.push("settings: unknown aspect ratio — using 2:1");
+	}
+
 	const theme: Theme = isTheme(s.theme) ? s.theme : "auto";
 
-	return { palette, linkColor, alignment, theme };
+	return { palette, linkColor, alignment, aspectRatio, theme };
 }
 
 function isRawState(

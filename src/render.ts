@@ -1,4 +1,5 @@
 import type { SankeyLink, SankeyNode } from "d3-sankey";
+import { aspectRatioOption } from "./aspect-ratio";
 import type { NodeColorResolver } from "./colors";
 import type { Alignment, Link, LinkColorMode, Node, State } from "./state";
 import { isComplete } from "./state";
@@ -63,6 +64,8 @@ function alignFn(name: Alignment): typeof d3.sankeyJustify {
 function layout(
 	state: State,
 	sourceLinks: CompleteLink[],
+	width: number,
+	height: number,
 ): { nodes: LayoutNode[]; links: LayoutLink[] } {
 	const { nodes, links } = structuredClone({ nodes: state.nodes, links: sourceLinks });
 	const graph = d3
@@ -73,7 +76,7 @@ function layout(
 		.nodePadding(10)
 		.extent([
 			[1, 5],
-			[DIAGRAM_WIDTH - 1, DIAGRAM_HEIGHT - 5],
+			[width - 1, height - 5],
 		])({ nodes, links });
 	return graph as unknown as { nodes: LayoutNode[]; links: LayoutLink[] };
 }
@@ -105,9 +108,10 @@ export function renderDiagram(state: State, nodeColor: NodeColorResolver): void 
 	const completeLinks = state.links.filter(isComplete);
 	if (completeLinks.length === 0) return;
 
-	const { nodes, links } = layout(state, completeLinks);
+	const { width, height } = aspectRatioOption(state.settings.aspectRatio);
+	const { nodes, links } = layout(state, completeLinks, width, height);
 
-	const svg = container.append("svg").attr("viewBox", `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
+	const svg = container.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
 
 	// Paint order matches the reference example: link ribbons under node rects.
 	// Each link gets its own <g> so the source-target mode can nest a
@@ -165,10 +169,10 @@ export function renderDiagram(state: State, nodeColor: NodeColorResolver): void 
 		.selectAll("text")
 		.data(nodes)
 		.join("text")
-		.attr("x", (d) => (d.x0 < DIAGRAM_WIDTH / 2 ? d.x1 + 6 : d.x0 - 6))
+		.attr("x", (d) => (d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6))
 		.attr("y", (d) => (d.y0 + d.y1) / 2)
 		.attr("dy", "0.35em")
-		.attr("text-anchor", (d) => (d.x0 < DIAGRAM_WIDTH / 2 ? "start" : "end"))
+		.attr("text-anchor", (d) => (d.x0 < width / 2 ? "start" : "end"))
 		.attr("fill", "currentColor")
 		.text((d) => d.name);
 }

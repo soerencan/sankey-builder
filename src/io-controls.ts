@@ -1,7 +1,6 @@
 import { setupDialog } from "./dialog";
-import { rasterizeSvg, serializeDiagramSvg } from "./export";
+import { rasterizeSvg, serializeDiagramSvg, svgViewBoxSize } from "./export";
 import { type ImportState, parseImport, serializeState } from "./io";
-import { DIAGRAM_HEIGHT, DIAGRAM_WIDTH } from "./render";
 import type { State } from "./state";
 
 const EXPORT_JSON_FILENAME = "sankey.json";
@@ -65,7 +64,9 @@ export function setupIo(state: State, actions: IoActions): void {
 		exportPngButton.addEventListener("click", () => {
 			const svg = serializeVisibleDiagram(actions);
 			if (svg) {
-				rasterizeSvg(svg, DIAGRAM_WIDTH, DIAGRAM_HEIGHT, PNG_EXPORT_SCALE)
+				const svgElement = document.querySelector("#diagram svg") as SVGSVGElement;
+				const { width, height } = svgViewBoxSize(svgElement);
+				rasterizeSvg(svg, width, height, PNG_EXPORT_SCALE)
 					.then((blob) => {
 						download(blob, EXPORT_PNG_FILENAME);
 						actions.reportExportSuccess(EXPORT_PNG_FILENAME);

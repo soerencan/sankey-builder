@@ -72,6 +72,85 @@
     return { open, close };
   }
 
+  // src/export.ts
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  function svgViewBoxSize(svg) {
+    const values = (svg.getAttribute("viewBox") ?? "").trim().split(/[\s,]+/).map(Number);
+    if (values.length !== 4 || !values.every(Number.isFinite) || values[2] <= 0 || values[3] <= 0) {
+      throw new Error("The diagram SVG has no valid viewBox.");
+    }
+    return { width: values[2], height: values[3] };
+  }
+  function serializeDiagramSvg(svg, opts) {
+    const { width, height } = svgViewBoxSize(svg);
+    const clone = svg.cloneNode(true);
+    clone.setAttribute("xmlns", SVG_NS);
+    clone.setAttribute("width", String(width));
+    clone.setAttribute("height", String(height));
+    for (const el of Array.from(clone.querySelectorAll('[fill="currentColor"]'))) {
+      el.setAttribute("fill", opts.labelColor);
+    }
+    const background = clone.ownerDocument.createElementNS(SVG_NS, "rect");
+    background.setAttribute("x", "0");
+    background.setAttribute("y", "0");
+    background.setAttribute("width", String(width));
+    background.setAttribute("height", String(height));
+    background.setAttribute("fill", opts.background);
+    clone.insertBefore(background, clone.firstChild);
+    const xml = new XMLSerializer().serializeToString(clone);
+    return `<?xml version="1.0" encoding="UTF-8"?>
+${xml}`;
+  }
+  function rasterizeSvg(xml, width, height, scale) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = width * scale;
+          canvas.height = height * scale;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            URL.revokeObjectURL(url);
+            reject(new Error("Could not get a 2d canvas context to rasterize the diagram."));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url);
+            if (blob) resolve(blob);
+            else reject(new Error("Rasterizing the diagram to PNG failed."));
+          }, "image/png");
+        } catch (err) {
+          URL.revokeObjectURL(url);
+          reject(err);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Could not load the diagram svg for rasterization."));
+      };
+      img.src = url;
+    });
+  }
+
+  // src/aspect-ratio.ts
+  var ASPECT_RATIO_OPTIONS = [
+    { value: "a-series", label: "A-series", width: 679, height: 480 },
+    { value: "3:2", label: "3:2", width: 720, height: 480 },
+    { value: "16:9", label: "16:9", width: 853, height: 480 },
+    { value: "2:1", label: "2:1", width: 960, height: 480 },
+    { value: "3:1", label: "3:1", width: 1440, height: 480 }
+  ];
+  var OPTIONS_BY_VALUE = new Map(ASPECT_RATIO_OPTIONS.map((option) => [option.value, option]));
+  function isAspectRatio(value) {
+    return typeof value === "string" && OPTIONS_BY_VALUE.has(value);
+  }
+  function aspectRatioOption(value) {
+    return OPTIONS_BY_VALUE.get(value) ?? ASPECT_RATIO_OPTIONS[3];
+  }
+
   // src/state.ts
   function isComplete(link) {
     return link.source !== null && link.target !== null;
@@ -93,6 +172,7 @@
         palette: "observable10",
         linkColor: "source-target",
         alignment: "justify",
+        aspectRatio: "2:1",
         theme: "auto"
       }
     };
@@ -140,107 +220,6 @@
   }
   function moveLink(state2, from, to) {
     moveWithin(state2.links, from, to);
-  }
-
-  // src/render.ts
-  var DIAGRAM_WIDTH = 960;
-  var DIAGRAM_HEIGHT = 480;
-  function alignFn(name) {
-    const table = {
-      left: d3.sankeyLeft,
-      right: d3.sankeyRight,
-      center: d3.sankeyCenter
-    };
-    return table[name] ?? d3.sankeyJustify;
-  }
-  function layout(state2, sourceLinks) {
-    const { nodes, links } = structuredClone({ nodes: state2.nodes, links: sourceLinks });
-    const graph = d3.sankey().nodeId((d) => d.id).nodeAlign(alignFn(state2.settings.alignment)).nodeWidth(15).nodePadding(10).extent([
-      [1, 5],
-      [DIAGRAM_WIDTH - 1, DIAGRAM_HEIGHT - 5]
-    ])({ nodes, links });
-    return graph;
-  }
-  function linkStroke(mode, nodeColor) {
-    if (mode === "source") return (d) => nodeColor(d.source);
-    if (mode === "target") return (d) => nodeColor(d.target);
-    if (mode === "static") return () => "#aaa";
-    return (d) => `url(#link-grad-${d.index})`;
-  }
-  function renderDiagram(state2, nodeColor) {
-    const container = d3.select("#diagram");
-    container.html("");
-    if (state2.nodes.length === 0) return;
-    const completeLinks = state2.links.filter(isComplete);
-    if (completeLinks.length === 0) return;
-    const { nodes, links } = layout(state2, completeLinks);
-    const svg = container.append("svg").attr("viewBox", `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
-    const linkGroup = svg.append("g").attr("fill", "none").attr("stroke-opacity", 0.5).selectAll("g").data(links).join("g");
-    if (state2.settings.linkColor === "source-target") {
-      linkGroup.append("linearGradient").attr("id", (d) => `link-grad-${d.index}`).attr("gradientUnits", "userSpaceOnUse").attr("x1", (d) => d.source.x1).attr("x2", (d) => d.target.x0).call(
-        (g) => g.append("stop").attr("offset", "0%").attr("stop-color", (d) => nodeColor(d.source))
-      ).call(
-        (g) => g.append("stop").attr("offset", "100%").attr("stop-color", (d) => nodeColor(d.target))
-      );
-    }
-    linkGroup.append("path").attr("d", d3.sankeyLinkHorizontal()).attr("stroke", linkStroke(state2.settings.linkColor, nodeColor)).attr("stroke-width", (d) => Math.max(1, d.width));
-    svg.append("g").selectAll("rect").data(nodes).join("rect").attr("x", (d) => d.x0).attr("y", (d) => d.y0).attr("width", (d) => d.x1 - d.x0).attr("height", (d) => Math.max(1, d.y1 - d.y0)).attr("fill", (d) => nodeColor(d));
-    svg.append("g").attr("font-family", "system-ui, sans-serif").attr("font-size", 10).selectAll("text").data(nodes).join("text").attr("x", (d) => d.x0 < DIAGRAM_WIDTH / 2 ? d.x1 + 6 : d.x0 - 6).attr("y", (d) => (d.y0 + d.y1) / 2).attr("dy", "0.35em").attr("text-anchor", (d) => d.x0 < DIAGRAM_WIDTH / 2 ? "start" : "end").attr("fill", "currentColor").text((d) => d.name);
-  }
-
-  // src/export.ts
-  var SVG_NS = "http://www.w3.org/2000/svg";
-  function serializeDiagramSvg(svg, opts) {
-    const clone = svg.cloneNode(true);
-    clone.setAttribute("xmlns", SVG_NS);
-    clone.setAttribute("width", String(DIAGRAM_WIDTH));
-    clone.setAttribute("height", String(DIAGRAM_HEIGHT));
-    for (const el of Array.from(clone.querySelectorAll('[fill="currentColor"]'))) {
-      el.setAttribute("fill", opts.labelColor);
-    }
-    const background = clone.ownerDocument.createElementNS(SVG_NS, "rect");
-    background.setAttribute("x", "0");
-    background.setAttribute("y", "0");
-    background.setAttribute("width", String(DIAGRAM_WIDTH));
-    background.setAttribute("height", String(DIAGRAM_HEIGHT));
-    background.setAttribute("fill", opts.background);
-    clone.insertBefore(background, clone.firstChild);
-    const xml = new XMLSerializer().serializeToString(clone);
-    return `<?xml version="1.0" encoding="UTF-8"?>
-${xml}`;
-  }
-  function rasterizeSvg(xml, width, height, scale) {
-    return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
-      const img = new Image();
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = width * scale;
-          canvas.height = height * scale;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            URL.revokeObjectURL(url);
-            reject(new Error("Could not get a 2d canvas context to rasterize the diagram."));
-            return;
-          }
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob((blob) => {
-            URL.revokeObjectURL(url);
-            if (blob) resolve(blob);
-            else reject(new Error("Rasterizing the diagram to PNG failed."));
-          }, "image/png");
-        } catch (err) {
-          URL.revokeObjectURL(url);
-          reject(err);
-        }
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("Could not load the diagram svg for rasterization."));
-      };
-      img.src = url;
-    });
   }
 
   // src/validate.ts
@@ -369,8 +348,13 @@ ${xml}`;
     let alignment = "justify";
     if (isAlignment(s.alignment)) alignment = s.alignment;
     else if (s.alignment !== void 0) repairs?.push("settings: unknown alignment \u2014 using default");
+    let aspectRatio = "2:1";
+    if (isAspectRatio(s.aspectRatio)) aspectRatio = s.aspectRatio;
+    else if (s.aspectRatio !== void 0) {
+      repairs?.push("settings: unknown aspect ratio \u2014 using 2:1");
+    }
     const theme = isTheme(s.theme) ? s.theme : "auto";
-    return { palette, linkColor, alignment, theme };
+    return { palette, linkColor, alignment, aspectRatio, theme };
   }
   function isRawState(value) {
     if (!value || typeof value !== "object") return false;
@@ -465,7 +449,8 @@ ${xml}`;
       settings: {
         palette: state2.settings.palette,
         linkColor: state2.settings.linkColor,
-        alignment: state2.settings.alignment
+        alignment: state2.settings.alignment,
+        aspectRatio: state2.settings.aspectRatio
       }
     };
     return JSON.stringify(exported, null, 2);
@@ -494,7 +479,8 @@ ${xml}`;
     const settings = {
       palette: normalized.palette,
       linkColor: normalized.linkColor,
-      alignment: normalized.alignment
+      alignment: normalized.alignment,
+      aspectRatio: normalized.aspectRatio
     };
     return { ok: true, state: { nodes, links, settings }, repairs };
   }
@@ -540,7 +526,9 @@ ${xml}`;
       exportPngButton.addEventListener("click", () => {
         const svg = serializeVisibleDiagram(actions);
         if (svg) {
-          rasterizeSvg(svg, DIAGRAM_WIDTH, DIAGRAM_HEIGHT, PNG_EXPORT_SCALE).then((blob) => {
+          const svgElement = document.querySelector("#diagram svg");
+          const { width, height } = svgViewBoxSize(svgElement);
+          rasterizeSvg(svg, width, height, PNG_EXPORT_SCALE).then((blob) => {
             download(blob, EXPORT_PNG_FILENAME);
             actions.reportExportSuccess(EXPORT_PNG_FILENAME);
           }).catch((err) => {
@@ -834,6 +822,51 @@ ${xml}`;
     });
   }
 
+  // src/render.ts
+  function alignFn(name) {
+    const table = {
+      left: d3.sankeyLeft,
+      right: d3.sankeyRight,
+      center: d3.sankeyCenter
+    };
+    return table[name] ?? d3.sankeyJustify;
+  }
+  function layout(state2, sourceLinks, width, height) {
+    const { nodes, links } = structuredClone({ nodes: state2.nodes, links: sourceLinks });
+    const graph = d3.sankey().nodeId((d) => d.id).nodeAlign(alignFn(state2.settings.alignment)).nodeWidth(15).nodePadding(10).extent([
+      [1, 5],
+      [width - 1, height - 5]
+    ])({ nodes, links });
+    return graph;
+  }
+  function linkStroke(mode, nodeColor) {
+    if (mode === "source") return (d) => nodeColor(d.source);
+    if (mode === "target") return (d) => nodeColor(d.target);
+    if (mode === "static") return () => "#aaa";
+    return (d) => `url(#link-grad-${d.index})`;
+  }
+  function renderDiagram(state2, nodeColor) {
+    const container = d3.select("#diagram");
+    container.html("");
+    if (state2.nodes.length === 0) return;
+    const completeLinks = state2.links.filter(isComplete);
+    if (completeLinks.length === 0) return;
+    const { width, height } = aspectRatioOption(state2.settings.aspectRatio);
+    const { nodes, links } = layout(state2, completeLinks, width, height);
+    const svg = container.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+    const linkGroup = svg.append("g").attr("fill", "none").attr("stroke-opacity", 0.5).selectAll("g").data(links).join("g");
+    if (state2.settings.linkColor === "source-target") {
+      linkGroup.append("linearGradient").attr("id", (d) => `link-grad-${d.index}`).attr("gradientUnits", "userSpaceOnUse").attr("x1", (d) => d.source.x1).attr("x2", (d) => d.target.x0).call(
+        (g) => g.append("stop").attr("offset", "0%").attr("stop-color", (d) => nodeColor(d.source))
+      ).call(
+        (g) => g.append("stop").attr("offset", "100%").attr("stop-color", (d) => nodeColor(d.target))
+      );
+    }
+    linkGroup.append("path").attr("d", d3.sankeyLinkHorizontal()).attr("stroke", linkStroke(state2.settings.linkColor, nodeColor)).attr("stroke-width", (d) => Math.max(1, d.width));
+    svg.append("g").selectAll("rect").data(nodes).join("rect").attr("x", (d) => d.x0).attr("y", (d) => d.y0).attr("width", (d) => d.x1 - d.x0).attr("height", (d) => Math.max(1, d.y1 - d.y0)).attr("fill", (d) => nodeColor(d));
+    svg.append("g").attr("font-family", "system-ui, sans-serif").attr("font-size", 10).selectAll("text").data(nodes).join("text").attr("x", (d) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6).attr("y", (d) => (d.y0 + d.y1) / 2).attr("dy", "0.35em").attr("text-anchor", (d) => d.x0 < width / 2 ? "start" : "end").attr("fill", "currentColor").text((d) => d.name);
+  }
+
   // src/theme.ts
   function applyTheme(theme) {
     if (theme === "auto") {
@@ -960,6 +993,20 @@ ${xml}`;
     for (const option of alignmentOptions) {
       option.setAttribute("aria-pressed", option.dataset.value === alignment ? "true" : "false");
     }
+    const aspectRatio = state2.settings.aspectRatio;
+    const ratioButton = panel.querySelector("#aspect-ratio-button");
+    if (ratioButton) {
+      ratioButton.querySelector(".aspect-ratio-current")?.replaceChildren(`Aspect ${aspectRatioOption(aspectRatio).label}`);
+      ratioButton.setAttribute("aria-label", `Aspect ratio: ${aspectRatioOption(aspectRatio).label}`);
+    }
+    for (const option of Array.from(
+      document.querySelectorAll('[data-action="set-aspect-ratio"]')
+    )) {
+      option.setAttribute("aria-pressed", option.dataset.value === aspectRatio ? "true" : "false");
+    }
+    const diagram = document.getElementById("diagram");
+    const ratio = aspectRatioOption(aspectRatio);
+    diagram?.style.setProperty("--diagram-aspect-ratio", `${ratio.width} / ${ratio.height}`);
   }
   function setupToolbar(state2, actions) {
     const panel = document.querySelector(".diagram-panel");
@@ -968,6 +1015,8 @@ ${xml}`;
     const dialog = dialogEl ? setupDialog(dialogEl) : null;
     const linksDialogEl = panel.querySelector("#links-dialog");
     const linksDialog = linksDialogEl ? setupDialog(linksDialogEl) : null;
+    const aspectDialogEl = panel.querySelector("#aspect-ratio-dialog");
+    const aspectDialog = aspectDialogEl ? setupDialog(aspectDialogEl) : null;
     const displayDialogEl = panel.querySelector("#display-dialog");
     const displayDialog = displayDialogEl ? setupDialog(displayDialogEl) : null;
     panel.addEventListener("click", (event) => {
@@ -989,6 +1038,8 @@ ${xml}`;
         dialog?.close();
       } else if (action === "open-links-dialog") {
         linksDialog?.open(trigger);
+      } else if (action === "open-aspect-ratio-dialog") {
+        aspectDialog?.open(trigger);
       } else if (action === "open-display-dialog") {
         displayDialog?.open(trigger);
       } else if (action === "set-link-color" && isLinkColorKey(value)) {
@@ -998,6 +1049,10 @@ ${xml}`;
       } else if (action === "set-alignment" && isAlignmentKey(value)) {
         actions.setAlignment(value);
         syncToolbar(state2);
+      } else if (action === "set-aspect-ratio" && isAspectRatio(value)) {
+        actions.setAspectRatio(value);
+        syncToolbar(state2);
+        if (trigger.closest("dialog") === aspectDialogEl) aspectDialog?.close();
       }
     });
   }
@@ -1070,6 +1125,7 @@ ${xml}`;
       state.settings.palette = imported.settings.palette;
       state.settings.linkColor = imported.settings.linkColor;
       state.settings.alignment = imported.settings.alignment;
+      state.settings.aspectRatio = imported.settings.aspectRatio;
       syncToolbar(state);
       refresh();
       let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
@@ -1104,6 +1160,10 @@ ${xml}`;
     },
     setAlignment(value) {
       state.settings.alignment = value;
+      refresh();
+    },
+    setAspectRatio(value) {
+      state.settings.aspectRatio = value;
       refresh();
     }
   };

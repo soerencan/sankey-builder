@@ -272,6 +272,16 @@
           </div>
           <button
             type="button"
+            id="aspect-ratio-button"
+            class="toolbar-button"
+            data-action="open-aspect-ratio-dialog"
+            aria-haspopup="dialog"
+            aria-label="Aspect ratio: 2:1"
+          >
+            <span class="aspect-ratio-current">Aspect 2:1</span>
+          </button>
+          <button
+            type="button"
             id="diagram-export-button"
             class="toolbar-button"
             data-action="open-diagram-export-dialog"
@@ -399,6 +409,33 @@
         <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
       </dialog>
 
+      <dialog id="aspect-ratio-dialog" aria-labelledby="aspect-ratio-dialog-heading">
+        <h3 id="aspect-ratio-dialog-heading">Aspect ratio</h3>
+        <div class="choice-options aspect-ratio-options" role="group" aria-label="Aspect ratio">
+          <button type="button" class="choice-option" data-action="set-aspect-ratio" data-value="a-series" aria-pressed="false">
+            <span class="ratio-preview" aria-hidden="true"></span>
+            <span class="choice-option-label">A-series</span>
+          </button>
+          <button type="button" class="choice-option" data-action="set-aspect-ratio" data-value="3:2" aria-pressed="false">
+            <span class="ratio-preview" aria-hidden="true"></span>
+            <span class="choice-option-label">3:2</span>
+          </button>
+          <button type="button" class="choice-option" data-action="set-aspect-ratio" data-value="16:9" aria-pressed="false">
+            <span class="ratio-preview" aria-hidden="true"></span>
+            <span class="choice-option-label">16:9</span>
+          </button>
+          <button type="button" class="choice-option" data-action="set-aspect-ratio" data-value="2:1" aria-pressed="true">
+            <span class="ratio-preview" aria-hidden="true"></span>
+            <span class="choice-option-label">2:1</span>
+          </button>
+          <button type="button" class="choice-option" data-action="set-aspect-ratio" data-value="3:1" aria-pressed="false">
+            <span class="ratio-preview" aria-hidden="true"></span>
+            <span class="choice-option-label">3:1</span>
+          </button>
+        </div>
+        <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
+      </dialog>
+
       <dialog id="diagram-export-dialog" aria-labelledby="diagram-export-dialog-heading">
         <h3 id="diagram-export-dialog-heading">Export diagram</h3>
         <div class="export-options" role="group" aria-label="Export diagram format">
@@ -503,6 +540,31 @@
             >
               <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-justify"></use></svg>
               <span class="choice-option-label">Justify</span>
+            </button>
+          </div>
+        </div>
+        <div role="group" aria-labelledby="display-aspect-ratio-heading">
+          <h4 id="display-aspect-ratio-heading">Aspect ratio</h4>
+          <div class="choice-options aspect-ratio-options" role="group" aria-labelledby="display-aspect-ratio-heading">
+            <button type="button" class="choice-option" data-action="set-aspect-ratio" data-value="a-series" aria-pressed="false">
+              <span class="ratio-preview" aria-hidden="true"></span>
+              <span class="choice-option-label">A-series</span>
+            </button>
+            <button type="button" class="choice-option" data-action="set-aspect-ratio" data-value="3:2" aria-pressed="false">
+              <span class="ratio-preview" aria-hidden="true"></span>
+              <span class="choice-option-label">3:2</span>
+            </button>
+            <button type="button" class="choice-option" data-action="set-aspect-ratio" data-value="16:9" aria-pressed="false">
+              <span class="ratio-preview" aria-hidden="true"></span>
+              <span class="choice-option-label">16:9</span>
+            </button>
+            <button type="button" class="choice-option" data-action="set-aspect-ratio" data-value="2:1" aria-pressed="true">
+              <span class="ratio-preview" aria-hidden="true"></span>
+              <span class="choice-option-label">2:1</span>
+            </button>
+            <button type="button" class="choice-option" data-action="set-aspect-ratio" data-value="3:1" aria-pressed="false">
+              <span class="ratio-preview" aria-hidden="true"></span>
+              <span class="choice-option-label">3:1</span>
             </button>
           </div>
         </div>

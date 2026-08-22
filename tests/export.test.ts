@@ -42,6 +42,18 @@ describe("serializeDiagramSvg", () => {
 		expect(xml).toContain(`height="${DIAGRAM_HEIGHT}"`);
 	});
 
+	it("takes export dimensions from the live svg viewBox", () => {
+		const svg = buildFixture();
+		svg.setAttribute("viewBox", "0 0 1440 480");
+
+		const xml = serializeDiagramSvg(svg, { labelColor: "#123456", background: "#fff" });
+
+		expect(xml).toContain('width="1440"');
+		expect(xml).toContain('height="480"');
+		const parsed = new DOMParser().parseFromString(xml, "image/svg+xml");
+		expect(parsed.querySelector("rect")?.getAttribute("width")).toBe("1440");
+	});
+
 	it("prepends an opaque background rect as the first child", () => {
 		const svg = buildFixture();
 
