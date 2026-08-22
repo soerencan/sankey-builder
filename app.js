@@ -1008,6 +1008,8 @@ ${xml}`;
     const dialog = dialogEl ? setupDialog(dialogEl) : null;
     const linksDialogEl = panel.querySelector("#links-dialog");
     const linksDialog = linksDialogEl ? setupDialog(linksDialogEl) : null;
+    const displayDialogEl = panel.querySelector("#display-dialog");
+    const displayDialog = displayDialogEl ? setupDialog(displayDialogEl) : null;
     panel.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
       const trigger = event.target.closest("[data-action]");
@@ -1027,10 +1029,12 @@ ${xml}`;
         dialog?.close();
       } else if (action === "open-links-dialog") {
         linksDialog?.open(trigger);
+      } else if (action === "open-display-dialog") {
+        displayDialog?.open(trigger);
       } else if (action === "set-link-color" && isLinkColorKey(value)) {
         actions.setLinkColor(value);
         syncToolbar(state2);
-        linksDialog?.close();
+        if (trigger.closest("dialog") === linksDialogEl) linksDialog?.close();
       } else if (action === "set-alignment" && isAlignmentKey(value)) {
         actions.setAlignment(value);
         syncToolbar(state2);

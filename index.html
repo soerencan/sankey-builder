@@ -111,6 +111,18 @@
     <symbol id="icon-theme-dark" viewBox="0 0 24 24">
       <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" fill="currentColor" />
     </symbol>
+
+    <!-- Display (narrow-toolbar trigger): three sliders, each an offset knob
+         on a track — a settings pictogram distinct from the theme dialog's
+         gear-free System glyph and from a generic gear, per PLAN.md. -->
+    <symbol id="icon-display" viewBox="0 0 24 24">
+      <path d="M3 6 L21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <circle cx="9" cy="6" r="2.5" fill="currentColor" />
+      <path d="M3 12 L21 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <circle cx="15" cy="12" r="2.5" fill="currentColor" />
+      <path d="M3 18 L21 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <circle cx="11" cy="18" r="2.5" fill="currentColor" />
+    </symbol>
   </svg>
 
   <header class="app-header">
@@ -220,58 +232,70 @@
         <button type="button" class="toolbar-button" data-action="palette-next" aria-label="Next palette">
           <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-chevron-right"></use></svg>
         </button>
+        <div class="toolbar-wide">
+          <button
+            type="button"
+            id="links-button"
+            class="toolbar-button"
+            data-action="open-links-dialog"
+            aria-haspopup="dialog"
+          >
+            Links
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-gradient"></use></svg>
+          </button>
+          <div role="group" aria-label="Alignment" class="align-group">
+            <button
+              type="button"
+              class="align-option"
+              data-action="set-alignment"
+              data-value="left"
+              aria-pressed="false"
+              aria-label="Left"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-left"></use></svg>
+            </button>
+            <button
+              type="button"
+              class="align-option"
+              data-action="set-alignment"
+              data-value="center"
+              aria-pressed="false"
+              aria-label="Center"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-center"></use></svg>
+            </button>
+            <button
+              type="button"
+              class="align-option"
+              data-action="set-alignment"
+              data-value="right"
+              aria-pressed="false"
+              aria-label="Right"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-right"></use></svg>
+            </button>
+            <button
+              type="button"
+              class="align-option"
+              data-action="set-alignment"
+              data-value="justify"
+              aria-pressed="true"
+              aria-label="Justify"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-justify"></use></svg>
+            </button>
+          </div>
+        </div>
         <button
           type="button"
-          id="links-button"
-          class="toolbar-button"
-          data-action="open-links-dialog"
+          id="display-button"
+          class="toolbar-button toolbar-narrow"
+          data-action="open-display-dialog"
           aria-haspopup="dialog"
         >
-          Links
-          <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-gradient"></use></svg>
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-display"></use></svg>
+          Display
         </button>
-        <div role="group" aria-label="Alignment" class="align-group">
-          <button
-            type="button"
-            class="align-option"
-            data-action="set-alignment"
-            data-value="left"
-            aria-pressed="false"
-            aria-label="Left"
-          >
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-left"></use></svg>
-          </button>
-          <button
-            type="button"
-            class="align-option"
-            data-action="set-alignment"
-            data-value="center"
-            aria-pressed="false"
-            aria-label="Center"
-          >
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-center"></use></svg>
-          </button>
-          <button
-            type="button"
-            class="align-option"
-            data-action="set-alignment"
-            data-value="right"
-            aria-pressed="false"
-            aria-label="Right"
-          >
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-right"></use></svg>
-          </button>
-          <button
-            type="button"
-            class="align-option"
-            data-action="set-alignment"
-            data-value="justify"
-            aria-pressed="true"
-            aria-label="Justify"
-          >
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-justify"></use></svg>
-          </button>
-        </div>
       </header>
 
       <div id="diagram" aria-label="Sankey diagram"></div>
@@ -376,6 +400,107 @@
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-neutral"></use></svg>
             <span class="choice-option-label">Neutral</span>
           </button>
+        </div>
+        <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
+      </dialog>
+
+      <!-- Narrow-toolbar equivalent of the wide Links button + .align-group
+           above: same classes/data-actions (COPIES, not new ids on the
+           options), so the panel's delegated listener and syncToolbar's
+           document-wide aria-pressed sync (src/toolbar.ts) already cover
+           them. Unlike the other dialogs, choosing here does not close the
+           dialog — see src/toolbar.ts. -->
+      <dialog id="display-dialog" aria-labelledby="display-dialog-heading">
+        <h3 id="display-dialog-heading">Display</h3>
+        <div role="group" aria-labelledby="display-link-colors-heading">
+          <h4 id="display-link-colors-heading">Link colors</h4>
+          <div class="choice-options">
+            <button
+              type="button"
+              class="choice-option"
+              data-action="set-link-color"
+              data-value="source"
+              aria-pressed="false"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-source"></use></svg>
+              <span class="choice-option-label">Source</span>
+            </button>
+            <button
+              type="button"
+              class="choice-option"
+              data-action="set-link-color"
+              data-value="source-target"
+              aria-pressed="true"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-gradient"></use></svg>
+              <span class="choice-option-label">Gradient</span>
+            </button>
+            <button
+              type="button"
+              class="choice-option"
+              data-action="set-link-color"
+              data-value="target"
+              aria-pressed="false"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-target"></use></svg>
+              <span class="choice-option-label">Target</span>
+            </button>
+            <button
+              type="button"
+              class="choice-option"
+              data-action="set-link-color"
+              data-value="static"
+              aria-pressed="false"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-neutral"></use></svg>
+              <span class="choice-option-label">Neutral</span>
+            </button>
+          </div>
+        </div>
+        <div role="group" aria-labelledby="display-alignment-heading">
+          <h4 id="display-alignment-heading">Alignment</h4>
+          <div class="choice-options">
+            <button
+              type="button"
+              class="choice-option"
+              data-action="set-alignment"
+              data-value="left"
+              aria-pressed="false"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-left"></use></svg>
+              <span class="choice-option-label">Left</span>
+            </button>
+            <button
+              type="button"
+              class="choice-option"
+              data-action="set-alignment"
+              data-value="center"
+              aria-pressed="false"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-center"></use></svg>
+              <span class="choice-option-label">Center</span>
+            </button>
+            <button
+              type="button"
+              class="choice-option"
+              data-action="set-alignment"
+              data-value="right"
+              aria-pressed="false"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-right"></use></svg>
+              <span class="choice-option-label">Right</span>
+            </button>
+            <button
+              type="button"
+              class="choice-option"
+              data-action="set-alignment"
+              data-value="justify"
+              aria-pressed="true"
+            >
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-align-justify"></use></svg>
+              <span class="choice-option-label">Justify</span>
+            </button>
+          </div>
         </div>
         <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
       </dialog>

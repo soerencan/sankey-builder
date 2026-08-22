@@ -53,8 +53,6 @@ emulation).
 - [ ] On a real phone (coarse pointer): buttons, the drag handles, selects, and inputs are comfortably tappable (~44px), with slightly larger row spacing.
 - [ ] Dark mode in the stacked layout: the sticky diagram panel's background (toolbar and diagram both) matches the surface, no light seams.
 
-**Pending:** the toolbar's narrow/`Display`-mode layout (container-query breakpoint) hasn't landed yet — at present the wide toolbar content is always shown, so a very narrow diagram panel (e.g. the desktop divider dragged close to the diagram, or a narrow phone) may clip or crowd the toolbar. This is expected until that step lands; don't file it as a regression yet.
-
 ## Diagram toolbar
 
 - [ ] The toolbar renders as its own header bar above the diagram, on a visually distinct row — it never floats over or obscures the SVG at any width.
@@ -66,6 +64,26 @@ emulation).
 - [ ] The alignment group's pressed button (fill plus inset ring) is distinguishable from its unpressed neighbors without relying on color alone, in both light and dark theme.
 - [ ] Tabbing through the alignment group shows a complete, unclipped focus ring on each button, including the ones between two pressed-looking neighbors — the shared inner borders never cut off part of the ring.
 - [ ] Changing alignment visibly changes how nodes are packed within their columns (left/center/right/justify) — this behavioral effect isn't asserted by `make test`, only the button wiring is.
+
+## Diagram toolbar — narrow mode
+
+The wide/narrow swap is a container query on `.diagram-panel` itself
+(`@container diagram-panel (max-width: 540px)`, in style.css's "Diagram
+toolbar" section — that's the only place the 540px constant lives), not a
+viewport media query. happy-dom doesn't evaluate container queries, so none
+of this is automated.
+
+- [ ] On desktop, drag the divider so the diagram panel's width sweeps from its narrowest (~240px) to its widest (~640px): the wide Links button + alignment group and the narrow Display button swap cleanly at one width, with no point in between where controls are clipped, overlapping, or wrapped onto a second line.
+- [ ] If the swap happens too early or too late relative to where the wide row actually stops fitting, tune the 540px value in style.css rather than filing it as a bug.
+- [ ] No horizontal scrollbar appears at 360px, 390px, or 768px viewport widths with the narrow toolbar showing.
+- [ ] On a small/phone viewport, tapping Display opens it as a bottom sheet (full width, flush to the bottom edge, rounded top corners only) rather than a small centered card; on a wider viewport it opens centered like the other dialogs.
+- [ ] Choosing a link color or alignment option inside the Display dialog updates the diagram immediately, WITHOUT closing the dialog — repeated taps across both groups keep it open so several changes can be made in one visit.
+- [ ] The sticky diagram panel's rendered height does not change while the Display dialog is open (the dialog is a top-layer overlay, not part of panel layout).
+- [ ] With the Display dialog open, pressing Escape closes it (native `<dialog>` cancel behavior — not exercised by the automated suite).
+- [ ] After closing the Display dialog (Close button, backdrop click, or Escape), focus visibly returns to the Display button.
+- [ ] Confirm `.diagram-panel`'s new `container-type: inline-size` doesn't break its `position: sticky` behavior in the stacked mobile layout (containment can interact with sticky positioning in some engines) — re-check the "diagram panel pinned at the top while scrolling" behavior from the Responsive section above with this change in place.
+- [ ] Link color and alignment choices made in the Display dialog stay in sync with the wide toolbar's Links button/alignment group when the layout swaps back to wide (e.g. widen the window after choosing Neutral in Display) — both copies reflect the same state.
+- [ ] Coarse-pointer targets (both toolbar buttons and the Display dialog's option rows) are comfortably tappable (~44px) on a real touch device.
 
 ## Row reordering (drag feel)
 

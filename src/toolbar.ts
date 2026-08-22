@@ -99,9 +99,9 @@ export function syncToolbar(state: State): void {
 	}
 
 	// Document-scoped (not panel-scoped) rather than following the
-	// panel-only pattern above: a later step adds a second copy of these
-	// buttons in the narrow Display dialog, and both copies must stay in
-	// sync without this function needing to know where they live.
+	// panel-only pattern above: the narrow Display dialog holds a second copy
+	// of these buttons, and both copies must stay in sync without this
+	// function needing to know where they live.
 	const linkColorOptions = Array.from(
 		document.querySelectorAll<HTMLButtonElement>('[data-action="set-link-color"]'),
 	);
@@ -140,6 +140,15 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 	const linksDialogEl = panel.querySelector<HTMLDialogElement>("#links-dialog");
 	const linksDialog: DialogController | null = linksDialogEl ? setupDialog(linksDialogEl) : null;
 
+	// The narrow Display surface: unlike the other dialogs, choosing an
+	// option here does NOT close it (PLAN.md's Narrow-screen Display surface)
+	// — the diagram updates live behind it and the user dismisses it
+	// explicitly (Close, backdrop, Escape).
+	const displayDialogEl = panel.querySelector<HTMLDialogElement>("#display-dialog");
+	const displayDialog: DialogController | null = displayDialogEl
+		? setupDialog(displayDialogEl)
+		: null;
+
 	panel.addEventListener("click", (event) => {
 		if (!(event.target instanceof Element)) return;
 		// Buttons contain child icons/swatch strips, so the click target is
@@ -163,10 +172,14 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 			dialog?.close();
 		} else if (action === "open-links-dialog") {
 			linksDialog?.open(trigger);
+		} else if (action === "open-display-dialog") {
+			displayDialog?.open(trigger);
 		} else if (action === "set-link-color" && isLinkColorKey(value)) {
 			actions.setLinkColor(value);
 			syncToolbar(state);
-			linksDialog?.close();
+			// Only the links dialog's own copy closes on choice — the Display
+			// dialog's copy (same data-action/data-value) stays open.
+			if (trigger.closest("dialog") === linksDialogEl) linksDialog?.close();
 		} else if (action === "set-alignment" && isAlignmentKey(value)) {
 			actions.setAlignment(value);
 			syncToolbar(state);

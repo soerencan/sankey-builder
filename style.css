@@ -509,6 +509,13 @@ select {
      #diagram svg's mobile max-height calc() below — defined here, on their
      shared ancestor, so both can see it via inheritance. */
   --toolbar-height: 3rem;
+  /* Named (not just typed) because the page now nests two unrelated sets of
+     container queries: this one (the wide/narrow toolbar swap, below) and
+     the editor-column sections' own row-wrap query further down. Naming
+     keeps each @container rule unambiguous about which ancestor it queries,
+     even though the two never actually overlap in the DOM. */
+  container-type: inline-size;
+  container-name: diagram-panel;
 }
 
 .diagram-toolbar {
@@ -570,8 +577,31 @@ select {
 /* The links chooser trigger carries a visible "Links" label alongside its
    icon, unlike the icon-only carousel buttons above — extra inline padding
    keeps the label from crowding the button's edges. */
-#links-button {
+#links-button,
+#display-button {
   padding-inline: 0.6rem;
+}
+
+/* Wide/narrow toolbar swap (PLAN.md's "Use an adaptive diagram toolbar").
+   .toolbar-wide holds the Links button + alignment group; .toolbar-narrow is
+   the single Display trigger. Both live in the DOM at all times (so tests
+   under happy-dom, which doesn't evaluate container queries, can exercise
+   either); only one is shown at a time, switched by the @container rule
+   below. */
+.toolbar-wide {
+  display: flex;
+  align-items: center;
+  /* Inherits .diagram-toolbar's own gap value rather than hardcoding it a
+     second time, so the two rows of controls space out identically. */
+  gap: inherit;
+  min-width: 0;
+}
+
+.toolbar-narrow {
+  display: none;
+  /* Pushes the Display button to the toolbar's trailing edge, matching
+     PLAN.md's narrow-toolbar mock. Harmless while display:none above. */
+  margin-inline-start: auto;
 }
 
 /* The carousel's central trigger — a button, not a plain icon, so its
@@ -654,6 +684,21 @@ select {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
+/* Narrow toolbar: swap the wide Links button + alignment group for the
+   single Display trigger once the diagram panel's own inline size (not the
+   viewport) gets tight. 540px is a starting value, tuned to where the wide
+   row's controls actually stop fitting — see VERIFICATION.md's "Diagram
+   toolbar" section if it needs adjusting; this is its only definition. */
+@container diagram-panel (max-width: 540px) {
+  .toolbar-wide {
+    display: none;
+  }
+
+  .toolbar-narrow {
+    display: flex;
+  }
+}
+
 /* ==========================================================================
    Dialogs (native <dialog>, wired by src/dialog.ts). The palette chooser is
    the first; future toolbar/Display surfaces reuse the same base styles.
@@ -676,6 +721,19 @@ dialog::backdrop {
 dialog h3 {
   margin: 0 0 0.75rem;
   font-size: 1rem;
+}
+
+/* Sub-group headings inside the Display dialog, which (unlike the other
+   dialogs) holds two labelled option groups under one h3 — Link colors and
+   Alignment each need their own visible heading to stay distinguishable. */
+dialog h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--ink) 65%, transparent);
+}
+
+dialog [role="group"] + [role="group"] {
+  margin-top: 1rem;
 }
 
 /* .choice-options/.choice-option generalize the palette dialog's row styling
@@ -769,6 +827,18 @@ dialog h3 {
      covering most of a phone viewport. Collapse it to a small placeholder. */
   #diagram:empty {
     min-height: 6rem;
+  }
+
+  /* The Display dialog reads as a bottom sheet at this width rather than a
+     small centered card: a native <dialog> renders in the top layer, so this
+     doesn't interact with .diagram-panel's own sticky/overflow above — it's
+     free to pin to the viewport edge regardless of where the panel sits. */
+  #display-dialog {
+    margin-block-end: 0;
+    margin-block-start: auto;
+    width: 100%;
+    max-width: none;
+    border-radius: var(--radius-2) var(--radius-2) 0 0;
   }
 
   /* Meaningless when stacked; its pointer/keyboard logic is inert while hidden. */

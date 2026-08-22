@@ -263,20 +263,25 @@ describe("artifact smoke test", () => {
 		expect(diagram?.querySelector('path[stroke="url(#link-grad-0)"]')).not.toBeNull();
 	});
 
-	it("boots with exactly one alignment button pressed, matching the default alignment", () => {
+	it("boots with exactly one alignment value pressed, matching the default alignment, on both the wide and narrow copies", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;
 		globalEval(bundle);
 
+		// Two DOM copies of each alignment button exist (the wide toolbar's
+		// .align-group and the narrow Display dialog) — syncToolbar keeps both
+		// in lockstep, so every pressed button must share the same value.
 		const pressed = Array.from(
 			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
 		).filter((option) => option.getAttribute("aria-pressed") === "true");
 
-		expect(pressed).toHaveLength(1);
-		expect(pressed[0]?.dataset.value).toBe(defaultState().settings.alignment);
+		expect(pressed).toHaveLength(2);
+		for (const option of pressed) {
+			expect(option.dataset.value).toBe(defaultState().settings.alignment);
+		}
 	});
 
-	it("clicking Left in the alignment group sets state, updates aria-pressed, and re-renders the diagram", () => {
+	it("clicking Left in the alignment group sets state, updates aria-pressed on both copies, and re-renders the diagram", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;
 		globalEval(bundle);
@@ -285,16 +290,19 @@ describe("artifact smoke test", () => {
 		const options = Array.from(
 			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
 		);
-		const leftOption = options.find((option) => option.dataset.value === "left");
+		const leftOption = options.find(
+			(option) => option.closest(".align-group") && option.dataset.value === "left",
+		);
 		leftOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
 		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
 		expect(stored.settings.alignment).toBe("left");
 
-		// Only the chosen option is pressed.
-		expect(leftOption?.getAttribute("aria-pressed")).toBe("true");
+		// Only options with the chosen value are pressed, across both copies.
 		for (const option of options) {
-			if (option !== leftOption) expect(option.getAttribute("aria-pressed")).toBe("false");
+			expect(option.getAttribute("aria-pressed")).toBe(
+				option.dataset.value === "left" ? "true" : "false",
+			);
 		}
 
 		// A fresh <svg> replaces the old one — same re-render evidence the
@@ -314,6 +322,143 @@ describe("artifact smoke test", () => {
 		for (const option of Array.from(options)) {
 			expect(option.getAttribute("aria-label")?.trim()).toBeTruthy();
 		}
+	});
+
+	it("clicking the Display button opens the display dialog", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const dialog = document.getElementById("display-dialog");
+		expect(dialog).toBeInstanceOf(HTMLDialogElement);
+		expect((dialog as HTMLDialogElement).open).toBe(false);
+
+		document
+			.getElementById("display-button")
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect((dialog as HTMLDialogElement).open).toBe(true);
+	});
+
+	it("choosing Gradient in the display dialog re-renders links, syncs both link-color copies, and stays open", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const displayButton = document.getElementById("display-button");
+		displayButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
+		const linksDialog = document.getElementById("links-dialog") as HTMLDialogElement;
+
+		// Start from "static" (defaultState().linkColor is already
+		// "source-target") so the later transition back to source-target
+		// actually proves the click handler ran, same rationale as the wide
+		// links-dialog gradient test above.
+		displayDialog
+			.querySelector<HTMLButtonElement>('[data-action="set-link-color"][data-value="static"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const storedAfterStatic = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(storedAfterStatic.settings.linkColor).toBe("static");
+		expect(displayDialog.open).toBe(true);
+
+		const gradientOption = displayDialog.querySelector<HTMLButtonElement>(
+			'[data-action="set-link-color"][data-value="source-target"]',
+		);
+		gradientOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.linkColor).toBe("source-target");
+
+		const gradients = document.getElementById("diagram")?.querySelectorAll("linearGradient");
+		expect(gradients?.length).toBeGreaterThan(0);
+		expect(
+			document.getElementById("diagram")?.querySelector('path[stroke="url(#link-grad-0)"]'),
+		).not.toBeNull();
+
+		// Both copies of the choice — the Display dialog's own and the wide
+		// toolbar's #links-dialog — must reflect the new value.
+		expect(gradientOption?.getAttribute("aria-pressed")).toBe("true");
+		const linksDialogGradientOption = linksDialog.querySelector<HTMLButtonElement>(
+			'[data-action="set-link-color"][data-value="source-target"]',
+		);
+		expect(linksDialogGradientOption?.getAttribute("aria-pressed")).toBe("true");
+		expect(document.getElementById("links-button")?.getAttribute("aria-label")).toBe(
+			"Links: Source to target (gradient)",
+		);
+
+		// Unlike the links dialog, choosing inside Display does not close it.
+		expect(displayDialog.open).toBe(true);
+		expect(document.activeElement).not.toBe(displayButton);
+	});
+
+	it("choosing Left in the display dialog's alignment group persists and stays open", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		document
+			.getElementById("display-button")
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
+		const leftOption = displayDialog.querySelector<HTMLButtonElement>(
+			'[data-action="set-alignment"][data-value="left"]',
+		);
+		leftOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.alignment).toBe("left");
+		expect(leftOption?.getAttribute("aria-pressed")).toBe("true");
+
+		// The wide toolbar's own alignment group follows the same state.
+		const wideLeftOption = document.querySelector<HTMLButtonElement>(
+			'.align-group [data-action="set-alignment"][data-value="left"]',
+		);
+		expect(wideLeftOption?.getAttribute("aria-pressed")).toBe("true");
+
+		expect(displayDialog.open).toBe(true);
+	});
+
+	it("closing the display dialog via its Close button returns focus to the Display button", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const displayButton = document.getElementById("display-button");
+		displayButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
+		expect(displayDialog.open).toBe(true);
+
+		displayDialog
+			.querySelector<HTMLButtonElement>('[data-action="close-dialog"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(displayDialog.open).toBe(false);
+		expect(document.activeElement).toBe(displayButton);
+	});
+
+	it("regression: choosing a link color via the links dialog (wide toolbar) still closes it", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const linksButton = document.getElementById("links-button");
+		linksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const linksDialog = document.getElementById("links-dialog") as HTMLDialogElement;
+		expect(linksDialog.open).toBe(true);
+
+		linksDialog
+			.querySelector<HTMLButtonElement>('[data-value="target"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.linkColor).toBe("target");
+		expect(linksDialog.open).toBe(false);
+		expect(document.activeElement).toBe(linksButton);
 	});
 
 	it("boots with exactly one theme option pressed, matching the default (System)", () => {
