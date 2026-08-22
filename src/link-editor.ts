@@ -77,14 +77,20 @@ function renderLinkOptions(
 		.text((n) => n.name);
 }
 
-// Recreated on every renderLinkEditor call (the .link-rows container it's
-// attached to is torn down and rebuilt each time) — tracked here so the
-// previous instance can be destroy()ed rather than leaked.
-let rowSortable: Sortable | null = null;
-
-/** Rebuilds #link-editor from state — same full-rebuild approach as the node editor. */
-export function renderLinkEditor(state: State, moveLink: (from: number, to: number) => void): void {
-	const root = d3.select("#link-editor");
+/**
+ * Rebuilds #link-editor from state — same full-rebuild approach as the node
+ * editor. The `.link-rows` container is torn down and rebuilt on every call,
+ * so its Sortable instance is recreated each time too — the caller
+ * (src/app.ts) owns `previousSortable`/the returned replacement rather than
+ * this module holding a module-level singleton, mirroring node-editor.ts.
+ */
+export function renderLinkEditor(
+	doc: Document,
+	state: State,
+	moveLink: (from: number, to: number) => void,
+	previousSortable: Sortable | null,
+): Sortable | null {
+	const root = d3.select(doc.getElementById("link-editor"));
 	root.html("");
 	root.append("h3").attr("id", "link-editor-heading").text("Links");
 
@@ -166,18 +172,13 @@ export function renderLinkEditor(state: State, moveLink: (from: number, to: numb
 		.text("Add link");
 
 	const container = rowsContainer.node();
-	if (container) {
-		rowSortable = attachRowSortable(
-			container,
-			{ rowClass: "link-row", move: moveLink },
-			rowSortable,
-		);
-	}
+	if (!container) return previousSortable;
+	return attachRowSortable(container, { rowClass: "link-row", move: moveLink }, previousSortable);
 }
 
 /** Sets (or clears, for "") the text of the field's paired error element. */
-function setLinkValueError(index: number, message: string): void {
-	const el = document.getElementById(linkValueErrorId(index));
+function setLinkValueError(doc: Document, index: number, message: string): void {
+	const el = doc.getElementById(linkValueErrorId(index));
 	if (el) el.textContent = message;
 }
 
@@ -190,6 +191,7 @@ function setLinkValueError(index: number, message: string): void {
  * becomes valid (or blank) again — never cleared unconditionally.
  */
 function commitLinkValue(
+	doc: Document,
 	target: HTMLInputElement,
 	index: number,
 	actions: LinkEditorActions,
@@ -200,15 +202,15 @@ function commitLinkValue(
 	const parsed = parseLinkValue(target.value);
 	if (parsed.kind === "valid") {
 		target.removeAttribute("aria-invalid");
-		setLinkValueError(index, "");
+		setLinkValueError(doc, index, "");
 		actions.updateLinkValue(index, parsed.value);
 	} else if (parsed.kind === "empty") {
 		// Mid-edit blank — leave state untouched rather than writing NaN.
 		target.removeAttribute("aria-invalid");
-		setLinkValueError(index, "");
+		setLinkValueError(doc, index, "");
 	} else {
 		target.setAttribute("aria-invalid", "true");
-		setLinkValueError(index, linkValueErrorMessage(target.value));
+		setLinkValueError(doc, index, linkValueErrorMessage(target.value));
 	}
 }
 
@@ -216,97 +218,124 @@ function commitLinkValue(
  * Delegated listeners on the link-editor root, mirroring setupNodeEditor.
  * Select changes do a full rebuild (focus loss on a <select> after
  * choosing a value is normal browser behavior); the value input follows
- * the same focus-preserving path as node renames.
+ * the same focus-preserving path as node renames. `signal` is the owning
+ * app instance's AbortSignal — AppHandle.destroy() aborting it tears these
+ * listeners down.
  *
- * `state` is the stable, mutated-in-place reference from main.ts, so the
+ * `state` is the stable, mutated-in-place reference from app.ts, so the
  * blur handler reads the value that in-progress edits have already written.
  */
-export function setupLinkEditor(actions: LinkEditorActions, state: State): void {
-	const root = document.getElementById("link-editor");
+export function setupLinkEditor(
+	doc: Document,
+	actions: LinkEditorActions,
+	state: State,
+	signal: AbortSignal,
+): void {
+	const root = doc.getElementById("link-editor");
 	if (!root) return;
 
-	setupRowReorder({
-		rootId: "link-editor",
-		rowClass: "link-row",
-		move: actions.moveLink,
-		// Links have no stable id — refocus the handle now at the new index.
-		refocusSelector: (_handle, to) => `.drag-handle[data-index="${to}"]`,
-	});
+	setupRowReorder(
+		doc,
+		{
+			rootId: "link-editor",
+			rowClass: "link-row",
+			move: actions.moveLink,
+			// Links have no stable id — refocus the handle now at the new index.
+			refocusSelector: (_handle, to) => `.drag-handle[data-index="${to}"]`,
+		},
+		signal,
+	);
 
-	root.addEventListener("click", (event) => {
-		if (!(event.target instanceof HTMLElement)) return;
-		const { action, index } = event.target.dataset;
-		if (action === "add-link") {
-			actions.addLink();
-		} else if (action === "delete-link" && index !== undefined) {
-			actions.deleteLink(Number(index));
-		}
-	});
-
-	root.addEventListener("change", (event) => {
-		const target = event.target;
-		if (target instanceof HTMLSelectElement) {
-			const { action, index } = target.dataset;
-			if (index === undefined) return;
-			// The placeholder's empty value maps back to a null endpoint.
-			if (action === "update-link-source") {
-				actions.updateLinkSource(Number(index), target.value || null);
-			} else if (action === "update-link-target") {
-				actions.updateLinkTarget(Number(index), target.value || null);
+	root.addEventListener(
+		"click",
+		(event) => {
+			if (!(event.target instanceof HTMLElement)) return;
+			const { action, index } = event.target.dataset;
+			if (action === "add-link") {
+				actions.addLink();
+			} else if (action === "delete-link" && index !== undefined) {
+				actions.deleteLink(Number(index));
 			}
-			return;
-		}
-		if (!(target instanceof HTMLInputElement)) return;
-		const { action, index } = target.dataset;
-		if (action !== "update-link-value" || index === undefined) return;
-		// On blur, an empty or invalid field never reached state — restore the
-		// input's text from the last committed value so the row stays coherent.
-		const parsed = parseLinkValue(target.value);
-		if (parsed.kind !== "valid") {
-			target.value = String(state.links[Number(index)].value);
-			target.removeAttribute("aria-invalid");
-			setLinkValueError(Number(index), "");
-		}
-	});
+		},
+		{ signal },
+	);
+
+	root.addEventListener(
+		"change",
+		(event) => {
+			const target = event.target;
+			if (target instanceof HTMLSelectElement) {
+				const { action, index } = target.dataset;
+				if (index === undefined) return;
+				// The placeholder's empty value maps back to a null endpoint.
+				if (action === "update-link-source") {
+					actions.updateLinkSource(Number(index), target.value || null);
+				} else if (action === "update-link-target") {
+					actions.updateLinkTarget(Number(index), target.value || null);
+				}
+				return;
+			}
+			if (!(target instanceof HTMLInputElement)) return;
+			const { action, index } = target.dataset;
+			if (action !== "update-link-value" || index === undefined) return;
+			// On blur, an empty or invalid field never reached state — restore the
+			// input's text from the last committed value so the row stays coherent.
+			const parsed = parseLinkValue(target.value);
+			if (parsed.kind !== "valid") {
+				target.value = String(state.links[Number(index)].value);
+				target.removeAttribute("aria-invalid");
+				setLinkValueError(doc, Number(index), "");
+			}
+		},
+		{ signal },
+	);
 
 	// Constrained-input interception for the 4-decimal cap: block a 5th
 	// fractional digit at the keystroke (maxlength-style) and truncate an
 	// over-precise paste, rather than routing them through the highlight path.
 	// Every other invalid case (0, garbage, over the 1e15 cap) still falls
 	// through to the `input` handler's aria-invalid marker.
-	root.addEventListener("beforeinput", (event) => {
-		if (!(event instanceof InputEvent)) return;
-		const target = event.target;
-		if (!(target instanceof HTMLInputElement)) return;
-		const { action, index } = target.dataset;
-		if (action !== "update-link-value" || index === undefined) return;
+	root.addEventListener(
+		"beforeinput",
+		(event) => {
+			if (!(event instanceof InputEvent)) return;
+			const target = event.target;
+			if (!(target instanceof HTMLInputElement)) return;
+			const { action, index } = target.dataset;
+			if (action !== "update-link-value" || index === undefined) return;
 
-		// Deletions carry no data and can only shrink the fractional part —
-		// never intercept them.
-		if (event.data == null) return;
+			// Deletions carry no data and can only shrink the fractional part —
+			// never intercept them.
+			if (event.data == null) return;
 
-		const start = target.selectionStart ?? target.value.length;
-		const end = target.selectionEnd ?? target.value.length;
-		const prospective = target.value.slice(0, start) + event.data + target.value.slice(end);
-		if (!exceedsFractionDigits(prospective)) return;
+			const start = target.selectionStart ?? target.value.length;
+			const end = target.selectionEnd ?? target.value.length;
+			const prospective = target.value.slice(0, start) + event.data + target.value.slice(end);
+			if (!exceedsFractionDigits(prospective)) return;
 
-		if (event.inputType === "insertText") {
-			event.preventDefault();
-		} else if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
-			event.preventDefault();
-			const trimmed = truncateFractionDigits(prospective);
-			target.value = trimmed;
-			const caret = Math.min(start + event.data.length, trimmed.length);
-			target.setSelectionRange(caret, caret);
-			commitLinkValue(target, Number(index), actions);
-		}
-	});
+			if (event.inputType === "insertText") {
+				event.preventDefault();
+			} else if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
+				event.preventDefault();
+				const trimmed = truncateFractionDigits(prospective);
+				target.value = trimmed;
+				const caret = Math.min(start + event.data.length, trimmed.length);
+				target.setSelectionRange(caret, caret);
+				commitLinkValue(doc, target, Number(index), actions);
+			}
+		},
+		{ signal },
+	);
 
-	root.addEventListener("input", (event) => {
-		if (!(event.target instanceof HTMLInputElement)) return;
-		const target = event.target;
-		const { action, index } = target.dataset;
-		if (action !== "update-link-value" || index === undefined) return;
-		commitLinkValue(target, Number(index), actions);
-	});
+	root.addEventListener(
+		"input",
+		(event) => {
+			if (!(event.target instanceof HTMLInputElement)) return;
+			const target = event.target;
+			const { action, index } = target.dataset;
+			if (action !== "update-link-value" || index === undefined) return;
+			commitLinkValue(doc, target, Number(index), actions);
+		},
+		{ signal },
+	);
 }

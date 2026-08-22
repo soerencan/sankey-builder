@@ -21,86 +21,115 @@ export interface IoActions {
  * DOM glue for the contextual Export/Import controls, using the browser's
  * built-in download (Blob + object URL) and file-picker mechanisms — no
  * dependencies. Parsing and state mutation live elsewhere (io.ts is pure,
- * main.ts owns the state reference and feedback); this only bridges the DOM.
+ * app.ts owns the state reference and feedback); this only bridges the DOM.
+ * `signal` is the owning app instance's AbortSignal — AppHandle.destroy()
+ * aborting it tears every listener below (and every setupDialog listener)
+ * down.
  */
-export function setupIo(state: State, actions: IoActions): void {
-	const exportButton = document.getElementById("export-button");
-	const diagramExportButton = document.getElementById("diagram-export-button");
-	const diagramExportDialogEl = document.getElementById("diagram-export-dialog");
-	const importButton = document.getElementById("import-button");
-	const fileInput = document.getElementById("import-file");
+export function setupIo(
+	doc: Document,
+	win: Window,
+	state: State,
+	actions: IoActions,
+	signal: AbortSignal,
+): void {
+	const exportButton = doc.getElementById("export-button");
+	const diagramExportButton = doc.getElementById("diagram-export-button");
+	const diagramExportDialogEl = doc.getElementById("diagram-export-dialog");
+	const importButton = doc.getElementById("import-button");
+	const fileInput = doc.getElementById("import-file");
 	if (!(fileInput instanceof HTMLInputElement)) return;
 	const diagramExportDialog =
 		diagramExportDialogEl instanceof HTMLDialogElement
-			? setupDialog(diagramExportDialogEl)
+			? setupDialog(diagramExportDialogEl, signal)
 			: undefined;
 
-	exportButton?.addEventListener("click", () => {
-		const blob = new Blob([serializeState(state)], { type: "application/json" });
-		download(blob, EXPORT_JSON_FILENAME);
-		actions.reportExportSuccess(EXPORT_JSON_FILENAME);
-	});
-	diagramExportButton?.addEventListener("click", () => {
-		if (diagramExportButton instanceof HTMLElement) {
-			diagramExportDialog?.open(diagramExportButton);
-		}
-	});
+	exportButton?.addEventListener(
+		"click",
+		() => {
+			const blob = new Blob([serializeState(state)], { type: "application/json" });
+			download(doc, blob, EXPORT_JSON_FILENAME);
+			actions.reportExportSuccess(EXPORT_JSON_FILENAME);
+		},
+		{ signal },
+	);
+	diagramExportButton?.addEventListener(
+		"click",
+		() => {
+			if (diagramExportButton instanceof HTMLElement) {
+				diagramExportDialog?.open(diagramExportButton);
+			}
+		},
+		{ signal },
+	);
 
 	for (const exportSvgButton of Array.from(
-		document.querySelectorAll<HTMLElement>('[data-action="export-svg"]'),
+		doc.querySelectorAll<HTMLElement>('[data-action="export-svg"]'),
 	)) {
-		exportSvgButton.addEventListener("click", () => {
-			const svg = serializeVisibleDiagram(actions);
-			if (svg) {
-				download(new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
-				actions.reportExportSuccess(EXPORT_SVG_FILENAME);
-			}
-			closeContainingDialog(exportSvgButton);
-		});
+		exportSvgButton.addEventListener(
+			"click",
+			() => {
+				const svg = serializeVisibleDiagram(doc, win, actions);
+				if (svg) {
+					download(doc, new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
+					actions.reportExportSuccess(EXPORT_SVG_FILENAME);
+				}
+				closeContainingDialog(exportSvgButton);
+			},
+			{ signal },
+		);
 	}
 	for (const exportPngButton of Array.from(
-		document.querySelectorAll<HTMLElement>('[data-action="export-png"]'),
+		doc.querySelectorAll<HTMLElement>('[data-action="export-png"]'),
 	)) {
-		exportPngButton.addEventListener("click", () => {
-			const svg = serializeVisibleDiagram(actions);
-			if (svg) {
-				const svgElement = document.querySelector("#diagram svg") as SVGSVGElement;
-				const { width, height } = svgViewBoxSize(svgElement);
-				rasterizeSvg(svg, width, height, PNG_EXPORT_SCALE)
-					.then((blob) => {
-						download(blob, EXPORT_PNG_FILENAME);
-						actions.reportExportSuccess(EXPORT_PNG_FILENAME);
-					})
-					.catch((err) => {
-						// The notice stays generic; log the specific cause so a field report
-						// ("PNG export failed") is diagnosable from the console.
-						console.error(err);
-						actions.reportExportError("PNG export failed. Try the SVG export instead.");
-					});
-			}
-			closeContainingDialog(exportPngButton);
-		});
+		exportPngButton.addEventListener(
+			"click",
+			() => {
+				const svg = serializeVisibleDiagram(doc, win, actions);
+				if (svg) {
+					const svgElement = doc.querySelector("#diagram svg") as SVGSVGElement;
+					const { width, height } = svgViewBoxSize(svgElement);
+					rasterizeSvg(doc, svg, width, height, PNG_EXPORT_SCALE)
+						.then((blob) => {
+							download(doc, blob, EXPORT_PNG_FILENAME);
+							actions.reportExportSuccess(EXPORT_PNG_FILENAME);
+						})
+						.catch((err) => {
+							// The notice stays generic; log the specific cause so a field report
+							// ("PNG export failed") is diagnosable from the console.
+							console.error(err);
+							actions.reportExportError("PNG export failed. Try the SVG export instead.");
+						});
+				}
+				closeContainingDialog(exportPngButton);
+			},
+			{ signal },
+		);
 	}
-	importButton?.addEventListener("click", () => fileInput.click());
+	importButton?.addEventListener("click", () => fileInput.click(), { signal });
 
-	fileInput.addEventListener("change", async () => {
-		const file = fileInput.files?.[0];
-		// Reset now so re-picking the same file still re-fires 'change'.
-		fileInput.value = "";
-		if (!file) return;
-		let text: string;
-		try {
-			text = await file.text();
-		} catch {
-			// A disk/read error (permissions, the file vanished mid-pick) rejects
-			// here — surface it rather than leaving an unhandled rejection.
-			actions.reportImportError("Could not read the selected file. Please try again.");
-			return;
-		}
-		const result = parseImport(text);
-		if (result.ok) actions.importDiagram(result.state, result.repairs);
-		else actions.reportImportError(result.error);
-	});
+	fileInput.addEventListener(
+		"change",
+		async () => {
+			const file = fileInput.files?.[0];
+			// Reset now so re-picking the same file still re-fires 'change'.
+			fileInput.value = "";
+			if (!file) return;
+			let text: string;
+			try {
+				text = await file.text();
+			} catch {
+				// A disk/read error (permissions, the file vanished mid-pick) rejects
+				// here — surface it rather than leaving an unhandled rejection.
+				actions.reportImportError("Could not read the selected file. Please try again.");
+				return;
+			}
+			const result = parseImport(text);
+			if (result.ok) actions.importDiagram(result.state, result.repairs);
+			else actions.reportImportError(result.error);
+		},
+		{ signal },
+	);
 }
 
 /**
@@ -122,8 +151,12 @@ function closeContainingDialog(control: HTMLElement): void {
  * see"), not an oversight. Returns undefined (after reporting the error) when
  * there's nothing to export.
  */
-function serializeVisibleDiagram(actions: IoActions): string | undefined {
-	const svgEl = document.querySelector("#diagram svg");
+function serializeVisibleDiagram(
+	doc: Document,
+	win: Window,
+	actions: IoActions,
+): string | undefined {
+	const svgEl = doc.querySelector("#diagram svg");
 	if (!(svgEl instanceof SVGSVGElement)) {
 		actions.reportExportError("Nothing to export — the diagram is empty.");
 		return undefined;
@@ -133,14 +166,14 @@ function serializeVisibleDiagram(actions: IoActions): string | undefined {
 	// background — both would otherwise default to black/transparent once
 	// the svg is detached from the page. svgEl.parentElement is #diagram
 	// itself, since renderDiagram appends the svg directly into it.
-	const labelColor = getComputedStyle(svgEl).color;
-	const background = getComputedStyle(svgEl.parentElement as Element).backgroundColor;
+	const labelColor = win.getComputedStyle(svgEl).color;
+	const background = win.getComputedStyle(svgEl.parentElement as Element).backgroundColor;
 	return serializeDiagramSvg(svgEl, { labelColor, background });
 }
 
-function download(blob: Blob, filename: string): void {
+function download(doc: Document, blob: Blob, filename: string): void {
 	const url = URL.createObjectURL(blob);
-	const anchor = document.createElement("a");
+	const anchor = doc.createElement("a");
 	anchor.href = url;
 	anchor.download = filename;
 	anchor.click();

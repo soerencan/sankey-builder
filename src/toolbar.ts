@@ -57,10 +57,10 @@ function isAlignmentKey(value: unknown): value is Alignment {
 	return typeof value === "string" && Object.hasOwn(ALIGNMENT_VALUES, value);
 }
 
-function buildSwatchStrip(strip: HTMLElement, palette: Palette): void {
+function buildSwatchStrip(doc: Document, strip: HTMLElement, palette: Palette): void {
 	strip.replaceChildren();
 	for (const color of paletteColors(palette).slice(0, SWATCH_COUNT)) {
-		const swatch = document.createElement("span");
+		const swatch = doc.createElement("span");
 		swatch.className = "swatch";
 		swatch.style.backgroundColor = color;
 		strip.appendChild(swatch);
@@ -74,15 +74,15 @@ function buildSwatchStrip(strip: HTMLElement, palette: Palette): void {
  * called once at boot (after setupToolbar) and after an import replaces
  * settings, so the toolbar never shows a stale palette.
  */
-export function syncToolbar(state: State): void {
-	const panel = document.querySelector(".diagram-panel");
+export function syncToolbar(doc: Document, state: State): void {
+	const panel = doc.querySelector(".diagram-panel");
 	if (!panel) return;
 	const palette = state.settings.palette;
 
 	const preview = panel.querySelector<HTMLButtonElement>("#palette-preview");
 	if (preview) {
 		const strip = preview.querySelector<HTMLElement>(".swatch-strip");
-		if (strip) buildSwatchStrip(strip, palette);
+		if (strip) buildSwatchStrip(doc, strip, palette);
 		preview.setAttribute("aria-label", `Palette: ${PALETTE_LABELS[palette]}`);
 	}
 
@@ -94,7 +94,7 @@ export function syncToolbar(state: State): void {
 		if (!isPaletteKey(value)) continue;
 		option.setAttribute("aria-pressed", value === palette ? "true" : "false");
 		const strip = option.querySelector<HTMLElement>(".swatch-strip");
-		if (strip) buildSwatchStrip(strip, value);
+		if (strip) buildSwatchStrip(doc, strip, value);
 	}
 
 	const linkColor = state.settings.linkColor;
@@ -111,7 +111,7 @@ export function syncToolbar(state: State): void {
 	// of these buttons, and both copies must stay in sync without this
 	// function needing to know where they live.
 	const linkColorOptions = Array.from(
-		document.querySelectorAll<HTMLButtonElement>('[data-action="set-link-color"]'),
+		doc.querySelectorAll<HTMLButtonElement>('[data-action="set-link-color"]'),
 	);
 	for (const option of linkColorOptions) {
 		option.setAttribute("aria-pressed", option.dataset.value === linkColor ? "true" : "false");
@@ -120,7 +120,7 @@ export function syncToolbar(state: State): void {
 	// Document-scoped for the same reason as linkColorOptions above.
 	const alignment = state.settings.alignment;
 	const alignmentOptions = Array.from(
-		document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
+		doc.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
 	);
 	for (const option of alignmentOptions) {
 		option.setAttribute("aria-pressed", option.dataset.value === alignment ? "true" : "false");
@@ -135,11 +135,11 @@ export function syncToolbar(state: State): void {
 		ratioButton.setAttribute("aria-label", `Aspect ratio: ${aspectRatioOption(aspectRatio).label}`);
 	}
 	for (const option of Array.from(
-		document.querySelectorAll<HTMLButtonElement>('[data-action="set-aspect-ratio"]'),
+		doc.querySelectorAll<HTMLButtonElement>('[data-action="set-aspect-ratio"]'),
 	)) {
 		option.setAttribute("aria-pressed", option.dataset.value === aspectRatio ? "true" : "false");
 	}
-	const diagram = document.getElementById("diagram");
+	const diagram = doc.getElementById("diagram");
 	const ratio = aspectRatioOption(aspectRatio);
 	diagram?.style.setProperty("--diagram-aspect-ratio", `${ratio.width} / ${ratio.height}`);
 	diagram?.style.setProperty("--diagram-aspect-number", String(ratio.width / ratio.height));
@@ -153,21 +153,32 @@ export function syncToolbar(state: State): void {
  * dialog.ts's own listener (registered by setupDialog below) owns closing,
  * so the two listeners never double-handle the same click.
  *
- * Doesn't sync the initial preview itself — main.ts calls syncToolbar(state)
- * separately, once state has finished loading.
+ * Doesn't sync the initial preview itself — app.ts calls syncToolbar(doc,
+ * state) separately, once state has finished loading. `signal` is the
+ * owning app instance's AbortSignal — AppHandle.destroy() aborting it tears
+ * the panel-wide listener (and every setupDialog listener below) down.
  */
-export function setupToolbar(state: State, actions: ToolbarActions): void {
-	const panel = document.querySelector(".diagram-panel");
+export function setupToolbar(
+	doc: Document,
+	state: State,
+	actions: ToolbarActions,
+	signal: AbortSignal,
+): void {
+	const panel = doc.querySelector(".diagram-panel");
 	if (!panel) return;
 
 	const dialogEl = panel.querySelector<HTMLDialogElement>("#palette-dialog");
-	const dialog: DialogController | null = dialogEl ? setupDialog(dialogEl) : null;
+	const dialog: DialogController | null = dialogEl ? setupDialog(dialogEl, signal) : null;
 
 	const linksDialogEl = panel.querySelector<HTMLDialogElement>("#links-dialog");
-	const linksDialog: DialogController | null = linksDialogEl ? setupDialog(linksDialogEl) : null;
+	const linksDialog: DialogController | null = linksDialogEl
+		? setupDialog(linksDialogEl, signal)
+		: null;
 
 	const aspectDialogEl = panel.querySelector<HTMLDialogElement>("#aspect-ratio-dialog");
-	const aspectDialog: DialogController | null = aspectDialogEl ? setupDialog(aspectDialogEl) : null;
+	const aspectDialog: DialogController | null = aspectDialogEl
+		? setupDialog(aspectDialogEl, signal)
+		: null;
 
 	// The narrow Diagram surface: unlike the other dialogs, choosing an
 	// option here does NOT close it (PLAN.md's Narrow-screen Diagram surface)
@@ -175,51 +186,55 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 	// explicitly (Close, backdrop, Escape).
 	const displayDialogEl = panel.querySelector<HTMLDialogElement>("#display-dialog");
 	const displayDialog: DialogController | null = displayDialogEl
-		? setupDialog(displayDialogEl)
+		? setupDialog(displayDialogEl, signal)
 		: null;
 
-	panel.addEventListener("click", (event) => {
-		if (!(event.target instanceof Element)) return;
-		// Buttons contain child icons/swatch strips, so the click target is
-		// often a descendant rather than the button itself — closest() finds
-		// the actual data-action owner regardless of which child was hit.
-		const trigger = event.target.closest<HTMLElement>("[data-action]");
-		if (!trigger) return;
-		const { action, value } = trigger.dataset;
+	panel.addEventListener(
+		"click",
+		(event) => {
+			if (!(event.target instanceof Element)) return;
+			// Buttons contain child icons/swatch strips, so the click target is
+			// often a descendant rather than the button itself — closest() finds
+			// the actual data-action owner regardless of which child was hit.
+			const trigger = event.target.closest<HTMLElement>("[data-action]");
+			if (!trigger) return;
+			const { action, value } = trigger.dataset;
 
-		if (action === "palette-prev" || action === "palette-next") {
-			const current = PALETTE_ORDER.indexOf(state.settings.palette);
-			const step = action === "palette-prev" ? -1 : 1;
-			const next = (current + step + PALETTE_ORDER.length) % PALETTE_ORDER.length;
-			actions.setPalette(PALETTE_ORDER[next]);
-			syncToolbar(state);
-		} else if (action === "open-palette-dialog") {
-			dialog?.open(trigger);
-		} else if (action === "set-palette" && isPaletteKey(value)) {
-			actions.setPalette(value);
-			syncToolbar(state);
-			dialog?.close();
-		} else if (action === "open-links-dialog") {
-			linksDialog?.open(trigger);
-		} else if (action === "open-aspect-ratio-dialog") {
-			aspectDialog?.open(trigger);
-		} else if (action === "open-display-dialog") {
-			displayDialog?.open(trigger);
-		} else if (action === "set-link-color" && isLinkColorKey(value)) {
-			actions.setLinkColor(value);
-			syncToolbar(state);
-			// Only the links dialog's own copy closes on choice — the Diagram
-			// dialog's copy (same data-action/data-value) stays open.
-			if (trigger.closest("dialog") === linksDialogEl) linksDialog?.close();
-		} else if (action === "set-alignment" && isAlignmentKey(value)) {
-			actions.setAlignment(value);
-			syncToolbar(state);
-		} else if (action === "set-aspect-ratio" && isAspectRatio(value)) {
-			actions.setAspectRatio(value);
-			syncToolbar(state);
-			if (trigger.closest("dialog") === aspectDialogEl) aspectDialog?.close();
-		}
-	});
+			if (action === "palette-prev" || action === "palette-next") {
+				const current = PALETTE_ORDER.indexOf(state.settings.palette);
+				const step = action === "palette-prev" ? -1 : 1;
+				const next = (current + step + PALETTE_ORDER.length) % PALETTE_ORDER.length;
+				actions.setPalette(PALETTE_ORDER[next]);
+				syncToolbar(doc, state);
+			} else if (action === "open-palette-dialog") {
+				dialog?.open(trigger);
+			} else if (action === "set-palette" && isPaletteKey(value)) {
+				actions.setPalette(value);
+				syncToolbar(doc, state);
+				dialog?.close();
+			} else if (action === "open-links-dialog") {
+				linksDialog?.open(trigger);
+			} else if (action === "open-aspect-ratio-dialog") {
+				aspectDialog?.open(trigger);
+			} else if (action === "open-display-dialog") {
+				displayDialog?.open(trigger);
+			} else if (action === "set-link-color" && isLinkColorKey(value)) {
+				actions.setLinkColor(value);
+				syncToolbar(doc, state);
+				// Only the links dialog's own copy closes on choice — the Diagram
+				// dialog's copy (same data-action/data-value) stays open.
+				if (trigger.closest("dialog") === linksDialogEl) linksDialog?.close();
+			} else if (action === "set-alignment" && isAlignmentKey(value)) {
+				actions.setAlignment(value);
+				syncToolbar(doc, state);
+			} else if (action === "set-aspect-ratio" && isAspectRatio(value)) {
+				actions.setAspectRatio(value);
+				syncToolbar(doc, state);
+				if (trigger.closest("dialog") === aspectDialogEl) aspectDialog?.close();
+			}
+		},
+		{ signal },
+	);
 }
 
 // Exported so markup tests can ensure every hand-authored option stays in

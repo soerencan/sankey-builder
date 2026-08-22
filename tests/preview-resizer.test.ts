@@ -11,6 +11,8 @@ import {
 	setupPreviewResizer,
 } from "../src/preview-resizer";
 
+let controller: AbortController;
+
 beforeEach(() => {
 	document.body.innerHTML = `
 		<section class="diagram-panel">
@@ -23,6 +25,7 @@ beforeEach(() => {
 			</div>
 		</section>`;
 	localStorage.clear();
+	controller = new AbortController();
 });
 
 describe("preview height preference", () => {
@@ -34,16 +37,16 @@ describe("preview height preference", () => {
 
 	it("loads a valid stored height and ignores invalid values", () => {
 		localStorage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, "425");
-		expect(loadPreviewHeight()).toBe(425);
+		expect(loadPreviewHeight(localStorage)).toBe(425);
 		localStorage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, "not-a-number");
-		expect(loadPreviewHeight()).toBe(DEFAULT_PREVIEW_HEIGHT);
+		expect(loadPreviewHeight(localStorage)).toBe(DEFAULT_PREVIEW_HEIGHT);
 	});
 });
 
 describe("setupPreviewResizer", () => {
 	it("applies the stored height and exposes range semantics", () => {
 		localStorage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, "425");
-		setupPreviewResizer();
+		setupPreviewResizer(document, window, controller.signal);
 
 		expect(
 			document.getElementById("diagram")?.style.getPropertyValue("--diagram-preview-height"),
@@ -55,7 +58,7 @@ describe("setupPreviewResizer", () => {
 	});
 
 	it("supports click-only smaller, larger, and reset actions", () => {
-		setupPreviewResizer();
+		setupPreviewResizer(document, window, controller.signal);
 		const click = (action: string) =>
 			document
 				.querySelector<HTMLElement>(`[data-action="${action}"]`)
@@ -71,7 +74,7 @@ describe("setupPreviewResizer", () => {
 	});
 
 	it("supports keyboard adjustment and range endpoints", () => {
-		setupPreviewResizer();
+		setupPreviewResizer(document, window, controller.signal);
 		const splitter = document.getElementById("preview-splitter");
 		splitter?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 		expect(splitter?.getAttribute("aria-valuenow")).toBe("400");
@@ -84,7 +87,7 @@ describe("setupPreviewResizer", () => {
 	});
 
 	it("tracks vertical pointer movement continuously", () => {
-		setupPreviewResizer();
+		setupPreviewResizer(document, window, controller.signal);
 		const splitter = document.getElementById("preview-splitter");
 		const pointerEvent = (type: string, clientY: number) => {
 			const event = new Event(type, { bubbles: true });
@@ -107,11 +110,53 @@ describe("setupPreviewResizer", () => {
 		vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
 			throw new Error("unavailable");
 		});
-		expect(() => setupPreviewResizer()).not.toThrow();
+		expect(() => setupPreviewResizer(document, window, controller.signal)).not.toThrow();
 		expect(() =>
 			document
 				.querySelector<HTMLElement>('[data-action="preview-larger"]')
 				?.dispatchEvent(new MouseEvent("click", { bubbles: true })),
 		).not.toThrow();
+	});
+
+	it("stops reacting to clicks once the signal aborts", () => {
+		setupPreviewResizer(document, window, controller.signal);
+		controller.abort();
+
+		document
+			.querySelector<HTMLElement>('[data-action="preview-larger"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBeNull();
+	});
+
+	it("returns a disposer that cancels an in-progress drag and releases pointer capture", () => {
+		const cancelDrag = setupPreviewResizer(document, window, controller.signal);
+		const splitter = document.getElementById("preview-splitter") as HTMLElement;
+		const releaseSpy = vi.fn();
+		splitter.releasePointerCapture = releaseSpy;
+
+		const pointerEvent = (type: string, clientY: number) => {
+			const event = new Event(type, { bubbles: true });
+			Object.defineProperties(event, {
+				clientY: { value: clientY },
+				pointerId: { value: 7 },
+			});
+			return event;
+		};
+		splitter.dispatchEvent(pointerEvent("pointerdown", 500));
+		window.dispatchEvent(pointerEvent("pointermove", 540));
+
+		expect(() => cancelDrag()).not.toThrow();
+		expect(releaseSpy).toHaveBeenCalledWith(7);
+
+		// A further pointermove is ignored — the drag was reset, not just
+		// paused.
+		const heightAfterCancel = splitter.getAttribute("aria-valuenow");
+		window.dispatchEvent(pointerEvent("pointermove", 600));
+		expect(splitter.getAttribute("aria-valuenow")).toBe(heightAfterCancel);
+
+		// A second call is a no-op (nothing left to cancel).
+		expect(() => cancelDrag()).not.toThrow();
+		expect(releaseSpy).toHaveBeenCalledTimes(1);
 	});
 });

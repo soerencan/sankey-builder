@@ -11,9 +11,11 @@ const FOCUSABLE_SELECTOR =
 /**
  * Markup-agnostic open/close/focus wiring for a native <dialog>, shared by
  * every dialog the app opens (the palette chooser, link color, theme,
- * and the narrow Diagram surface all reuse this).
+ * and the narrow Diagram surface all reuse this). `signal` is the owning
+ * app instance's AbortSignal — both listeners below are torn down by
+ * AppHandle.destroy() aborting it, so this returns no disposer of its own.
  */
-export function setupDialog(dialog: HTMLDialogElement): DialogController {
+export function setupDialog(dialog: HTMLDialogElement, signal: AbortSignal): DialogController {
 	let trigger: HTMLElement | null = null;
 
 	function close(): void {
@@ -23,23 +25,31 @@ export function setupDialog(dialog: HTMLDialogElement): DialogController {
 
 	// Delegated rather than per-button: dialogs built by callers (e.g. the
 	// palette chooser's five options) don't need their own close wiring.
-	dialog.addEventListener("click", (event) => {
-		// The dialog element's own box fills the area outside its rendered
-		// content once shown modally — a click landing directly on it (not on
-		// a descendant) is therefore a backdrop click.
-		if (event.target === dialog) {
-			close();
-			return;
-		}
-		if (!(event.target instanceof Element)) return;
-		if (event.target.closest('[data-action="close-dialog"]')) close();
-	});
+	dialog.addEventListener(
+		"click",
+		(event) => {
+			// The dialog element's own box fills the area outside its rendered
+			// content once shown modally — a click landing directly on it (not on
+			// a descendant) is therefore a backdrop click.
+			if (event.target === dialog) {
+				close();
+				return;
+			}
+			if (!(event.target instanceof Element)) return;
+			if (event.target.closest('[data-action="close-dialog"]')) close();
+		},
+		{ signal },
+	);
 
 	// Covers every close path (the two above, a future Escape/cancel handler,
 	// or a caller calling close() directly) with one focus-restore site.
-	dialog.addEventListener("close", () => {
-		trigger?.focus();
-	});
+	dialog.addEventListener(
+		"close",
+		() => {
+			trigger?.focus();
+		},
+		{ signal },
+	);
 
 	function open(el: HTMLElement): void {
 		trigger = el;

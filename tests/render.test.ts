@@ -19,7 +19,7 @@ describe("renderDiagram", () => {
 		const state = defaultState();
 		const nodeColor = createNodeColorResolver(state);
 
-		renderDiagram(state, nodeColor);
+		renderDiagram(document, state, nodeColor);
 
 		const diagram = document.getElementById("diagram");
 		expect(diagram?.querySelector("svg")).not.toBeNull();
@@ -32,7 +32,7 @@ describe("renderDiagram", () => {
 		state.settings.aspectRatio = "3:1";
 		const nodeColor = createNodeColorResolver(state);
 
-		renderDiagram(state, nodeColor);
+		renderDiagram(document, state, nodeColor);
 
 		const svg = document.querySelector("#diagram svg");
 		expect(svg?.getAttribute("viewBox")).toBe("0 0 1440 480");
@@ -49,7 +49,7 @@ describe("renderDiagram", () => {
 		const state = defaultState();
 		const nodeColor = createNodeColorResolver(state);
 
-		renderDiagram(state, nodeColor);
+		renderDiagram(document, state, nodeColor);
 
 		const diagram = document.getElementById("diagram");
 		const gradients = diagram?.querySelectorAll("linearGradient");
@@ -66,7 +66,7 @@ describe("renderDiagram", () => {
 		state.links.push({ source: "n1", target: null, value: 1 });
 		const nodeColor = createNodeColorResolver(state);
 
-		renderDiagram(state, nodeColor);
+		renderDiagram(document, state, nodeColor);
 
 		const diagram = document.getElementById("diagram");
 		expect(diagram?.querySelector("svg")).not.toBeNull();
@@ -86,7 +86,7 @@ describe("renderDiagram", () => {
 		const diagram = document.getElementById("diagram");
 		if (diagram) diagram.innerHTML = "<p>stale content</p>";
 
-		expect(() => renderDiagram(state, nodeColor)).not.toThrow();
+		expect(() => renderDiagram(document, state, nodeColor)).not.toThrow();
 
 		expect(diagram?.innerHTML).toBe("");
 		expect(diagram?.querySelector("svg")).toBeNull();
@@ -101,7 +101,7 @@ describe("renderDiagram", () => {
 		const diagram = document.getElementById("diagram");
 		if (diagram) diagram.innerHTML = "<p>stale content</p>";
 
-		expect(() => renderDiagram(state, nodeColor)).not.toThrow();
+		expect(() => renderDiagram(document, state, nodeColor)).not.toThrow();
 
 		expect(diagram?.innerHTML).toBe("");
 		expect(diagram?.querySelector("svg")).toBeNull();
@@ -115,7 +115,7 @@ describe("renderDiagram", () => {
 		const diagram = document.getElementById("diagram");
 		if (diagram) diagram.innerHTML = "<p>stale content</p>";
 
-		expect(() => renderDiagram(state, nodeColor)).not.toThrow();
+		expect(() => renderDiagram(document, state, nodeColor)).not.toThrow();
 
 		expect(diagram?.innerHTML).toBe("");
 		expect(diagram?.querySelector("svg")).toBeNull();

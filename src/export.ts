@@ -57,6 +57,7 @@ export function serializeDiagramSvg(
  * height*scale.
  */
 export function rasterizeSvg(
+	doc: Document,
 	xml: string,
 	width: number,
 	height: number,
@@ -64,7 +65,7 @@ export function rasterizeSvg(
 ): Promise<Blob> {
 	return new Promise((resolve, reject) => {
 		const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
-		const img = new Image();
+		const img = doc.createElement("img");
 		img.onload = () => {
 			// drawImage and toBlob can throw synchronously (e.g. SecurityError on a
 			// tainted canvas); without the catch, that escapes as an uncaught error
@@ -72,7 +73,7 @@ export function rasterizeSvg(
 			// error notice never shows. Double-revoke can't happen: the toBlob
 			// callback only runs when the call didn't throw.
 			try {
-				const canvas = document.createElement("canvas");
+				const canvas = doc.createElement("canvas");
 				canvas.width = width * scale;
 				canvas.height = height * scale;
 				const ctx = canvas.getContext("2d");

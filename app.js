@@ -33,33 +33,41 @@
   function paletteColors(key) {
     return PALETTES[key]();
   }
-  function createNodeColorResolver(state2) {
+  function createNodeColorResolver(state) {
     const scale = d3.scaleOrdinal(
-      state2.nodes.map((n) => n.id),
-      activePalette(state2.settings.palette)
+      state.nodes.map((n) => n.id),
+      activePalette(state.settings.palette)
     );
     return (node) => scale(node.id);
   }
 
   // src/dialog.ts
   var FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-  function setupDialog(dialog) {
+  function setupDialog(dialog, signal) {
     let trigger = null;
     function close() {
       if (!dialog.open) return;
       dialog.close();
     }
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) {
-        close();
-        return;
-      }
-      if (!(event.target instanceof Element)) return;
-      if (event.target.closest('[data-action="close-dialog"]')) close();
-    });
-    dialog.addEventListener("close", () => {
-      trigger?.focus();
-    });
+    dialog.addEventListener(
+      "click",
+      (event) => {
+        if (event.target === dialog) {
+          close();
+          return;
+        }
+        if (!(event.target instanceof Element)) return;
+        if (event.target.closest('[data-action="close-dialog"]')) close();
+      },
+      { signal }
+    );
+    dialog.addEventListener(
+      "close",
+      () => {
+        trigger?.focus();
+      },
+      { signal }
+    );
     function open(el) {
       trigger = el;
       try {
@@ -103,13 +111,13 @@
     return `<?xml version="1.0" encoding="UTF-8"?>
 ${xml}`;
   }
-  function rasterizeSvg(xml, width, height, scale) {
+  function rasterizeSvg(doc, xml, width, height, scale) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
-      const img = new Image();
+      const img = doc.createElement("img");
       img.onload = () => {
         try {
-          const canvas = document.createElement("canvas");
+          const canvas = doc.createElement("canvas");
           canvas.width = width * scale;
           canvas.height = height * scale;
           const ctx = canvas.getContext("2d");
@@ -179,34 +187,34 @@ ${xml}`;
       }
     };
   }
-  function nextNodeId(state2) {
-    const maxSuffix = state2.nodes.reduce((max, n) => {
+  function nextNodeId(state) {
+    const maxSuffix = state.nodes.reduce((max, n) => {
       const match = /^n(\d+)$/.exec(n.id);
       return match ? Math.max(max, Number(match[1])) : max;
     }, 0);
     return `n${maxSuffix + 1}`;
   }
-  function addNode(state2) {
-    const id = nextNodeId(state2);
-    state2.nodes.push({ id, name: `Node ${id.slice(1)}` });
+  function addNode(state) {
+    const id = nextNodeId(state);
+    state.nodes.push({ id, name: `Node ${id.slice(1)}` });
   }
-  function renameNode(state2, id, name) {
-    const node = state2.nodes.find((n) => n.id === id);
+  function renameNode(state, id, name) {
+    const node = state.nodes.find((n) => n.id === id);
     if (node) node.name = name;
   }
-  function deleteNode(state2, id) {
-    state2.nodes = state2.nodes.filter((n) => n.id !== id);
-    state2.links = state2.links.filter((l) => l.source !== id && l.target !== id);
+  function deleteNode(state, id) {
+    state.nodes = state.nodes.filter((n) => n.id !== id);
+    state.links = state.links.filter((l) => l.source !== id && l.target !== id);
   }
-  function updateLink(state2, index, patch) {
-    const link = state2.links[index];
+  function updateLink(state, index, patch) {
+    const link = state.links[index];
     if (link) Object.assign(link, patch);
   }
-  function addLink(state2) {
-    state2.links.push({ source: null, target: null, value: 1 });
+  function addLink(state) {
+    state.links.push({ source: null, target: null, value: 1 });
   }
-  function deleteLink(state2, index) {
-    state2.links.splice(index, 1);
+  function deleteLink(state, index) {
+    state.links.splice(index, 1);
   }
   function moveWithin(items, from, to) {
     if (items.length < 2) return;
@@ -217,11 +225,11 @@ ${xml}`;
     const [moved] = items.splice(src, 1);
     items.splice(dst, 0, moved);
   }
-  function moveNode(state2, from, to) {
-    moveWithin(state2.nodes, from, to);
+  function moveNode(state, from, to) {
+    moveWithin(state.nodes, from, to);
   }
-  function moveLink(state2, from, to) {
-    moveWithin(state2.links, from, to);
+  function moveLink(state, from, to) {
+    moveWithin(state.links, from, to);
   }
 
   // src/validate.ts
@@ -252,9 +260,9 @@ ${xml}`;
   function isPlainDecimalFormat(trimmed) {
     return LINK_VALUE_RE.test(trimmed);
   }
-  function validate(state2) {
-    const nameById = new Map(state2.nodes.map((n) => [n.id, n.name]));
-    for (const [index, link] of state2.links.entries()) {
+  function validate(state) {
+    const nameById = new Map(state.nodes.map((n) => [n.id, n.name]));
+    for (const [index, link] of state.links.entries()) {
       if (!isComplete(link)) continue;
       if (link.source === link.target) {
         return {
@@ -280,7 +288,7 @@ ${xml}`;
       }
     }
     const adjacency = /* @__PURE__ */ new Map();
-    for (const link of state2.links) {
+    for (const link of state.links) {
       if (!isComplete(link)) continue;
       if (!adjacency.has(link.source)) adjacency.set(link.source, []);
       adjacency.get(link.source)?.push(link.target);
@@ -306,7 +314,7 @@ ${xml}`;
       pathIndex.delete(id);
       return null;
     }
-    for (const node of state2.nodes) {
+    for (const node of state.nodes) {
       if (!visited.has(node.id)) {
         const cycle = visit(node.id);
         if (cycle) {
@@ -420,10 +428,10 @@ ${xml}`;
   function normalizeLinkValue(value) {
     return isValidLinkValue(value) ? value : 1;
   }
-  function loadState() {
+  function loadState(storage) {
     let raw = null;
     try {
-      raw = localStorage.getItem(STORAGE_KEY);
+      raw = storage.getItem(STORAGE_KEY);
     } catch {
       return defaultState();
     }
@@ -434,9 +442,9 @@ ${xml}`;
       return defaultState();
     }
   }
-  function saveState(state2) {
+  function saveState(storage, state) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state2));
+      storage.setItem(STORAGE_KEY, JSON.stringify(state));
       return true;
     } catch {
       return false;
@@ -444,15 +452,15 @@ ${xml}`;
   }
 
   // src/io.ts
-  function serializeState(state2) {
+  function serializeState(state) {
     const exported = {
-      nodes: state2.nodes,
-      links: state2.links.filter(isComplete),
+      nodes: state.nodes,
+      links: state.links.filter(isComplete),
       settings: {
-        palette: state2.settings.palette,
-        linkColor: state2.settings.linkColor,
-        alignment: state2.settings.alignment,
-        aspectRatio: state2.settings.aspectRatio
+        palette: state.settings.palette,
+        linkColor: state.settings.linkColor,
+        alignment: state.settings.alignment,
+        aspectRatio: state.settings.aspectRatio
       }
     };
     return JSON.stringify(exported, null, 2);
@@ -492,89 +500,109 @@ ${xml}`;
   var EXPORT_SVG_FILENAME = "sankey.svg";
   var EXPORT_PNG_FILENAME = "sankey.png";
   var PNG_EXPORT_SCALE = 2;
-  function setupIo(state2, actions) {
-    const exportButton = document.getElementById("export-button");
-    const diagramExportButton = document.getElementById("diagram-export-button");
-    const diagramExportDialogEl = document.getElementById("diagram-export-dialog");
-    const importButton = document.getElementById("import-button");
-    const fileInput = document.getElementById("import-file");
+  function setupIo(doc, win, state, actions, signal) {
+    const exportButton = doc.getElementById("export-button");
+    const diagramExportButton = doc.getElementById("diagram-export-button");
+    const diagramExportDialogEl = doc.getElementById("diagram-export-dialog");
+    const importButton = doc.getElementById("import-button");
+    const fileInput = doc.getElementById("import-file");
     if (!(fileInput instanceof HTMLInputElement)) return;
-    const diagramExportDialog = diagramExportDialogEl instanceof HTMLDialogElement ? setupDialog(diagramExportDialogEl) : void 0;
-    exportButton?.addEventListener("click", () => {
-      const blob = new Blob([serializeState(state2)], { type: "application/json" });
-      download(blob, EXPORT_JSON_FILENAME);
-      actions.reportExportSuccess(EXPORT_JSON_FILENAME);
-    });
-    diagramExportButton?.addEventListener("click", () => {
-      if (diagramExportButton instanceof HTMLElement) {
-        diagramExportDialog?.open(diagramExportButton);
-      }
-    });
-    for (const exportSvgButton of Array.from(
-      document.querySelectorAll('[data-action="export-svg"]')
-    )) {
-      exportSvgButton.addEventListener("click", () => {
-        const svg = serializeVisibleDiagram(actions);
-        if (svg) {
-          download(new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
-          actions.reportExportSuccess(EXPORT_SVG_FILENAME);
+    const diagramExportDialog = diagramExportDialogEl instanceof HTMLDialogElement ? setupDialog(diagramExportDialogEl, signal) : void 0;
+    exportButton?.addEventListener(
+      "click",
+      () => {
+        const blob = new Blob([serializeState(state)], { type: "application/json" });
+        download(doc, blob, EXPORT_JSON_FILENAME);
+        actions.reportExportSuccess(EXPORT_JSON_FILENAME);
+      },
+      { signal }
+    );
+    diagramExportButton?.addEventListener(
+      "click",
+      () => {
+        if (diagramExportButton instanceof HTMLElement) {
+          diagramExportDialog?.open(diagramExportButton);
         }
-        closeContainingDialog(exportSvgButton);
-      });
+      },
+      { signal }
+    );
+    for (const exportSvgButton of Array.from(
+      doc.querySelectorAll('[data-action="export-svg"]')
+    )) {
+      exportSvgButton.addEventListener(
+        "click",
+        () => {
+          const svg = serializeVisibleDiagram(doc, win, actions);
+          if (svg) {
+            download(doc, new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
+            actions.reportExportSuccess(EXPORT_SVG_FILENAME);
+          }
+          closeContainingDialog(exportSvgButton);
+        },
+        { signal }
+      );
     }
     for (const exportPngButton of Array.from(
-      document.querySelectorAll('[data-action="export-png"]')
+      doc.querySelectorAll('[data-action="export-png"]')
     )) {
-      exportPngButton.addEventListener("click", () => {
-        const svg = serializeVisibleDiagram(actions);
-        if (svg) {
-          const svgElement = document.querySelector("#diagram svg");
-          const { width, height } = svgViewBoxSize(svgElement);
-          rasterizeSvg(svg, width, height, PNG_EXPORT_SCALE).then((blob) => {
-            download(blob, EXPORT_PNG_FILENAME);
-            actions.reportExportSuccess(EXPORT_PNG_FILENAME);
-          }).catch((err) => {
-            console.error(err);
-            actions.reportExportError("PNG export failed. Try the SVG export instead.");
-          });
-        }
-        closeContainingDialog(exportPngButton);
-      });
+      exportPngButton.addEventListener(
+        "click",
+        () => {
+          const svg = serializeVisibleDiagram(doc, win, actions);
+          if (svg) {
+            const svgElement = doc.querySelector("#diagram svg");
+            const { width, height } = svgViewBoxSize(svgElement);
+            rasterizeSvg(doc, svg, width, height, PNG_EXPORT_SCALE).then((blob) => {
+              download(doc, blob, EXPORT_PNG_FILENAME);
+              actions.reportExportSuccess(EXPORT_PNG_FILENAME);
+            }).catch((err) => {
+              console.error(err);
+              actions.reportExportError("PNG export failed. Try the SVG export instead.");
+            });
+          }
+          closeContainingDialog(exportPngButton);
+        },
+        { signal }
+      );
     }
-    importButton?.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", async () => {
-      const file = fileInput.files?.[0];
-      fileInput.value = "";
-      if (!file) return;
-      let text;
-      try {
-        text = await file.text();
-      } catch {
-        actions.reportImportError("Could not read the selected file. Please try again.");
-        return;
-      }
-      const result = parseImport(text);
-      if (result.ok) actions.importDiagram(result.state, result.repairs);
-      else actions.reportImportError(result.error);
-    });
+    importButton?.addEventListener("click", () => fileInput.click(), { signal });
+    fileInput.addEventListener(
+      "change",
+      async () => {
+        const file = fileInput.files?.[0];
+        fileInput.value = "";
+        if (!file) return;
+        let text;
+        try {
+          text = await file.text();
+        } catch {
+          actions.reportImportError("Could not read the selected file. Please try again.");
+          return;
+        }
+        const result = parseImport(text);
+        if (result.ok) actions.importDiagram(result.state, result.repairs);
+        else actions.reportImportError(result.error);
+      },
+      { signal }
+    );
   }
   function closeContainingDialog(control) {
     const dialog = control.closest("dialog");
     if (dialog instanceof HTMLDialogElement && dialog.open) dialog.close();
   }
-  function serializeVisibleDiagram(actions) {
-    const svgEl = document.querySelector("#diagram svg");
+  function serializeVisibleDiagram(doc, win, actions) {
+    const svgEl = doc.querySelector("#diagram svg");
     if (!(svgEl instanceof SVGSVGElement)) {
       actions.reportExportError("Nothing to export \u2014 the diagram is empty.");
       return void 0;
     }
-    const labelColor = getComputedStyle(svgEl).color;
-    const background = getComputedStyle(svgEl.parentElement).backgroundColor;
+    const labelColor = win.getComputedStyle(svgEl).color;
+    const background = win.getComputedStyle(svgEl.parentElement).backgroundColor;
     return serializeDiagramSvg(svgEl, { labelColor, background });
   }
-  function download(blob, filename) {
+  function download(doc, blob, filename) {
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
+    const anchor = doc.createElement("a");
     anchor.href = url;
     anchor.download = filename;
     anchor.click();
@@ -582,36 +610,43 @@ ${xml}`;
   }
 
   // src/row-reorder.ts
-  function setupRowReorder(config) {
-    const root = document.getElementById(config.rootId);
+  function setupRowReorder(doc, config, signal) {
+    const root = doc.getElementById(config.rootId);
     if (!root) return;
     const rowSelector = `.${config.rowClass}`;
     const rowOf = (target) => target instanceof Element ? target.closest(rowSelector) : null;
     const rows = () => Array.from(root.querySelectorAll(rowSelector));
-    root.addEventListener("keydown", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement) || !target.classList.contains("drag-handle")) return;
-      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
-      const row = rowOf(target);
-      if (!row) return;
-      event.preventDefault();
-      const current = rows();
-      const from = current.indexOf(row);
-      const to = event.key === "ArrowUp" ? from - 1 : from + 1;
-      if (to < 0 || to >= current.length) return;
-      const selector = config.refocusSelector(target, to);
-      config.move(from, to);
-      root.querySelector(selector)?.focus();
-    });
+    root.addEventListener(
+      "keydown",
+      (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !target.classList.contains("drag-handle")) return;
+        if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+        const row = rowOf(target);
+        if (!row) return;
+        event.preventDefault();
+        const current = rows();
+        const from = current.indexOf(row);
+        const to = event.key === "ArrowUp" ? from - 1 : from + 1;
+        if (to < 0 || to >= current.length) return;
+        const selector = config.refocusSelector(target, to);
+        config.move(from, to);
+        root.querySelector(selector)?.focus();
+      },
+      { signal }
+    );
   }
   var TOUCH_HOLD_DELAY_MS = 150;
   var TOUCH_START_THRESHOLD_PX = 4;
-  function attachRowSortable(container, config, previous) {
-    if (previous && Sortable.active === previous) {
+  function destroySortable(instance) {
+    if (instance && Sortable.active === instance) {
       Sortable.ghost?.remove();
       Sortable.clone?.remove();
     }
-    previous?.destroy();
+    instance?.destroy();
+  }
+  function attachRowSortable(container, config, previous) {
+    destroySortable(previous);
     return new Sortable(container, {
       handle: ".drag-handle",
       group: config.rowClass,
@@ -649,179 +684,199 @@ ${xml}`;
     select.append("option").attr("value", "").attr("selected", selectedId === null ? "" : null).text("\u2014 select \u2014");
     select.selectAll("option.node-option").data(nodes).join("option").attr("class", "node-option").attr("value", (n) => n.id).attr("disabled", (n) => n.id === excludedId ? "" : null).attr("selected", (n) => n.id === selectedId ? "" : null).text((n) => n.name);
   }
-  var rowSortable = null;
-  function renderLinkEditor(state2, moveLink2) {
-    const root = d3.select("#link-editor");
+  function renderLinkEditor(doc, state, moveLink2, previousSortable) {
+    const root = d3.select(doc.getElementById("link-editor"));
     root.html("");
     root.append("h3").attr("id", "link-editor-heading").text("Links");
     const rowsContainer = root.append("div").attr("class", "link-rows");
-    const row = rowsContainer.selectAll(".link-row").data(state2.links).join("div").attr("class", "link-row");
+    const row = rowsContainer.selectAll(".link-row").data(state.links).join("div").attr("class", "link-row");
     row.append("button").attr("type", "button").attr("class", "drag-handle").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Reorder link ${i + 1}`).text("\u283F");
     row.append("select").attr("class", "link-source").attr("data-action", "update-link-source").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Source for link ${i + 1}`).each(function(d) {
-      renderLinkOptions(this, state2.nodes, d.source, d.target);
+      renderLinkOptions(this, state.nodes, d.source, d.target);
     });
     row.append("select").attr("class", "link-target").attr("data-action", "update-link-target").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Target for link ${i + 1}`).each(function(d) {
-      renderLinkOptions(this, state2.nodes, d.target, d.source);
+      renderLinkOptions(this, state.nodes, d.target, d.source);
     });
     row.append("input").attr("type", "text").attr("inputmode", "decimal").attr("class", "link-value").attr("data-action", "update-link-value").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Value for link ${i + 1}`).attr("aria-describedby", (_d, i) => linkValueErrorId(i)).attr("value", (d) => d.value);
     row.append("button").attr("type", "button").attr("class", "link-delete").attr("data-action", "delete-link").attr("data-index", (_d, i) => i).attr("aria-label", (_d, i) => `Delete link ${i + 1}`).text("Delete");
     row.append("span").attr("class", "field-error").attr("id", (_d, i) => linkValueErrorId(i));
     root.append("button").attr("type", "button").attr("class", "add-link").attr("data-action", "add-link").text("Add link");
     const container = rowsContainer.node();
-    if (container) {
-      rowSortable = attachRowSortable(
-        container,
-        { rowClass: "link-row", move: moveLink2 },
-        rowSortable
-      );
-    }
+    if (!container) return previousSortable;
+    return attachRowSortable(container, { rowClass: "link-row", move: moveLink2 }, previousSortable);
   }
-  function setLinkValueError(index, message) {
-    const el = document.getElementById(linkValueErrorId(index));
+  function setLinkValueError(doc, index, message) {
+    const el = doc.getElementById(linkValueErrorId(index));
     if (el) el.textContent = message;
   }
-  function commitLinkValue(target, index, actions) {
+  function commitLinkValue(doc, target, index, actions) {
     target.setAttribute("value", target.value);
     const parsed = parseLinkValue(target.value);
     if (parsed.kind === "valid") {
       target.removeAttribute("aria-invalid");
-      setLinkValueError(index, "");
+      setLinkValueError(doc, index, "");
       actions.updateLinkValue(index, parsed.value);
     } else if (parsed.kind === "empty") {
       target.removeAttribute("aria-invalid");
-      setLinkValueError(index, "");
+      setLinkValueError(doc, index, "");
     } else {
       target.setAttribute("aria-invalid", "true");
-      setLinkValueError(index, linkValueErrorMessage(target.value));
+      setLinkValueError(doc, index, linkValueErrorMessage(target.value));
     }
   }
-  function setupLinkEditor(actions, state2) {
-    const root = document.getElementById("link-editor");
+  function setupLinkEditor(doc, actions, state, signal) {
+    const root = doc.getElementById("link-editor");
     if (!root) return;
-    setupRowReorder({
-      rootId: "link-editor",
-      rowClass: "link-row",
-      move: actions.moveLink,
-      // Links have no stable id — refocus the handle now at the new index.
-      refocusSelector: (_handle, to) => `.drag-handle[data-index="${to}"]`
-    });
-    root.addEventListener("click", (event) => {
-      if (!(event.target instanceof HTMLElement)) return;
-      const { action, index } = event.target.dataset;
-      if (action === "add-link") {
-        actions.addLink();
-      } else if (action === "delete-link" && index !== void 0) {
-        actions.deleteLink(Number(index));
-      }
-    });
-    root.addEventListener("change", (event) => {
-      const target = event.target;
-      if (target instanceof HTMLSelectElement) {
-        const { action: action2, index: index2 } = target.dataset;
-        if (index2 === void 0) return;
-        if (action2 === "update-link-source") {
-          actions.updateLinkSource(Number(index2), target.value || null);
-        } else if (action2 === "update-link-target") {
-          actions.updateLinkTarget(Number(index2), target.value || null);
+    setupRowReorder(
+      doc,
+      {
+        rootId: "link-editor",
+        rowClass: "link-row",
+        move: actions.moveLink,
+        // Links have no stable id — refocus the handle now at the new index.
+        refocusSelector: (_handle, to) => `.drag-handle[data-index="${to}"]`
+      },
+      signal
+    );
+    root.addEventListener(
+      "click",
+      (event) => {
+        if (!(event.target instanceof HTMLElement)) return;
+        const { action, index } = event.target.dataset;
+        if (action === "add-link") {
+          actions.addLink();
+        } else if (action === "delete-link" && index !== void 0) {
+          actions.deleteLink(Number(index));
         }
-        return;
-      }
-      if (!(target instanceof HTMLInputElement)) return;
-      const { action, index } = target.dataset;
-      if (action !== "update-link-value" || index === void 0) return;
-      const parsed = parseLinkValue(target.value);
-      if (parsed.kind !== "valid") {
-        target.value = String(state2.links[Number(index)].value);
-        target.removeAttribute("aria-invalid");
-        setLinkValueError(Number(index), "");
-      }
-    });
-    root.addEventListener("beforeinput", (event) => {
-      if (!(event instanceof InputEvent)) return;
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement)) return;
-      const { action, index } = target.dataset;
-      if (action !== "update-link-value" || index === void 0) return;
-      if (event.data == null) return;
-      const start = target.selectionStart ?? target.value.length;
-      const end = target.selectionEnd ?? target.value.length;
-      const prospective = target.value.slice(0, start) + event.data + target.value.slice(end);
-      if (!exceedsFractionDigits(prospective)) return;
-      if (event.inputType === "insertText") {
-        event.preventDefault();
-      } else if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
-        event.preventDefault();
-        const trimmed = truncateFractionDigits(prospective);
-        target.value = trimmed;
-        const caret = Math.min(start + event.data.length, trimmed.length);
-        target.setSelectionRange(caret, caret);
-        commitLinkValue(target, Number(index), actions);
-      }
-    });
-    root.addEventListener("input", (event) => {
-      if (!(event.target instanceof HTMLInputElement)) return;
-      const target = event.target;
-      const { action, index } = target.dataset;
-      if (action !== "update-link-value" || index === void 0) return;
-      commitLinkValue(target, Number(index), actions);
-    });
+      },
+      { signal }
+    );
+    root.addEventListener(
+      "change",
+      (event) => {
+        const target = event.target;
+        if (target instanceof HTMLSelectElement) {
+          const { action: action2, index: index2 } = target.dataset;
+          if (index2 === void 0) return;
+          if (action2 === "update-link-source") {
+            actions.updateLinkSource(Number(index2), target.value || null);
+          } else if (action2 === "update-link-target") {
+            actions.updateLinkTarget(Number(index2), target.value || null);
+          }
+          return;
+        }
+        if (!(target instanceof HTMLInputElement)) return;
+        const { action, index } = target.dataset;
+        if (action !== "update-link-value" || index === void 0) return;
+        const parsed = parseLinkValue(target.value);
+        if (parsed.kind !== "valid") {
+          target.value = String(state.links[Number(index)].value);
+          target.removeAttribute("aria-invalid");
+          setLinkValueError(doc, Number(index), "");
+        }
+      },
+      { signal }
+    );
+    root.addEventListener(
+      "beforeinput",
+      (event) => {
+        if (!(event instanceof InputEvent)) return;
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        const { action, index } = target.dataset;
+        if (action !== "update-link-value" || index === void 0) return;
+        if (event.data == null) return;
+        const start = target.selectionStart ?? target.value.length;
+        const end = target.selectionEnd ?? target.value.length;
+        const prospective = target.value.slice(0, start) + event.data + target.value.slice(end);
+        if (!exceedsFractionDigits(prospective)) return;
+        if (event.inputType === "insertText") {
+          event.preventDefault();
+        } else if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
+          event.preventDefault();
+          const trimmed = truncateFractionDigits(prospective);
+          target.value = trimmed;
+          const caret = Math.min(start + event.data.length, trimmed.length);
+          target.setSelectionRange(caret, caret);
+          commitLinkValue(doc, target, Number(index), actions);
+        }
+      },
+      { signal }
+    );
+    root.addEventListener(
+      "input",
+      (event) => {
+        if (!(event.target instanceof HTMLInputElement)) return;
+        const target = event.target;
+        const { action, index } = target.dataset;
+        if (action !== "update-link-value" || index === void 0) return;
+        commitLinkValue(doc, target, Number(index), actions);
+      },
+      { signal }
+    );
   }
 
   // src/node-editor.ts
-  var rowSortable2 = null;
-  function renderNodeEditor(state2, nodeColor, moveNode2) {
-    const root = d3.select("#node-editor");
+  function renderNodeEditor(doc, state, nodeColor, moveNode2, previousSortable) {
+    const root = d3.select(doc.getElementById("node-editor"));
     root.html("");
     root.append("h3").attr("id", "node-editor-heading").text("Nodes");
     const rowsContainer = root.append("div").attr("class", "node-rows");
-    const row = rowsContainer.selectAll(".node-row").data(state2.nodes, (d) => d.id).join("div").attr("class", "node-row");
+    const row = rowsContainer.selectAll(".node-row").data(state.nodes, (d) => d.id).join("div").attr("class", "node-row");
     row.append("button").attr("type", "button").attr("class", "drag-handle").attr("data-index", (_d, i) => i).attr("data-id", (d) => d.id).attr("aria-label", (d) => `Reorder ${d.name}`).text("\u283F");
     row.append("span").attr("class", "node-swatch").style("background-color", (d) => nodeColor(d));
     row.append("input").attr("type", "text").attr("class", "node-name").attr("data-action", "rename-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Name for ${d.name}`).attr("value", (d) => d.name);
     row.append("button").attr("type", "button").attr("class", "node-delete").attr("data-action", "delete-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Delete ${d.name}`).text("Delete");
     root.append("button").attr("type", "button").attr("class", "add-node").attr("data-action", "add-node").text("Add node");
     const container = rowsContainer.node();
-    if (container) {
-      rowSortable2 = attachRowSortable(
-        container,
-        { rowClass: "node-row", move: moveNode2 },
-        rowSortable2
-      );
-    }
+    if (!container) return previousSortable;
+    return attachRowSortable(container, { rowClass: "node-row", move: moveNode2 }, previousSortable);
   }
-  function setupNodeEditor(actions) {
-    const root = document.getElementById("node-editor");
+  function setupNodeEditor(doc, actions, signal) {
+    const root = doc.getElementById("node-editor");
     if (!root) return;
-    setupRowReorder({
-      rootId: "node-editor",
-      rowClass: "node-row",
-      move: actions.moveNode,
-      // Refocus the same node's handle by its stable id after the rebuild.
-      refocusSelector: (handle) => `.drag-handle[data-id="${handle.dataset.id}"]`
-    });
-    root.addEventListener("click", (event) => {
-      if (!(event.target instanceof HTMLElement)) return;
-      const { action, id } = event.target.dataset;
-      if (action === "add-node") {
-        actions.addNode();
-      } else if (action === "delete-node" && id !== void 0) {
-        actions.deleteNode(id);
-      }
-    });
-    root.addEventListener("input", (event) => {
-      if (!(event.target instanceof HTMLInputElement)) return;
-      const { action, id } = event.target.dataset;
-      if (action === "rename-node" && id !== void 0) {
-        actions.renameNode(id, event.target.value);
-        event.target.setAttribute("value", event.target.value);
-        event.target.setAttribute("aria-label", `Name for ${event.target.value}`);
-        const row = event.target.closest(".node-row");
-        const deleteButton = row?.querySelector(".node-delete");
-        deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
-        const handle = row?.querySelector(".drag-handle");
-        handle?.setAttribute("aria-label", `Reorder ${event.target.value}`);
-      }
-    });
+    setupRowReorder(
+      doc,
+      {
+        rootId: "node-editor",
+        rowClass: "node-row",
+        move: actions.moveNode,
+        // Refocus the same node's handle by its stable id after the rebuild.
+        refocusSelector: (handle) => `.drag-handle[data-id="${handle.dataset.id}"]`
+      },
+      signal
+    );
+    root.addEventListener(
+      "click",
+      (event) => {
+        if (!(event.target instanceof HTMLElement)) return;
+        const { action, id } = event.target.dataset;
+        if (action === "add-node") {
+          actions.addNode();
+        } else if (action === "delete-node" && id !== void 0) {
+          actions.deleteNode(id);
+        }
+      },
+      { signal }
+    );
+    root.addEventListener(
+      "input",
+      (event) => {
+        if (!(event.target instanceof HTMLInputElement)) return;
+        const { action, id } = event.target.dataset;
+        if (action === "rename-node" && id !== void 0) {
+          actions.renameNode(id, event.target.value);
+          event.target.setAttribute("value", event.target.value);
+          event.target.setAttribute("aria-label", `Name for ${event.target.value}`);
+          const row = event.target.closest(".node-row");
+          const deleteButton = row?.querySelector(".node-delete");
+          deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
+          const handle = row?.querySelector(".drag-handle");
+          handle?.setAttribute("aria-label", `Reorder ${event.target.value}`);
+        }
+      },
+      { signal }
+    );
   }
 
   // src/preview-resizer.ts
@@ -834,9 +889,9 @@ ${xml}`;
     if (!Number.isFinite(value)) return DEFAULT_PREVIEW_HEIGHT;
     return Math.min(MAX_PREVIEW_HEIGHT, Math.max(MIN_PREVIEW_HEIGHT, Math.round(value)));
   }
-  function loadPreviewHeight() {
+  function loadPreviewHeight(storage) {
     try {
-      const stored = localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY);
+      const stored = storage.getItem(PREVIEW_HEIGHT_STORAGE_KEY);
       if (stored === null || stored.trim() === "") return DEFAULT_PREVIEW_HEIGHT;
       const value = Number(stored);
       return Number.isFinite(value) ? clampPreviewHeight(value) : DEFAULT_PREVIEW_HEIGHT;
@@ -844,62 +899,93 @@ ${xml}`;
       return DEFAULT_PREVIEW_HEIGHT;
     }
   }
-  function persistPreviewHeight(value) {
+  function persistPreviewHeight(storage, value) {
     try {
-      localStorage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, String(value));
+      storage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, String(value));
     } catch {
     }
   }
-  function setupPreviewResizer() {
-    const diagram = document.getElementById("diagram");
-    const controls = document.querySelector(".preview-resizer");
-    const splitter = document.getElementById("preview-splitter");
-    if (!diagram || !controls || !splitter) return;
-    let height = loadPreviewHeight();
+  function setupPreviewResizer(doc, win, signal) {
+    const noopDisposer = () => {
+    };
+    const diagram = doc.getElementById("diagram");
+    const controls = doc.querySelector(".preview-resizer");
+    const splitter = doc.getElementById("preview-splitter");
+    if (!diagram || !controls || !splitter) return noopDisposer;
+    let height = loadPreviewHeight(win.localStorage);
     let dragStartY = null;
     let dragStartHeight = height;
+    let dragPointerId = null;
     const apply = (next, persist = true) => {
       height = clampPreviewHeight(next);
       diagram.style.setProperty("--diagram-preview-height", `${height}px`);
       splitter.setAttribute("aria-valuenow", String(height));
       splitter.setAttribute("aria-valuetext", `${height} pixels`);
-      if (persist) persistPreviewHeight(height);
+      if (persist) persistPreviewHeight(win.localStorage, height);
     };
     splitter.setAttribute("aria-valuemin", String(MIN_PREVIEW_HEIGHT));
     splitter.setAttribute("aria-valuemax", String(MAX_PREVIEW_HEIGHT));
     apply(height, false);
-    controls.addEventListener("click", (event) => {
-      if (!(event.target instanceof Element)) return;
-      const action = event.target.closest("[data-action]")?.dataset.action;
-      if (action === "preview-smaller") apply(height - PREVIEW_HEIGHT_STEP);
-      else if (action === "preview-larger") apply(height + PREVIEW_HEIGHT_STEP);
-      else if (action === "preview-reset") apply(DEFAULT_PREVIEW_HEIGHT);
-    });
-    splitter.addEventListener("keydown", (event) => {
-      let next;
-      if (event.key === "ArrowUp") next = height - PREVIEW_HEIGHT_STEP;
-      else if (event.key === "ArrowDown") next = height + PREVIEW_HEIGHT_STEP;
-      else if (event.key === "Home") next = MIN_PREVIEW_HEIGHT;
-      else if (event.key === "End") next = MAX_PREVIEW_HEIGHT;
-      if (next === void 0) return;
-      event.preventDefault();
-      apply(next);
-    });
-    splitter.addEventListener("pointerdown", (event) => {
-      dragStartY = event.clientY;
-      dragStartHeight = height;
-      splitter.setPointerCapture?.(event.pointerId);
-      event.preventDefault();
-    });
-    window.addEventListener("pointermove", (event) => {
+    controls.addEventListener(
+      "click",
+      (event) => {
+        if (!(event.target instanceof Element)) return;
+        const action = event.target.closest("[data-action]")?.dataset.action;
+        if (action === "preview-smaller") apply(height - PREVIEW_HEIGHT_STEP);
+        else if (action === "preview-larger") apply(height + PREVIEW_HEIGHT_STEP);
+        else if (action === "preview-reset") apply(DEFAULT_PREVIEW_HEIGHT);
+      },
+      { signal }
+    );
+    splitter.addEventListener(
+      "keydown",
+      (event) => {
+        let next;
+        if (event.key === "ArrowUp") next = height - PREVIEW_HEIGHT_STEP;
+        else if (event.key === "ArrowDown") next = height + PREVIEW_HEIGHT_STEP;
+        else if (event.key === "Home") next = MIN_PREVIEW_HEIGHT;
+        else if (event.key === "End") next = MAX_PREVIEW_HEIGHT;
+        if (next === void 0) return;
+        event.preventDefault();
+        apply(next);
+      },
+      { signal }
+    );
+    splitter.addEventListener(
+      "pointerdown",
+      (event) => {
+        dragStartY = event.clientY;
+        dragStartHeight = height;
+        dragPointerId = event.pointerId;
+        splitter.setPointerCapture?.(event.pointerId);
+        event.preventDefault();
+      },
+      { signal }
+    );
+    win.addEventListener(
+      "pointermove",
+      (event) => {
+        if (dragStartY === null) return;
+        apply(dragStartHeight + event.clientY - dragStartY);
+      },
+      { signal }
+    );
+    win.addEventListener(
+      "pointerup",
+      (event) => {
+        if (dragStartY === null) return;
+        dragStartY = null;
+        dragPointerId = null;
+        splitter.releasePointerCapture?.(event.pointerId);
+      },
+      { signal }
+    );
+    return function cancelDrag() {
       if (dragStartY === null) return;
-      apply(dragStartHeight + event.clientY - dragStartY);
-    });
-    window.addEventListener("pointerup", (event) => {
-      if (dragStartY === null) return;
+      if (dragPointerId !== null) splitter.releasePointerCapture?.(dragPointerId);
       dragStartY = null;
-      splitter.releasePointerCapture?.(event.pointerId);
-    });
+      dragPointerId = null;
+    };
   }
 
   // src/render.ts
@@ -911,9 +997,9 @@ ${xml}`;
     };
     return table[name] ?? d3.sankeyJustify;
   }
-  function layout(state2, sourceLinks, width, height) {
-    const { nodes, links } = structuredClone({ nodes: state2.nodes, links: sourceLinks });
-    const graph = d3.sankey().nodeId((d) => d.id).nodeAlign(alignFn(state2.settings.alignment)).nodeWidth(15).nodePadding(10).extent([
+  function layout(state, sourceLinks, width, height) {
+    const { nodes, links } = structuredClone({ nodes: state.nodes, links: sourceLinks });
+    const graph = d3.sankey().nodeId((d) => d.id).nodeAlign(alignFn(state.settings.alignment)).nodeWidth(15).nodePadding(10).extent([
       [1, 5],
       [width - 1, height - 5]
     ])({ nodes, links });
@@ -925,34 +1011,34 @@ ${xml}`;
     if (mode === "static") return () => "#aaa";
     return (d) => `url(#link-grad-${d.index})`;
   }
-  function renderDiagram(state2, nodeColor) {
-    const container = d3.select("#diagram");
+  function renderDiagram(doc, state, nodeColor) {
+    const container = d3.select(doc.getElementById("diagram"));
     container.html("");
-    if (state2.nodes.length === 0) return;
-    const completeLinks = state2.links.filter(isComplete);
+    if (state.nodes.length === 0) return;
+    const completeLinks = state.links.filter(isComplete);
     if (completeLinks.length === 0) return;
-    const { width, height } = aspectRatioOption(state2.settings.aspectRatio);
-    const { nodes, links } = layout(state2, completeLinks, width, height);
+    const { width, height } = aspectRatioOption(state.settings.aspectRatio);
+    const { nodes, links } = layout(state, completeLinks, width, height);
     const svg = container.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
     const linkGroup = svg.append("g").attr("fill", "none").attr("stroke-opacity", 0.5).selectAll("g").data(links).join("g");
-    if (state2.settings.linkColor === "source-target") {
+    if (state.settings.linkColor === "source-target") {
       linkGroup.append("linearGradient").attr("id", (d) => `link-grad-${d.index}`).attr("gradientUnits", "userSpaceOnUse").attr("x1", (d) => d.source.x1).attr("x2", (d) => d.target.x0).call(
         (g) => g.append("stop").attr("offset", "0%").attr("stop-color", (d) => nodeColor(d.source))
       ).call(
         (g) => g.append("stop").attr("offset", "100%").attr("stop-color", (d) => nodeColor(d.target))
       );
     }
-    linkGroup.append("path").attr("d", d3.sankeyLinkHorizontal()).attr("stroke", linkStroke(state2.settings.linkColor, nodeColor)).attr("stroke-width", (d) => Math.max(1, d.width));
+    linkGroup.append("path").attr("d", d3.sankeyLinkHorizontal()).attr("stroke", linkStroke(state.settings.linkColor, nodeColor)).attr("stroke-width", (d) => Math.max(1, d.width));
     svg.append("g").selectAll("rect").data(nodes).join("rect").attr("x", (d) => d.x0).attr("y", (d) => d.y0).attr("width", (d) => d.x1 - d.x0).attr("height", (d) => Math.max(1, d.y1 - d.y0)).attr("fill", (d) => nodeColor(d));
     svg.append("g").attr("font-family", "system-ui, sans-serif").attr("font-size", 10).selectAll("text").data(nodes).join("text").attr("x", (d) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6).attr("y", (d) => (d.y0 + d.y1) / 2).attr("dy", "0.35em").attr("text-anchor", (d) => d.x0 < width / 2 ? "start" : "end").attr("fill", "currentColor").text((d) => d.name);
   }
 
   // src/theme.ts
-  function applyTheme(theme) {
+  function applyTheme(doc, theme) {
     if (theme === "auto") {
-      document.documentElement.removeAttribute("data-theme");
+      doc.documentElement.removeAttribute("data-theme");
     } else {
-      document.documentElement.setAttribute("data-theme", theme);
+      doc.documentElement.setAttribute("data-theme", theme);
     }
   }
 
@@ -965,27 +1051,25 @@ ${xml}`;
   function isThemeKey(value) {
     return typeof value === "string" && Object.hasOwn(THEME_OPTIONS, value);
   }
-  function syncThemeControl(state2) {
-    const theme = state2.settings.theme;
+  function syncThemeControl(doc, state) {
+    const theme = state.settings.theme;
     const { label, iconId } = THEME_OPTIONS[theme];
-    const button = document.getElementById("theme-button");
+    const button = doc.getElementById("theme-button");
     if (button) {
       const use = button.querySelector("use");
       use?.setAttribute("href", `#${iconId}`);
       button.setAttribute("aria-label", `Theme: ${label}`);
     }
-    const options = Array.from(
-      document.querySelectorAll('[data-action="set-theme"]')
-    );
+    const options = Array.from(doc.querySelectorAll('[data-action="set-theme"]'));
     for (const option of options) {
       option.setAttribute("aria-pressed", option.dataset.value === theme ? "true" : "false");
     }
   }
-  function setupThemeControl(state2, actions) {
-    const button = document.getElementById("theme-button");
-    const dialogEl = document.getElementById("theme-dialog");
+  function setupThemeControl(doc, state, actions, signal) {
+    const button = doc.getElementById("theme-button");
+    const dialogEl = doc.getElementById("theme-dialog");
     if (!button || !(dialogEl instanceof HTMLDialogElement)) return;
-    const dialog = setupDialog(dialogEl);
+    const dialog = setupDialog(dialogEl, signal);
     function handleClick(event) {
       if (!(event.target instanceof Element)) return;
       const trigger = event.target.closest("[data-action]");
@@ -995,12 +1079,12 @@ ${xml}`;
         dialog.open(trigger);
       } else if (action === "set-theme" && isThemeKey(value)) {
         actions.setTheme(value);
-        syncThemeControl(state2);
+        syncThemeControl(doc, state);
         dialog.close();
       }
     }
-    button.addEventListener("click", handleClick);
-    dialogEl.addEventListener("click", handleClick);
+    button.addEventListener("click", handleClick, { signal });
+    dialogEl.addEventListener("click", handleClick, { signal });
   }
 
   // src/toolbar.ts
@@ -1023,23 +1107,23 @@ ${xml}`;
   function isAlignmentKey(value) {
     return typeof value === "string" && Object.hasOwn(ALIGNMENT_VALUES, value);
   }
-  function buildSwatchStrip(strip, palette) {
+  function buildSwatchStrip(doc, strip, palette) {
     strip.replaceChildren();
     for (const color of paletteColors(palette).slice(0, SWATCH_COUNT)) {
-      const swatch = document.createElement("span");
+      const swatch = doc.createElement("span");
       swatch.className = "swatch";
       swatch.style.backgroundColor = color;
       strip.appendChild(swatch);
     }
   }
-  function syncToolbar(state2) {
-    const panel = document.querySelector(".diagram-panel");
+  function syncToolbar(doc, state) {
+    const panel = doc.querySelector(".diagram-panel");
     if (!panel) return;
-    const palette = state2.settings.palette;
+    const palette = state.settings.palette;
     const preview = panel.querySelector("#palette-preview");
     if (preview) {
       const strip = preview.querySelector(".swatch-strip");
-      if (strip) buildSwatchStrip(strip, palette);
+      if (strip) buildSwatchStrip(doc, strip, palette);
       preview.setAttribute("aria-label", `Palette: ${PALETTE_LABELS[palette]}`);
     }
     const options = Array.from(
@@ -1050,9 +1134,9 @@ ${xml}`;
       if (!isPaletteKey(value)) continue;
       option.setAttribute("aria-pressed", value === palette ? "true" : "false");
       const strip = option.querySelector(".swatch-strip");
-      if (strip) buildSwatchStrip(strip, value);
+      if (strip) buildSwatchStrip(doc, strip, value);
     }
-    const linkColor = state2.settings.linkColor;
+    const linkColor = state.settings.linkColor;
     const { label, iconId } = LINK_COLOR_OPTIONS[linkColor];
     const linksButton = panel.querySelector("#links-button");
     if (linksButton) {
@@ -1061,205 +1145,237 @@ ${xml}`;
       linksButton.setAttribute("aria-label", `Links: ${label}`);
     }
     const linkColorOptions = Array.from(
-      document.querySelectorAll('[data-action="set-link-color"]')
+      doc.querySelectorAll('[data-action="set-link-color"]')
     );
     for (const option of linkColorOptions) {
       option.setAttribute("aria-pressed", option.dataset.value === linkColor ? "true" : "false");
     }
-    const alignment = state2.settings.alignment;
+    const alignment = state.settings.alignment;
     const alignmentOptions = Array.from(
-      document.querySelectorAll('[data-action="set-alignment"]')
+      doc.querySelectorAll('[data-action="set-alignment"]')
     );
     for (const option of alignmentOptions) {
       option.setAttribute("aria-pressed", option.dataset.value === alignment ? "true" : "false");
     }
-    const aspectRatio = state2.settings.aspectRatio;
+    const aspectRatio = state.settings.aspectRatio;
     const ratioButton = panel.querySelector("#aspect-ratio-button");
     if (ratioButton) {
       ratioButton.querySelector(".aspect-ratio-current")?.replaceChildren(`Aspect ${aspectRatioOption(aspectRatio).label}`);
       ratioButton.setAttribute("aria-label", `Aspect ratio: ${aspectRatioOption(aspectRatio).label}`);
     }
     for (const option of Array.from(
-      document.querySelectorAll('[data-action="set-aspect-ratio"]')
+      doc.querySelectorAll('[data-action="set-aspect-ratio"]')
     )) {
       option.setAttribute("aria-pressed", option.dataset.value === aspectRatio ? "true" : "false");
     }
-    const diagram = document.getElementById("diagram");
+    const diagram = doc.getElementById("diagram");
     const ratio = aspectRatioOption(aspectRatio);
     diagram?.style.setProperty("--diagram-aspect-ratio", `${ratio.width} / ${ratio.height}`);
     diagram?.style.setProperty("--diagram-aspect-number", String(ratio.width / ratio.height));
   }
-  function setupToolbar(state2, actions) {
-    const panel = document.querySelector(".diagram-panel");
+  function setupToolbar(doc, state, actions, signal) {
+    const panel = doc.querySelector(".diagram-panel");
     if (!panel) return;
     const dialogEl = panel.querySelector("#palette-dialog");
-    const dialog = dialogEl ? setupDialog(dialogEl) : null;
+    const dialog = dialogEl ? setupDialog(dialogEl, signal) : null;
     const linksDialogEl = panel.querySelector("#links-dialog");
-    const linksDialog = linksDialogEl ? setupDialog(linksDialogEl) : null;
+    const linksDialog = linksDialogEl ? setupDialog(linksDialogEl, signal) : null;
     const aspectDialogEl = panel.querySelector("#aspect-ratio-dialog");
-    const aspectDialog = aspectDialogEl ? setupDialog(aspectDialogEl) : null;
+    const aspectDialog = aspectDialogEl ? setupDialog(aspectDialogEl, signal) : null;
     const displayDialogEl = panel.querySelector("#display-dialog");
-    const displayDialog = displayDialogEl ? setupDialog(displayDialogEl) : null;
-    panel.addEventListener("click", (event) => {
-      if (!(event.target instanceof Element)) return;
-      const trigger = event.target.closest("[data-action]");
-      if (!trigger) return;
-      const { action, value } = trigger.dataset;
-      if (action === "palette-prev" || action === "palette-next") {
-        const current = PALETTE_ORDER.indexOf(state2.settings.palette);
-        const step = action === "palette-prev" ? -1 : 1;
-        const next = (current + step + PALETTE_ORDER.length) % PALETTE_ORDER.length;
-        actions.setPalette(PALETTE_ORDER[next]);
-        syncToolbar(state2);
-      } else if (action === "open-palette-dialog") {
-        dialog?.open(trigger);
-      } else if (action === "set-palette" && isPaletteKey(value)) {
-        actions.setPalette(value);
-        syncToolbar(state2);
-        dialog?.close();
-      } else if (action === "open-links-dialog") {
-        linksDialog?.open(trigger);
-      } else if (action === "open-aspect-ratio-dialog") {
-        aspectDialog?.open(trigger);
-      } else if (action === "open-display-dialog") {
-        displayDialog?.open(trigger);
-      } else if (action === "set-link-color" && isLinkColorKey(value)) {
-        actions.setLinkColor(value);
-        syncToolbar(state2);
-        if (trigger.closest("dialog") === linksDialogEl) linksDialog?.close();
-      } else if (action === "set-alignment" && isAlignmentKey(value)) {
-        actions.setAlignment(value);
-        syncToolbar(state2);
-      } else if (action === "set-aspect-ratio" && isAspectRatio(value)) {
-        actions.setAspectRatio(value);
-        syncToolbar(state2);
-        if (trigger.closest("dialog") === aspectDialogEl) aspectDialog?.close();
+    const displayDialog = displayDialogEl ? setupDialog(displayDialogEl, signal) : null;
+    panel.addEventListener(
+      "click",
+      (event) => {
+        if (!(event.target instanceof Element)) return;
+        const trigger = event.target.closest("[data-action]");
+        if (!trigger) return;
+        const { action, value } = trigger.dataset;
+        if (action === "palette-prev" || action === "palette-next") {
+          const current = PALETTE_ORDER.indexOf(state.settings.palette);
+          const step = action === "palette-prev" ? -1 : 1;
+          const next = (current + step + PALETTE_ORDER.length) % PALETTE_ORDER.length;
+          actions.setPalette(PALETTE_ORDER[next]);
+          syncToolbar(doc, state);
+        } else if (action === "open-palette-dialog") {
+          dialog?.open(trigger);
+        } else if (action === "set-palette" && isPaletteKey(value)) {
+          actions.setPalette(value);
+          syncToolbar(doc, state);
+          dialog?.close();
+        } else if (action === "open-links-dialog") {
+          linksDialog?.open(trigger);
+        } else if (action === "open-aspect-ratio-dialog") {
+          aspectDialog?.open(trigger);
+        } else if (action === "open-display-dialog") {
+          displayDialog?.open(trigger);
+        } else if (action === "set-link-color" && isLinkColorKey(value)) {
+          actions.setLinkColor(value);
+          syncToolbar(doc, state);
+          if (trigger.closest("dialog") === linksDialogEl) linksDialog?.close();
+        } else if (action === "set-alignment" && isAlignmentKey(value)) {
+          actions.setAlignment(value);
+          syncToolbar(doc, state);
+        } else if (action === "set-aspect-ratio" && isAspectRatio(value)) {
+          actions.setAspectRatio(value);
+          syncToolbar(doc, state);
+          if (trigger.closest("dialog") === aspectDialogEl) aspectDialog?.close();
+        }
+      },
+      { signal }
+    );
+  }
+
+  // src/app.ts
+  var STORAGE_NOTICE = "Changes can't be saved in this browser right now (storage may be full or unavailable). The diagram keeps working, but edits won't survive closing or reloading this tab \u2014 try freeing up space or leaving private/incognito mode.";
+  function startApp(doc = globalThis.document) {
+    const view = doc.defaultView;
+    if (!view) throw new Error("startApp: document has no defaultView/window to bind to");
+    const win = view;
+    const controller = new AbortController();
+    const { signal } = controller;
+    let destroyed = false;
+    const state = loadState(win.localStorage);
+    let nodeRowSortable = null;
+    let linkRowSortable = null;
+    applyTheme(doc, state.settings.theme);
+    function refresh({ rebuildNodes = true, rebuildLinks = true } = {}) {
+      const nodeColor = createNodeColorResolver(state);
+      const result = validate(state);
+      d3.select(doc.getElementById("error")).text(result.ok ? "" : result.error ?? "");
+      d3.select(doc.getElementById("io-notice")).text("");
+      const saved = saveState(win.localStorage, state);
+      d3.select(doc.getElementById("storage-notice")).text(saved ? "" : STORAGE_NOTICE);
+      if (rebuildNodes) {
+        nodeRowSortable = renderNodeEditor(
+          doc,
+          state,
+          nodeColor,
+          nodeEditorActions.moveNode,
+          nodeRowSortable
+        );
       }
-    });
+      if (rebuildLinks) {
+        linkRowSortable = renderLinkEditor(doc, state, linkEditorActions.moveLink, linkRowSortable);
+      }
+      if (!result.ok) return;
+      renderDiagram(doc, state, nodeColor);
+    }
+    const nodeEditorActions = {
+      addNode() {
+        addNode(state);
+        refresh();
+      },
+      deleteNode(id) {
+        deleteNode(state, id);
+        refresh();
+      },
+      renameNode(id, name) {
+        renameNode(state, id, name);
+        refresh({ rebuildNodes: false });
+      },
+      moveNode(from, to) {
+        moveNode(state, from, to);
+        refresh();
+      }
+    };
+    const linkEditorActions = {
+      addLink() {
+        addLink(state);
+        refresh();
+      },
+      deleteLink(index) {
+        deleteLink(state, index);
+        refresh();
+      },
+      updateLinkSource(index, id) {
+        updateLink(state, index, { source: id });
+        refresh();
+      },
+      updateLinkTarget(index, id) {
+        updateLink(state, index, { target: id });
+        refresh();
+      },
+      updateLinkValue(index, value) {
+        updateLink(state, index, { value });
+        refresh({ rebuildNodes: false, rebuildLinks: false });
+      },
+      moveLink(from, to) {
+        moveLink(state, from, to);
+        refresh({ rebuildNodes: false });
+      }
+    };
+    const ioActions = {
+      importDiagram(imported, repairs) {
+        state.nodes.length = 0;
+        state.nodes.push(...imported.nodes);
+        state.links.length = 0;
+        state.links.push(...imported.links);
+        state.settings.palette = imported.settings.palette;
+        state.settings.linkColor = imported.settings.linkColor;
+        state.settings.alignment = imported.settings.alignment;
+        state.settings.aspectRatio = imported.settings.aspectRatio;
+        syncToolbar(doc, state);
+        refresh();
+        let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
+        if (repairs.length > 0) message += ` Adjustments: ${repairs.join("; ")}.`;
+        d3.select(doc.getElementById("io-notice")).text(message);
+      },
+      reportImportError(message) {
+        d3.select(doc.getElementById("io-notice")).text(message);
+      },
+      reportExportError(message) {
+        d3.select(doc.getElementById("io-notice")).text(message);
+      },
+      reportExportSuccess(filename) {
+        d3.select(doc.getElementById("io-notice")).text(`Exported ${filename}.`);
+      }
+    };
+    const themeControlActions = {
+      setTheme(value) {
+        state.settings.theme = value;
+        applyTheme(doc, value);
+        refresh({ rebuildNodes: false, rebuildLinks: false });
+      }
+    };
+    const toolbarActions = {
+      setPalette(value) {
+        state.settings.palette = value;
+        refresh();
+      },
+      setLinkColor(value) {
+        state.settings.linkColor = value;
+        refresh();
+      },
+      setAlignment(value) {
+        state.settings.alignment = value;
+        refresh();
+      },
+      setAspectRatio(value) {
+        state.settings.aspectRatio = value;
+        refresh();
+      }
+    };
+    setupNodeEditor(doc, nodeEditorActions, signal);
+    setupLinkEditor(doc, linkEditorActions, state, signal);
+    setupThemeControl(doc, state, themeControlActions, signal);
+    setupToolbar(doc, state, toolbarActions, signal);
+    const cancelPreviewDrag = setupPreviewResizer(doc, win, signal);
+    setupIo(doc, win, state, ioActions, signal);
+    refresh();
+    syncToolbar(doc, state);
+    syncThemeControl(doc, state);
+    function destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      controller.abort();
+      cancelPreviewDrag();
+      destroySortable(linkRowSortable);
+      destroySortable(nodeRowSortable);
+    }
+    return { destroy };
   }
 
   // src/main.ts
-  var STORAGE_NOTICE = "Changes can't be saved in this browser right now (storage may be full or unavailable). The diagram keeps working, but edits won't survive closing or reloading this tab \u2014 try freeing up space or leaving private/incognito mode.";
-  var state;
-  function refresh({ rebuildNodes = true, rebuildLinks = true } = {}) {
-    const nodeColor = createNodeColorResolver(state);
-    const result = validate(state);
-    d3.select("#error").text(result.ok ? "" : result.error ?? "");
-    d3.select("#io-notice").text("");
-    const saved = saveState(state);
-    d3.select("#storage-notice").text(saved ? "" : STORAGE_NOTICE);
-    if (rebuildNodes) renderNodeEditor(state, nodeColor, nodeEditorActions.moveNode);
-    if (rebuildLinks) renderLinkEditor(state, linkEditorActions.moveLink);
-    if (!result.ok) return;
-    renderDiagram(state, nodeColor);
-  }
-  var nodeEditorActions = {
-    addNode() {
-      addNode(state);
-      refresh();
-    },
-    deleteNode(id) {
-      deleteNode(state, id);
-      refresh();
-    },
-    renameNode(id, name) {
-      renameNode(state, id, name);
-      refresh({ rebuildNodes: false });
-    },
-    moveNode(from, to) {
-      moveNode(state, from, to);
-      refresh();
-    }
-  };
-  var linkEditorActions = {
-    addLink() {
-      addLink(state);
-      refresh();
-    },
-    deleteLink(index) {
-      deleteLink(state, index);
-      refresh();
-    },
-    updateLinkSource(index, id) {
-      updateLink(state, index, { source: id });
-      refresh();
-    },
-    updateLinkTarget(index, id) {
-      updateLink(state, index, { target: id });
-      refresh();
-    },
-    updateLinkValue(index, value) {
-      updateLink(state, index, { value });
-      refresh({ rebuildNodes: false, rebuildLinks: false });
-    },
-    moveLink(from, to) {
-      moveLink(state, from, to);
-      refresh({ rebuildNodes: false });
-    }
-  };
-  var ioActions = {
-    importDiagram(imported, repairs) {
-      state.nodes.length = 0;
-      state.nodes.push(...imported.nodes);
-      state.links.length = 0;
-      state.links.push(...imported.links);
-      state.settings.palette = imported.settings.palette;
-      state.settings.linkColor = imported.settings.linkColor;
-      state.settings.alignment = imported.settings.alignment;
-      state.settings.aspectRatio = imported.settings.aspectRatio;
-      syncToolbar(state);
-      refresh();
-      let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
-      if (repairs.length > 0) message += ` Adjustments: ${repairs.join("; ")}.`;
-      d3.select("#io-notice").text(message);
-    },
-    reportImportError(message) {
-      d3.select("#io-notice").text(message);
-    },
-    reportExportError(message) {
-      d3.select("#io-notice").text(message);
-    },
-    reportExportSuccess(filename) {
-      d3.select("#io-notice").text(`Exported ${filename}.`);
-    }
-  };
-  var themeControlActions = {
-    setTheme(value) {
-      state.settings.theme = value;
-      applyTheme(value);
-      refresh({ rebuildNodes: false, rebuildLinks: false });
-    }
-  };
-  var toolbarActions = {
-    setPalette(value) {
-      state.settings.palette = value;
-      refresh();
-    },
-    setLinkColor(value) {
-      state.settings.linkColor = value;
-      refresh();
-    },
-    setAlignment(value) {
-      state.settings.alignment = value;
-      refresh();
-    },
-    setAspectRatio(value) {
-      state.settings.aspectRatio = value;
-      refresh();
-    }
-  };
-  function init() {
-    state = loadState();
-    applyTheme(state.settings.theme);
-    setupNodeEditor(nodeEditorActions);
-    setupLinkEditor(linkEditorActions, state);
-    setupThemeControl(state, themeControlActions);
-    setupToolbar(state, toolbarActions);
-    setupPreviewResizer();
-    setupIo(state, ioActions);
-    refresh();
-    syncToolbar(state);
-    syncThemeControl(state);
-  }
-  init();
+  startApp();
 })();

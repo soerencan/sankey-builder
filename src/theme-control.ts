@@ -32,20 +32,18 @@ function isThemeKey(value: unknown): value is Theme {
  * and there's nothing here that could go stale (see src/main.ts's
  * ioActions.importDiagram).
  */
-export function syncThemeControl(state: State): void {
+export function syncThemeControl(doc: Document, state: State): void {
 	const theme = state.settings.theme;
 	const { label, iconId } = THEME_OPTIONS[theme];
 
-	const button = document.getElementById("theme-button");
+	const button = doc.getElementById("theme-button");
 	if (button) {
 		const use = button.querySelector("use");
 		use?.setAttribute("href", `#${iconId}`);
 		button.setAttribute("aria-label", `Theme: ${label}`);
 	}
 
-	const options = Array.from(
-		document.querySelectorAll<HTMLButtonElement>('[data-action="set-theme"]'),
-	);
+	const options = Array.from(doc.querySelectorAll<HTMLButtonElement>('[data-action="set-theme"]'));
 	for (const option of options) {
 		option.setAttribute("aria-pressed", option.dataset.value === theme ? "true" : "false");
 	}
@@ -56,14 +54,21 @@ export function syncThemeControl(state: State): void {
  * elements the header control is split across (they sit outside
  * .diagram-panel, so setupToolbar's single panel-wide listener doesn't cover
  * them). Same data-action switch style as setupToolbar, just with its own
- * pair of roots instead of one shared ancestor.
+ * pair of roots instead of one shared ancestor. `signal` is the owning app
+ * instance's AbortSignal — AppHandle.destroy() aborting it tears both
+ * listeners below down.
  */
-export function setupThemeControl(state: State, actions: ThemeControlActions): void {
-	const button = document.getElementById("theme-button");
-	const dialogEl = document.getElementById("theme-dialog");
+export function setupThemeControl(
+	doc: Document,
+	state: State,
+	actions: ThemeControlActions,
+	signal: AbortSignal,
+): void {
+	const button = doc.getElementById("theme-button");
+	const dialogEl = doc.getElementById("theme-dialog");
 	if (!button || !(dialogEl instanceof HTMLDialogElement)) return;
 
-	const dialog: DialogController = setupDialog(dialogEl);
+	const dialog: DialogController = setupDialog(dialogEl, signal);
 
 	function handleClick(event: Event): void {
 		if (!(event.target instanceof Element)) return;
@@ -75,14 +80,14 @@ export function setupThemeControl(state: State, actions: ThemeControlActions): v
 			dialog.open(trigger);
 		} else if (action === "set-theme" && isThemeKey(value)) {
 			actions.setTheme(value);
-			syncThemeControl(state);
+			syncThemeControl(doc, state);
 			dialog.close();
 		}
 	}
 
-	button.addEventListener("click", handleClick);
+	button.addEventListener("click", handleClick, { signal });
 	// close-dialog/backdrop clicks are handled by dialog.ts's own listener
 	// (registered by setupDialog above), not here — this only reacts to
 	// set-theme, so the two listeners never double-handle the same click.
-	dialogEl.addEventListener("click", handleClick);
+	dialogEl.addEventListener("click", handleClick, { signal });
 }

@@ -180,10 +180,10 @@ function normalizeLinkValue(value: unknown): number {
 	return isValidLinkValue(value) ? value : 1;
 }
 
-export function loadState(): State {
+export function loadState(storage: Storage): State {
 	let raw: string | null = null;
 	try {
-		raw = localStorage.getItem(STORAGE_KEY);
+		raw = storage.getItem(STORAGE_KEY);
 	} catch {
 		// Unavailable (file://, private mode) — fall back to the default graph.
 		return defaultState();
@@ -198,12 +198,12 @@ export function loadState(): State {
 
 /**
  * Best-effort: quota exceeded, private mode, or file:// with storage
- * disabled shouldn't break the app. DOM-free by design — the caller (main.ts)
- * owns surfacing/clearing the storage notice from this result.
+ * disabled shouldn't break the app. DOM-free by design — the caller
+ * (app.ts) owns surfacing/clearing the storage notice from this result.
  */
-export function saveState(state: State): boolean {
+export function saveState(storage: Storage, state: State): boolean {
 	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+		storage.setItem(STORAGE_KEY, JSON.stringify(state));
 		return true;
 	} catch {
 		return false;

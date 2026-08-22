@@ -24,10 +24,16 @@ export interface RowReorderConfig {
  * a .drag-handle. This is the accessibility path: SortableJS (used for
  * pointer/touch dragging, see attachRowSortable below) has no keyboard
  * support of its own. Lives on the box root, which survives the wholesale
- * rebuilds the editors do, so it only needs setting up once.
+ * rebuilds the editors do, so it only needs setting up once. `signal` is the
+ * owning app instance's AbortSignal — AppHandle.destroy() aborting it tears
+ * this listener down.
  */
-export function setupRowReorder(config: RowReorderConfig): void {
-	const root = document.getElementById(config.rootId);
+export function setupRowReorder(
+	doc: Document,
+	config: RowReorderConfig,
+	signal: AbortSignal,
+): void {
+	const root = doc.getElementById(config.rootId);
 	if (!root) return;
 	const rowSelector = `.${config.rowClass}`;
 
@@ -36,23 +42,27 @@ export function setupRowReorder(config: RowReorderConfig): void {
 
 	const rows = (): HTMLElement[] => Array.from(root.querySelectorAll<HTMLElement>(rowSelector));
 
-	root.addEventListener("keydown", (event) => {
-		const target = event.target;
-		if (!(target instanceof HTMLElement) || !target.classList.contains("drag-handle")) return;
-		if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
-		const row = rowOf(target);
-		if (!row) return;
-		event.preventDefault();
-		const current = rows();
-		const from = current.indexOf(row);
-		const to = event.key === "ArrowUp" ? from - 1 : from + 1;
-		if (to < 0 || to >= current.length) return;
-		const selector = config.refocusSelector(target, to);
-		config.move(from, to);
-		// Scope to this box: a bare `.drag-handle[data-index="N"]` would match the
-		// other editor's handle earlier in the document.
-		root.querySelector<HTMLElement>(selector)?.focus();
-	});
+	root.addEventListener(
+		"keydown",
+		(event) => {
+			const target = event.target;
+			if (!(target instanceof HTMLElement) || !target.classList.contains("drag-handle")) return;
+			if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+			const row = rowOf(target);
+			if (!row) return;
+			event.preventDefault();
+			const current = rows();
+			const from = current.indexOf(row);
+			const to = event.key === "ArrowUp" ? from - 1 : from + 1;
+			if (to < 0 || to >= current.length) return;
+			const selector = config.refocusSelector(target, to);
+			config.move(from, to);
+			// Scope to this box: a bare `.drag-handle[data-index="N"]` would match the
+			// other editor's handle earlier in the document.
+			root.querySelector<HTMLElement>(selector)?.focus();
+		},
+		{ signal },
+	);
 }
 
 // Touch-only hold before a drag arms (delayOnTouchOnly below) — matches the
@@ -64,6 +74,28 @@ export function setupRowReorder(config: RowReorderConfig): void {
 // SortableJS only consults it from the delayed-drag path.
 const TOUCH_HOLD_DELAY_MS = 150;
 const TOUCH_START_THRESHOLD_PX = 4;
+
+/**
+ * Safely destroys a Sortable instance, including the mid-drag orphaned-clone
+ * cleanup documented on attachRowSortable below. Exported so AppHandle's
+ * destroy() (src/app.ts) can reuse the same cleanup for the node/link editor
+ * instances it owns, without duplicating the mid-drag branch.
+ */
+export function destroySortable(instance: Sortable | null): void {
+	// A container rebuild (e.g. a keyboard reorder in the other box, or a
+	// delete tap from a second finger) can land mid-drag on `instance`.
+	// Sortable's own destroy() calls its internal drop handler with no
+	// event, which skips the branch that would otherwise remove the
+	// floating fallback clone from <body> — so destroying an active instance
+	// mid-drag would otherwise leave that clone stuck on screen (state stays
+	// consistent; it's a purely visual orphan). Grab it via the statics
+	// *before* destroy() runs, since destroy() also nulls them out.
+	if (instance && Sortable.active === instance) {
+		Sortable.ghost?.remove();
+		Sortable.clone?.remove();
+	}
+	instance?.destroy();
+}
 
 /**
  * Creates a SortableJS instance for a rows container, for pointer/touch
@@ -92,19 +124,7 @@ export function attachRowSortable(
 	config: Pick<RowReorderConfig, "rowClass" | "move">,
 	previous: Sortable | null,
 ): Sortable {
-	// A container rebuild (e.g. a keyboard reorder in the other box, or a
-	// delete tap from a second finger) can land mid-drag on `previous`.
-	// Sortable's own destroy() calls its internal drop handler with no
-	// event, which skips the branch that would otherwise remove the
-	// floating fallback clone from <body> — so destroying an active instance
-	// mid-drag would otherwise leave that clone stuck on screen (state stays
-	// consistent; it's a purely visual orphan). Grab it via the statics
-	// *before* destroy() runs, since destroy() also nulls them out.
-	if (previous && Sortable.active === previous) {
-		Sortable.ghost?.remove();
-		Sortable.clone?.remove();
-	}
-	previous?.destroy();
+	destroySortable(previous);
 	return new Sortable(container, {
 		handle: ".drag-handle",
 		group: config.rowClass,

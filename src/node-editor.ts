@@ -9,18 +9,22 @@ export interface NodeEditorActions {
 	moveNode(from: number, to: number): void;
 }
 
-// Recreated on every renderNodeEditor call (the .node-rows container it's
-// attached to is torn down and rebuilt each time) — tracked here so the
-// previous instance can be destroy()ed rather than leaked.
-let rowSortable: Sortable | null = null;
-
-/** Rebuilds #node-editor from state — same full-rebuild approach as the diagram. */
+/**
+ * Rebuilds #node-editor from state — same full-rebuild approach as the
+ * diagram. The `.node-rows` container is torn down and rebuilt on every
+ * call, so its Sortable instance is recreated each time too — the caller
+ * (src/app.ts) owns `previousSortable`/the returned replacement rather than
+ * this module holding a module-level singleton, so a second app instance on
+ * the same document never shares Sortable state with the first.
+ */
 export function renderNodeEditor(
+	doc: Document,
 	state: State,
 	nodeColor: NodeColorResolver,
 	moveNode: (from: number, to: number) => void,
-): void {
-	const root = d3.select("#node-editor");
+	previousSortable: Sortable | null,
+): Sortable | null {
+	const root = d3.select(doc.getElementById("node-editor"));
 	root.html("");
 	root.append("h3").attr("id", "node-editor-heading").text("Nodes");
 
@@ -74,56 +78,69 @@ export function renderNodeEditor(
 		.text("Add node");
 
 	const container = rowsContainer.node();
-	if (container) {
-		rowSortable = attachRowSortable(
-			container,
-			{ rowClass: "node-row", move: moveNode },
-			rowSortable,
-		);
-	}
+	if (!container) return previousSortable;
+	return attachRowSortable(container, { rowClass: "node-row", move: moveNode }, previousSortable);
 }
 
 /**
  * Delegated listeners on the editor root — one handler per event type
- * rather than per-row handlers, since rows get rebuilt wholesale.
+ * rather than per-row handlers, since rows get rebuilt wholesale. `signal`
+ * is the owning app instance's AbortSignal — AppHandle.destroy() aborting it
+ * tears these listeners down.
  */
-export function setupNodeEditor(actions: NodeEditorActions): void {
-	const root = document.getElementById("node-editor");
+export function setupNodeEditor(
+	doc: Document,
+	actions: NodeEditorActions,
+	signal: AbortSignal,
+): void {
+	const root = doc.getElementById("node-editor");
 	if (!root) return;
 
-	setupRowReorder({
-		rootId: "node-editor",
-		rowClass: "node-row",
-		move: actions.moveNode,
-		// Refocus the same node's handle by its stable id after the rebuild.
-		refocusSelector: (handle) => `.drag-handle[data-id="${handle.dataset.id}"]`,
-	});
+	setupRowReorder(
+		doc,
+		{
+			rootId: "node-editor",
+			rowClass: "node-row",
+			move: actions.moveNode,
+			// Refocus the same node's handle by its stable id after the rebuild.
+			refocusSelector: (handle) => `.drag-handle[data-id="${handle.dataset.id}"]`,
+		},
+		signal,
+	);
 
-	root.addEventListener("click", (event) => {
-		if (!(event.target instanceof HTMLElement)) return;
-		const { action, id } = event.target.dataset;
-		if (action === "add-node") {
-			actions.addNode();
-		} else if (action === "delete-node" && id !== undefined) {
-			actions.deleteNode(id);
-		}
-	});
+	root.addEventListener(
+		"click",
+		(event) => {
+			if (!(event.target instanceof HTMLElement)) return;
+			const { action, id } = event.target.dataset;
+			if (action === "add-node") {
+				actions.addNode();
+			} else if (action === "delete-node" && id !== undefined) {
+				actions.deleteNode(id);
+			}
+		},
+		{ signal },
+	);
 
-	root.addEventListener("input", (event) => {
-		if (!(event.target instanceof HTMLInputElement)) return;
-		const { action, id } = event.target.dataset;
-		if (action === "rename-node" && id !== undefined) {
-			actions.renameNode(id, event.target.value);
-			// Keep the row's name-derived aria-labels in sync without touching
-			// the input itself, since a full rebuild here would steal focus/caret.
-			// The value attribute too: Sortable's cloneNode ghost reads only that.
-			event.target.setAttribute("value", event.target.value);
-			event.target.setAttribute("aria-label", `Name for ${event.target.value}`);
-			const row = event.target.closest(".node-row");
-			const deleteButton = row?.querySelector(".node-delete");
-			deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
-			const handle = row?.querySelector(".drag-handle");
-			handle?.setAttribute("aria-label", `Reorder ${event.target.value}`);
-		}
-	});
+	root.addEventListener(
+		"input",
+		(event) => {
+			if (!(event.target instanceof HTMLInputElement)) return;
+			const { action, id } = event.target.dataset;
+			if (action === "rename-node" && id !== undefined) {
+				actions.renameNode(id, event.target.value);
+				// Keep the row's name-derived aria-labels in sync without touching
+				// the input itself, since a full rebuild here would steal focus/caret.
+				// The value attribute too: Sortable's cloneNode ghost reads only that.
+				event.target.setAttribute("value", event.target.value);
+				event.target.setAttribute("aria-label", `Name for ${event.target.value}`);
+				const row = event.target.closest(".node-row");
+				const deleteButton = row?.querySelector(".node-delete");
+				deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
+				const handle = row?.querySelector(".drag-handle");
+				handle?.setAttribute("aria-label", `Reorder ${event.target.value}`);
+			}
+		},
+		{ signal },
+	);
 }

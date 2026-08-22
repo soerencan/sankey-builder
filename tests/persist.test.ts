@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { STORAGE_KEY, loadState, saveState } from "../src/persist";
 import { defaultState } from "../src/state";
 
@@ -25,42 +25,46 @@ function fakeLocalStorage(initial: Record<string, string> = {}): Storage {
 	};
 }
 
-afterEach(() => {
-	vi.unstubAllGlobals();
-});
+/** Storage stand-in whose accessors throw, mirroring Safari private mode / file://. */
+function unavailableLocalStorage(): Storage {
+	const unavailable = () => {
+		throw new Error("storage unavailable");
+	};
+	return {
+		getItem: unavailable,
+		setItem: unavailable,
+		removeItem: unavailable,
+		clear: unavailable,
+		key: unavailable,
+		length: 0,
+	};
+}
 
 describe("loadState", () => {
 	it("returns the default state when nothing is stored", () => {
-		vi.stubGlobal("localStorage", fakeLocalStorage());
-		expect(loadState()).toEqual(defaultState());
+		expect(loadState(fakeLocalStorage())).toEqual(defaultState());
 	});
 
 	it("returns the default state for invalid JSON", () => {
-		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: "not json" }));
-		expect(loadState()).toEqual(defaultState());
+		expect(loadState(fakeLocalStorage({ [STORAGE_KEY]: "not json" }))).toEqual(defaultState());
 	});
 
 	it("returns the default state when the stored payload is null", () => {
-		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: "null" }));
-		expect(loadState()).toEqual(defaultState());
+		expect(loadState(fakeLocalStorage({ [STORAGE_KEY]: "null" }))).toEqual(defaultState());
 	});
 
 	it("returns the default state when the stored payload is a non-object", () => {
-		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: "42" }));
-		expect(loadState()).toEqual(defaultState());
+		expect(loadState(fakeLocalStorage({ [STORAGE_KEY]: "42" }))).toEqual(defaultState());
 	});
 
 	it("returns the default state when nodes/links are missing", () => {
-		vi.stubGlobal(
-			"localStorage",
-			fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify({ settings: {} }) }),
-		);
-		expect(loadState()).toEqual(defaultState());
+		expect(
+			loadState(fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify({ settings: {} }) })),
+		).toEqual(defaultState());
 	});
 
 	it("returns the default state when localStorage is unavailable", () => {
-		vi.stubGlobal("localStorage", undefined);
-		expect(loadState()).toEqual(defaultState());
+		expect(loadState(unavailableLocalStorage())).toEqual(defaultState());
 	});
 
 	it("coerces a dangling endpoint to null instead of dropping the link", () => {
@@ -72,8 +76,8 @@ describe("loadState", () => {
 			],
 			settings: {},
 		};
-		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-		expect(loadState().links).toEqual([
+		const storage = fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) });
+		expect(loadState(storage).links).toEqual([
 			{ source: "n1", target: null, value: 1 },
 			{ source: null, target: "n1", value: 1 },
 		]);
@@ -85,8 +89,8 @@ describe("loadState", () => {
 			links: [{ source: "n1", target: 42, value: 1 }],
 			settings: {},
 		};
-		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-		expect(loadState().links).toEqual([{ source: "n1", target: null, value: 1 }]);
+		const storage = fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) });
+		expect(loadState(storage).links).toEqual([{ source: "n1", target: null, value: 1 }]);
 	});
 
 	it("round-trips null endpoints (an unassigned link)", () => {
@@ -95,8 +99,8 @@ describe("loadState", () => {
 			links: [{ source: null, target: null, value: 1 }],
 			settings: {},
 		};
-		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-		expect(loadState().links).toEqual([{ source: null, target: null, value: 1 }]);
+		const storage = fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) });
+		expect(loadState(storage).links).toEqual([{ source: null, target: null, value: 1 }]);
 	});
 
 	it("normalizes a bare {} raw link to a fully unassigned row", () => {
@@ -105,8 +109,8 @@ describe("loadState", () => {
 			links: [{}],
 			settings: {},
 		};
-		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-		expect(loadState().links).toEqual([{ source: null, target: null, value: 1 }]);
+		const storage = fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) });
+		expect(loadState(storage).links).toEqual([{ source: null, target: null, value: 1 }]);
 	});
 
 	it("drops individual malformed nodes rather than failing the whole hydration", () => {
@@ -115,8 +119,8 @@ describe("loadState", () => {
 			links: [],
 			settings: {},
 		};
-		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-		expect(loadState().nodes).toEqual([{ id: "n1", name: "A" }]);
+		const storage = fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) });
+		expect(loadState(storage).nodes).toEqual([{ id: "n1", name: "A" }]);
 	});
 
 	it("drops unknown fields on nodes and links", () => {
@@ -125,8 +129,8 @@ describe("loadState", () => {
 			links: [{ source: "n1", target: "n1", value: 1, extra: "nope" }],
 			settings: {},
 		};
-		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-		const state = loadState();
+		const storage = fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) });
+		const state = loadState(storage);
 		expect(state.nodes).toEqual([{ id: "n1", name: "A" }]);
 		expect(state.links).toEqual([{ source: "n1", target: "n1", value: 1 }]);
 	});
@@ -137,8 +141,8 @@ describe("loadState", () => {
 			links: [],
 			settings: {},
 		};
-		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-		expect(loadState().nodes[0]).toEqual({ id: "n1", name: "A" });
+		const storage = fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) });
+		expect(loadState(storage).nodes[0]).toEqual({ id: "n1", name: "A" });
 	});
 
 	describe("link value coercion", () => {
@@ -151,8 +155,8 @@ describe("loadState", () => {
 				links: [{ source: "n1", target: "n2", value }],
 				settings: {},
 			};
-			vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-			return loadState().links;
+			const storage = fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) });
+			return loadState(storage).links;
 		}
 
 		it("keeps a plain finite value in range", () => {
@@ -191,8 +195,8 @@ describe("loadState", () => {
 	describe("settings normalization", () => {
 		function loadWithSettings(settings: unknown) {
 			const payload = { nodes: [], links: [], settings };
-			vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-			return loadState().settings;
+			const storage = fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) });
+			return loadState(storage).settings;
 		}
 
 		it("falls back to observable10 for a prototype-chain hole (e.g. toString)", () => {
@@ -254,25 +258,13 @@ describe("loadState", () => {
 describe("saveState", () => {
 	it("returns true and persists on success", () => {
 		const storage = fakeLocalStorage();
-		vi.stubGlobal("localStorage", storage);
 		const state = defaultState();
 
-		expect(saveState(state)).toBe(true);
+		expect(saveState(storage, state)).toBe(true);
 		expect(JSON.parse(storage.getItem(STORAGE_KEY) as string)).toEqual(state);
 	});
 
 	it("returns false when localStorage.setItem throws (quota exceeded, private mode)", () => {
-		vi.stubGlobal("localStorage", {
-			getItem: () => null,
-			setItem: () => {
-				throw new Error("quota exceeded");
-			},
-			removeItem: () => {},
-			clear: () => {},
-			key: () => null,
-			length: 0,
-		});
-
-		expect(saveState(defaultState())).toBe(false);
+		expect(saveState(unavailableLocalStorage(), defaultState())).toBe(false);
 	});
 });

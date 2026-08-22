@@ -94,8 +94,8 @@ function linkStroke(mode: LinkColorMode, nodeColor: NodeColorResolver): (d: Layo
 	return (d) => `url(#link-grad-${d.index})`;
 }
 
-export function renderDiagram(state: State, nodeColor: NodeColorResolver): void {
-	const container = d3.select("#diagram");
+export function renderDiagram(doc: Document, state: State, nodeColor: NodeColorResolver): void {
+	const container = d3.select(doc.getElementById("diagram"));
 	container.html("");
 
 	// d3-sankey's internal bin-by-column step does `new Array(-1)` on an

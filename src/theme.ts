@@ -5,10 +5,10 @@ import type { Theme } from "./state";
  * removes the attribute entirely so the prefers-color-scheme media query
  * (rather than an empty/"auto" attribute value) drives the styling.
  */
-export function applyTheme(theme: Theme): void {
+export function applyTheme(doc: Document, theme: Theme): void {
 	if (theme === "auto") {
-		document.documentElement.removeAttribute("data-theme");
+		doc.documentElement.removeAttribute("data-theme");
 	} else {
-		document.documentElement.setAttribute("data-theme", theme);
+		doc.documentElement.setAttribute("data-theme", theme);
 	}
 }

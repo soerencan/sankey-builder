@@ -31,14 +31,16 @@ function mountFixture(): { trigger: HTMLButtonElement; dialog: HTMLDialogElement
 describe("setupDialog", () => {
 	let trigger: HTMLButtonElement;
 	let dialog: HTMLDialogElement;
+	let controller: AbortController;
 
 	beforeEach(() => {
 		({ trigger, dialog } = mountFixture());
+		controller = new AbortController();
 	});
 
 	it("open() shows the dialog and moves focus to the pressed option", () => {
-		const controller = setupDialog(dialog);
-		controller.open(trigger);
+		const dialogController = setupDialog(dialog, controller.signal);
+		dialogController.open(trigger);
 
 		expect(dialog.open).toBe(true);
 		expect(document.activeElement).toBe(dialog.querySelector('[data-value="b"]'));
@@ -48,15 +50,15 @@ describe("setupDialog", () => {
 		for (const button of Array.from(dialog.querySelectorAll("[aria-pressed]"))) {
 			button.setAttribute("aria-pressed", "false");
 		}
-		const controller = setupDialog(dialog);
-		controller.open(trigger);
+		const dialogController = setupDialog(dialog, controller.signal);
+		dialogController.open(trigger);
 
 		expect(document.activeElement).toBe(dialog.querySelector('[data-value="a"]'));
 	});
 
 	it("clicking a [data-action=close-dialog] button closes the dialog and returns focus to the trigger", () => {
-		const controller = setupDialog(dialog);
-		controller.open(trigger);
+		const dialogController = setupDialog(dialog, controller.signal);
+		dialogController.open(trigger);
 
 		const closeButton = dialog.querySelector<HTMLButtonElement>('[data-action="close-dialog"]');
 		closeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -66,8 +68,8 @@ describe("setupDialog", () => {
 	});
 
 	it("a click landing on the dialog element itself (backdrop) closes it", () => {
-		const controller = setupDialog(dialog);
-		controller.open(trigger);
+		const dialogController = setupDialog(dialog, controller.signal);
+		dialogController.open(trigger);
 
 		dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
@@ -76,8 +78,8 @@ describe("setupDialog", () => {
 	});
 
 	it("a click on dialog content (not the dialog element itself) does not close it", () => {
-		const controller = setupDialog(dialog);
-		controller.open(trigger);
+		const dialogController = setupDialog(dialog, controller.signal);
+		dialogController.open(trigger);
 
 		dialog
 			.querySelector('[data-value="a"]')
@@ -87,18 +89,28 @@ describe("setupDialog", () => {
 	});
 
 	it("close() is a no-op when the dialog isn't open", () => {
-		const controller = setupDialog(dialog);
+		const dialogController = setupDialog(dialog, controller.signal);
 		expect(dialog.open).toBe(false);
-		expect(() => controller.close()).not.toThrow();
+		expect(() => dialogController.close()).not.toThrow();
 		expect(dialog.open).toBe(false);
 	});
 
 	it("close() closes an open dialog and restores focus to the trigger", () => {
-		const controller = setupDialog(dialog);
-		controller.open(trigger);
-		controller.close();
+		const dialogController = setupDialog(dialog, controller.signal);
+		dialogController.open(trigger);
+		dialogController.close();
 
 		expect(dialog.open).toBe(false);
 		expect(document.activeElement).toBe(trigger);
+	});
+
+	it("aborting the signal stops the dialog from reacting to further clicks", () => {
+		const dialogController = setupDialog(dialog, controller.signal);
+		dialogController.open(trigger);
+		controller.abort();
+
+		dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(dialog.open).toBe(true);
 	});
 });
