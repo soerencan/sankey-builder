@@ -19,7 +19,6 @@ describe("defaultState", () => {
 		expect(state.links).toHaveLength(3);
 		expect(state.settings).toEqual({
 			palette: "observable10",
-			colorMode: "auto",
 			linkColor: "source-target",
 			alignment: "justify",
 			theme: "auto",

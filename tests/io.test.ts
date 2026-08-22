@@ -5,13 +5,12 @@ import { type State, defaultState, moveLink, moveNode } from "../src/state";
 function sampleState(): State {
 	return {
 		nodes: [
-			{ id: "n1", name: "A", color: "#112233" },
+			{ id: "n1", name: "A" },
 			{ id: "n2", name: "B" },
 		],
 		links: [{ source: "n1", target: "n2", value: 5 }],
 		settings: {
 			palette: "dark2",
-			colorMode: "manual",
 			linkColor: "static",
 			alignment: "center",
 			theme: "dark",
@@ -24,11 +23,15 @@ describe("serializeState", () => {
 		const parsed = JSON.parse(serializeState(sampleState()));
 		expect(parsed.settings).toEqual({
 			palette: "dark2",
-			colorMode: "manual",
 			linkColor: "static",
 			alignment: "center",
 		});
 		expect("theme" in parsed.settings).toBe(false);
+	});
+
+	it("omits colorMode from the exported settings", () => {
+		const parsed = JSON.parse(serializeState(sampleState()));
+		expect("colorMode" in parsed.settings).toBe(false);
 	});
 
 	it("exports complete links only, skipping incomplete rows", () => {
@@ -37,14 +40,6 @@ describe("serializeState", () => {
 		state.links.push({ source: null, target: null, value: 2 });
 		const parsed = JSON.parse(serializeState(state));
 		expect(parsed.links).toEqual([{ source: "n1", target: "n2", value: 5 }]);
-	});
-
-	it("keeps node colors as stored", () => {
-		const parsed = JSON.parse(serializeState(sampleState()));
-		expect(parsed.nodes).toEqual([
-			{ id: "n1", name: "A", color: "#112233" },
-			{ id: "n2", name: "B" },
-		]);
 	});
 
 	it("pretty-prints with a 2-space indent", () => {
@@ -79,7 +74,6 @@ describe("parseImport round-trip", () => {
 			links: state.links,
 			settings: {
 				palette: "dark2",
-				colorMode: "manual",
 				linkColor: "static",
 				alignment: "center",
 			},
@@ -147,14 +141,42 @@ describe("parseImport repairs", () => {
 		return result;
 	}
 
-	it("removes an invalid node color and reports it", () => {
+	it("imports a legacy manual-color export, dropping node colors and reporting the switch", () => {
 		const result = importPayload({
-			nodes: [{ id: "n1", name: "A", color: "not-a-hex" }],
+			nodes: [
+				{ id: "n1", name: "A", color: "#112233" },
+				{ id: "n2", name: "B", color: "#445566" },
+			],
+			links: [],
+			settings: { colorMode: "manual", palette: "set2" },
+		});
+		expect(result.state.nodes).toEqual([
+			{ id: "n1", name: "A" },
+			{ id: "n2", name: "B" },
+		]);
+		expect(result.state.settings.palette).toBe("set2");
+		expect(result.repairs).toEqual([
+			"settings: manual colors are no longer supported — using the saved palette",
+		]);
+	});
+
+	it("ignores an unrecognized legacy colorMode value silently", () => {
+		const result = importPayload({
+			nodes: [{ id: "n1", name: "A" }],
+			links: [],
+			settings: { colorMode: "bogus" },
+		});
+		expect(result.repairs).toEqual([]);
+	});
+
+	it("imports node colors without a manual colorMode silently", () => {
+		const result = importPayload({
+			nodes: [{ id: "n1", name: "A", color: "#112233" }],
 			links: [],
 			settings: {},
 		});
 		expect(result.state.nodes).toEqual([{ id: "n1", name: "A" }]);
-		expect(result.repairs).toContain("node n1: invalid color removed");
+		expect(result.repairs).toEqual([]);
 	});
 
 	it("falls back to the default palette and reports an unknown one", () => {

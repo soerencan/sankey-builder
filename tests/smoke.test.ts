@@ -372,7 +372,6 @@ describe("artifact smoke test", () => {
 			],
 			settings: {
 				palette: "set2",
-				colorMode: "auto",
 				linkColor: "static",
 				alignment: "left",
 				// A theme in the file must be ignored, not applied.

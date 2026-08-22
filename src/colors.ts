@@ -42,23 +42,5 @@ export function createNodeColorResolver(state: State): NodeColorResolver {
 	);
 	// Single seam for palette switching — everything else calls the resolver
 	// instead of touching a scale/state.settings.palette directly.
-	return (node) => (state.settings.colorMode === "manual" && node.color) || scale(node.id);
-}
-
-/**
- * Seeds `color` only for nodes lacking one, from their current computed
- * color, so nothing visually jumps and colors hand-picked in a previous
- * manual session (kept-but-ignored while a named palette was active) are
- * restored rather than re-seeded.
- */
-export function enterManualMode(state: State): void {
-	// Resolver built while colorMode is still "auto" — it always resolves
-	// through the palette scale, matching app.js's sequencing of building
-	// currentColorScale before calling nodeColor() and only then switching
-	// modes (app.js:242-248).
-	const resolve = createNodeColorResolver(state);
-	for (const node of state.nodes) {
-		if (!node.color) node.color = resolve(node);
-	}
-	state.settings.colorMode = "manual";
+	return (node) => scale(node.id);
 }

@@ -6,7 +6,6 @@ export interface NodeEditorActions {
 	addNode(): void;
 	deleteNode(id: string): void;
 	renameNode(id: string, name: string): void;
-	updateNodeColor(id: string, color: string): void;
 	moveNode(from: number, to: number): void;
 }
 
@@ -25,15 +24,13 @@ export function renderNodeEditor(
 	root.html("");
 	root.append("h2").attr("id", "node-editor-heading").text("Nodes");
 
-	const manual = state.settings.colorMode === "manual";
-
 	const rowsContainer = root.append("div").attr("class", "node-rows");
 
 	const row = rowsContainer
 		.selectAll<HTMLDivElement, Node>(".node-row")
 		.data(state.nodes, (d) => d.id)
 		.join("div")
-		.attr("class", `node-row${manual ? " manual" : ""}`);
+		.attr("class", "node-row");
 
 	row
 		.append("button")
@@ -59,17 +56,6 @@ export function renderNodeEditor(
 		// As an attribute so Sortable's cloneNode drag ghost inherits it —
 		// clones don't copy the live value property.
 		.attr("value", (d) => d.name);
-
-	if (manual) {
-		row
-			.append("input")
-			.attr("type", "color")
-			.attr("class", "node-color")
-			.attr("data-action", "update-node-color")
-			.attr("data-id", (d) => d.id)
-			.attr("aria-label", (d) => `Color for ${d.name}`)
-			.attr("value", (d) => d.color ?? nodeColor(d));
-	}
 
 	row
 		.append("button")
@@ -136,18 +122,8 @@ export function setupNodeEditor(actions: NodeEditorActions): void {
 			const row = event.target.closest(".node-row");
 			const deleteButton = row?.querySelector(".node-delete");
 			deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
-			const colorInput = row?.querySelector(".node-color");
-			colorInput?.setAttribute("aria-label", `Color for ${event.target.value}`);
 			const handle = row?.querySelector(".drag-handle");
 			handle?.setAttribute("aria-label", `Reorder ${event.target.value}`);
-		} else if (action === "update-node-color" && id !== undefined) {
-			actions.updateNodeColor(id, event.target.value);
-			event.target.setAttribute("value", event.target.value);
-			// Update this row's swatch directly rather than rebuilding: a color
-			// picker fires many 'input' events while dragging, and a rebuild
-			// mid-drag would tear down the input the user is actively using.
-			const swatch = event.target.closest(".node-row")?.querySelector<HTMLElement>(".node-swatch");
-			if (swatch) swatch.style.backgroundColor = event.target.value;
 		}
 	});
 }

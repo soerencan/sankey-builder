@@ -1,11 +1,9 @@
-import type { Alignment, LinkColorMode, State, Theme } from "./state";
+import type { Alignment, LinkColorMode, Palette, State, Theme } from "./state";
 
 export interface ControlsActions {
 	setLinkColor(value: LinkColorMode): void;
 	setAlignment(value: Alignment): void;
-	// Raw select value, including "manual": branching into enterManualMode
-	// vs. a plain palette switch is a state write, which main.ts owns.
-	selectPalette(value: string): void;
+	setPalette(value: Palette): void;
 	setTheme(value: Theme): void;
 }
 
@@ -24,12 +22,8 @@ export function syncControls(state: State): void {
 	if (alignmentSelect) alignmentSelect.value = state.settings.alignment;
 	const themeSelect = root.querySelector<HTMLSelectElement>("#theme");
 	if (themeSelect) themeSelect.value = state.settings.theme;
-	// "Manual" is a colorMode flip, not a palette value — settings.palette
-	// keeps the last named palette underneath it as the fallback scale.
 	const paletteSelect = root.querySelector<HTMLSelectElement>("#palette");
-	if (paletteSelect) {
-		paletteSelect.value = state.settings.colorMode === "manual" ? "manual" : state.settings.palette;
-	}
+	if (paletteSelect) paletteSelect.value = state.settings.palette;
 }
 
 /**
@@ -55,7 +49,7 @@ export function setupControls(state: State, actions: ControlsActions): void {
 		} else if (action === "update-alignment") {
 			actions.setAlignment(event.target.value as Alignment);
 		} else if (action === "update-palette") {
-			actions.selectPalette(event.target.value);
+			actions.setPalette(event.target.value as Palette);
 		} else if (action === "update-theme") {
 			actions.setTheme(event.target.value as Theme);
 		}

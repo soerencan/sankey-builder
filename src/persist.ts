@@ -1,7 +1,6 @@
 import { isPaletteKey } from "./colors";
 import type {
 	Alignment,
-	ColorMode,
 	Link,
 	LinkColorMode,
 	Node,
@@ -27,9 +26,6 @@ const LINK_COLOR_MODES: ReadonlySet<LinkColorMode> = new Set([
 ]);
 const ALIGNMENTS: ReadonlySet<Alignment> = new Set(["left", "right", "center", "justify"]);
 const THEMES: ReadonlySet<Theme> = new Set(["auto", "light", "dark"]);
-// Same shape input[type=color] accepts; anything else (named colors, rgb(),
-// short hex, etc.) renders as black in the picker, so it's dropped instead.
-const NODE_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 function isLinkColorMode(value: unknown): value is LinkColorMode {
 	return typeof value === "string" && (LINK_COLOR_MODES as ReadonlySet<string>).has(value);
@@ -56,10 +52,13 @@ export function normalizeSettings(settings: unknown, repairs?: string[]): Settin
 	if (isPaletteKey(s.palette)) palette = s.palette;
 	else if (s.palette !== undefined) repairs?.push("settings: unknown palette — using default");
 
-	let colorMode: ColorMode = "auto";
-	if (s.colorMode === "manual") colorMode = "manual";
-	else if (s.colorMode !== undefined && s.colorMode !== "auto")
-		repairs?.push("settings: unknown color mode — using default");
+	// Manual per-node colors were removed; a legacy export/localStorage entry
+	// carrying colorMode: "manual" now just falls back to the saved palette.
+	// Any other stray colorMode value is ignored silently — it was never a
+	// real setting from the app's own perspective post-removal.
+	if (s.colorMode === "manual") {
+		repairs?.push("settings: manual colors are no longer supported — using the saved palette");
+	}
 
 	// An unrecognized linkColor would otherwise render as url() references to
 	// gradients that don't exist — invisible links — so it falls back rather
@@ -74,7 +73,7 @@ export function normalizeSettings(settings: unknown, repairs?: string[]): Settin
 
 	const theme: Theme = isTheme(s.theme) ? s.theme : "auto";
 
-	return { palette, colorMode, linkColor, alignment, theme };
+	return { palette, linkColor, alignment, theme };
 }
 
 function isRawState(
@@ -85,7 +84,7 @@ function isRawState(
 	return Array.isArray(v.nodes) && Array.isArray(v.links);
 }
 
-function isRawNode(value: unknown): value is { id: string; name: string; color?: unknown } {
+function isRawNode(value: unknown): value is { id: string; name: string } {
 	if (!value || typeof value !== "object") return false;
 	const v = value as Record<string, unknown>;
 	return typeof v.id === "string" && typeof v.name === "string";
@@ -96,8 +95,9 @@ function isRawLink(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Normalizes raw nodes, dropping malformed rows (missing id/name) and stripping
- * a color that isn't a 6-digit hex. Reports both when `repairs` is provided.
+ * Normalizes raw nodes, dropping malformed rows (missing id/name). Any other
+ * field — including a legacy `color` from the removed manual-color feature —
+ * is ignored silently by construction: only id/name are copied over.
  */
 export function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] {
 	const nodes: Node[] = [];
@@ -106,15 +106,7 @@ export function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] 
 			repairs?.push(`node ${index + 1}: missing id or name — dropped`);
 			return;
 		}
-		const node: Node = { id: value.id, name: value.name };
-		if (value.color !== undefined) {
-			if (typeof value.color === "string" && NODE_COLOR_RE.test(value.color)) {
-				node.color = value.color;
-			} else {
-				repairs?.push(`node ${value.id}: invalid color removed`);
-			}
-		}
-		nodes.push(node);
+		nodes.push({ id: value.id, name: value.name });
 	});
 	return nodes;
 }

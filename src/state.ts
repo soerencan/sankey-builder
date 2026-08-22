@@ -1,7 +1,6 @@
 export interface Node {
 	id: string;
 	name: string;
-	color?: string;
 }
 
 export interface Link {
@@ -20,17 +19,15 @@ export function isComplete(link: Link): link is Link & { source: string; target:
 	return link.source !== null && link.target !== null;
 }
 
-// Closed value sets straight from app.js: PALETTES' keys, colorMode's two
-// states, LINK_COLOR_MODES, ALIGNMENTS, and THEMES (app.js:83-101).
+// Closed value sets straight from app.js: PALETTES' keys, LINK_COLOR_MODES,
+// ALIGNMENTS, and THEMES (app.js:83-101).
 export type Palette = "observable10" | "tableau10" | "category10" | "set2" | "dark2";
-export type ColorMode = "auto" | "manual";
 export type LinkColorMode = "source" | "target" | "source-target" | "static";
 export type Alignment = "left" | "right" | "center" | "justify";
 export type Theme = "auto" | "light" | "dark";
 
 export interface Settings {
 	palette: Palette;
-	colorMode: ColorMode;
 	linkColor: LinkColorMode;
 	alignment: Alignment;
 	theme: Theme;
@@ -57,7 +54,6 @@ export function defaultState(): State {
 		],
 		settings: {
 			palette: "observable10",
-			colorMode: "auto",
 			linkColor: "source-target",
 			alignment: "justify",
 			theme: "auto",
@@ -94,11 +90,6 @@ export function deleteNode(state: State, id: string): void {
 	// Error("missing: <id>") on a dangling reference during layout. Null
 	// endpoints don't match `id`, so incomplete links are left intact.
 	state.links = state.links.filter((l) => l.source !== id && l.target !== id);
-}
-
-export function updateNodeColor(state: State, id: string, color: string): void {
-	const node = state.nodes.find((n) => n.id === id);
-	if (node) node.color = color;
 }
 
 export function updateLink(state: State, index: number, patch: Partial<Link>): void {

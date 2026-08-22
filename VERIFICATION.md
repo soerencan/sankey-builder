@@ -7,8 +7,8 @@ static server works fine for the rest.
 This list covers only what automation cannot see: rendered visuals, live OS
 theme changes, `file://` origin/storage behavior, and pointer-drag feel.
 Everything else from the original checklist — node/link editing, cycle and
-value validation, color modes, alignment, palette switching, manual color
-overrides, and reload persistence — was verified once by a full scripted
+value validation, link color modes, alignment, palette switching, and
+reload persistence — was verified once by a full scripted
 acceptance pass at migration time; a subset of it (validation messages,
 persistence hydration, color resolution, render guards, and the
 boot/invalid-edit/recovery/storage-notice flows) is continuously asserted by
@@ -20,7 +20,7 @@ cascades, dropdown propagation) is not — don't assume `make test` covers it.
 - [ ] On Auto theme, the page visually matches the OS light/dark preference.
 - [ ] With Auto selected, flipping the OS light/dark preference updates the page live, without reload.
 - [ ] In dark mode, error text and the node/link delete buttons render legibly — no low-contrast red-on-dark.
-- [ ] Native form controls (selects, the manual-mode color inputs) render dark chrome in dark mode and light chrome in light mode, matching the theme.
+- [ ] Native form controls (selects) render dark chrome in dark mode and light chrome in light mode, matching the theme.
 
 ## Cold start / file:// load
 
@@ -43,7 +43,7 @@ emulation).
 - [ ] No horizontal scrollbar at 360px, 390px, and 768px widths.
 - [ ] Stacked with an EMPTY diagram (delete all links at phone width): the diagram box collapses to a small placeholder rather than an opaque ~480px block, and the editors below stay usable.
 - [ ] Focus-under-sticky at phone width: Tab through the editor controls and confirm each focused field scrolls clear of the sticky diagram, never hidden behind it.
-- [ ] On desktop, drag the column narrow (~240px): link rows wrap to two lines (source/target on top; handle, value, delete below with the handle leftmost), and the manual-color-mode node rows wrap (color + delete drop to a second line). The same wrap appears purely from column width, independent of window width.
+- [ ] On desktop, drag the column narrow (~240px): link rows wrap to two lines (source/target on top; handle, value, delete below with the handle leftmost). The same wrap appears purely from column width, independent of window width.
 - [ ] Tab order through a wrapped link row is still handle → source → target → value → delete.
 - [ ] On a real phone (coarse pointer): buttons, the drag handles, selects, and inputs are comfortably tappable (~44px), with slightly larger row spacing.
 - [ ] Dark mode in the stacked layout: the sticky diagram's background matches the surface, no light seams.
@@ -90,7 +90,8 @@ and origin behavior differ.
 
 - [ ] Export (served): click Export JSON → the browser downloads `sankey.json`; opening it shows a pretty-printed `{nodes, links, settings}` with no `theme` key and no incomplete links.
 - [ ] Import (served): click Import → the native file picker opens; choosing a previously exported file replaces the diagram, editors, and controls, and the theme in use does not change.
-- [ ] Import repairs: hand-edit an exported file to introduce a bad color, an unknown palette, and a dangling link endpoint, then import → the diagram loads and the notice lists the adjustments made.
+- [ ] Import repairs: hand-edit an exported file to introduce an unknown palette and a dangling link endpoint, then import → the diagram loads and the notice lists the adjustments made.
+- [ ] Legacy manual-color import: hand-edit an exported file to add `"colorMode": "manual"` and hex `color` values on the nodes, then import → the diagram loads using the file's named palette, the per-node colors are ignored, and the notice mentions manual colors are no longer supported.
 - [ ] Import rejection: pick an unrelated `.json` file → the diagram is left untouched and the notice says it doesn't look like a diagram export.
 - [ ] Import a topologically-invalid file (e.g. a cycle A→B→A): state is replaced and saved, `#error` shows the cycle message, the previous diagram stays rendered (refresh bails before re-render on an invalid graph), and `#io-notice` still reports the import — confirm that three-way combination reads acceptably rather than confusingly.
 - [ ] `file://` export: double-click `index.html` from disk, click Export JSON → the download still lands in Downloads (no console errors about blob URLs or the object-URL lifecycle).

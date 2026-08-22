@@ -19,14 +19,7 @@
       state2.nodes.map((n) => n.id),
       activePalette(state2.settings.palette)
     );
-    return (node) => state2.settings.colorMode === "manual" && node.color || scale(node.id);
-  }
-  function enterManualMode(state2) {
-    const resolve = createNodeColorResolver(state2);
-    for (const node of state2.nodes) {
-      if (!node.color) node.color = resolve(node);
-    }
-    state2.settings.colorMode = "manual";
+    return (node) => scale(node.id);
   }
 
   // src/controls.ts
@@ -40,9 +33,7 @@
     const themeSelect = root.querySelector("#theme");
     if (themeSelect) themeSelect.value = state2.settings.theme;
     const paletteSelect = root.querySelector("#palette");
-    if (paletteSelect) {
-      paletteSelect.value = state2.settings.colorMode === "manual" ? "manual" : state2.settings.palette;
-    }
+    if (paletteSelect) paletteSelect.value = state2.settings.palette;
   }
   function setupControls(state2, actions) {
     const root = document.getElementById("controls");
@@ -56,7 +47,7 @@
       } else if (action === "update-alignment") {
         actions.setAlignment(event.target.value);
       } else if (action === "update-palette") {
-        actions.selectPalette(event.target.value);
+        actions.setPalette(event.target.value);
       } else if (action === "update-theme") {
         actions.setTheme(event.target.value);
       }
@@ -82,7 +73,6 @@
       ],
       settings: {
         palette: "observable10",
-        colorMode: "auto",
         linkColor: "source-target",
         alignment: "justify",
         theme: "auto"
@@ -107,10 +97,6 @@
   function deleteNode(state2, id) {
     state2.nodes = state2.nodes.filter((n) => n.id !== id);
     state2.links = state2.links.filter((l) => l.source !== id && l.target !== id);
-  }
-  function updateNodeColor(state2, id, color) {
-    const node = state2.nodes.find((n) => n.id === id);
-    if (node) node.color = color;
   }
   function updateLink(state2, index, patch) {
     const link = state2.links[index];
@@ -342,7 +328,6 @@ ${xml}`;
   ]);
   var ALIGNMENTS = /* @__PURE__ */ new Set(["left", "right", "center", "justify"]);
   var THEMES = /* @__PURE__ */ new Set(["auto", "light", "dark"]);
-  var NODE_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
   function isLinkColorMode(value) {
     return typeof value === "string" && LINK_COLOR_MODES.has(value);
   }
@@ -357,10 +342,9 @@ ${xml}`;
     let palette = "observable10";
     if (isPaletteKey(s.palette)) palette = s.palette;
     else if (s.palette !== void 0) repairs?.push("settings: unknown palette \u2014 using default");
-    let colorMode = "auto";
-    if (s.colorMode === "manual") colorMode = "manual";
-    else if (s.colorMode !== void 0 && s.colorMode !== "auto")
-      repairs?.push("settings: unknown color mode \u2014 using default");
+    if (s.colorMode === "manual") {
+      repairs?.push("settings: manual colors are no longer supported \u2014 using the saved palette");
+    }
     let linkColor = "source-target";
     if (isLinkColorMode(s.linkColor)) linkColor = s.linkColor;
     else if (s.linkColor !== void 0) repairs?.push("settings: unknown link color \u2014 using default");
@@ -368,7 +352,7 @@ ${xml}`;
     if (isAlignment(s.alignment)) alignment = s.alignment;
     else if (s.alignment !== void 0) repairs?.push("settings: unknown alignment \u2014 using default");
     const theme = isTheme(s.theme) ? s.theme : "auto";
-    return { palette, colorMode, linkColor, alignment, theme };
+    return { palette, linkColor, alignment, theme };
   }
   function isRawState(value) {
     if (!value || typeof value !== "object") return false;
@@ -390,15 +374,7 @@ ${xml}`;
         repairs?.push(`node ${index + 1}: missing id or name \u2014 dropped`);
         return;
       }
-      const node = { id: value.id, name: value.name };
-      if (value.color !== void 0) {
-        if (typeof value.color === "string" && NODE_COLOR_RE.test(value.color)) {
-          node.color = value.color;
-        } else {
-          repairs?.push(`node ${value.id}: invalid color removed`);
-        }
-      }
-      nodes.push(node);
+      nodes.push({ id: value.id, name: value.name });
     });
     return nodes;
   }
@@ -470,7 +446,6 @@ ${xml}`;
       links: state2.links.filter(isComplete),
       settings: {
         palette: state2.settings.palette,
-        colorMode: state2.settings.colorMode,
         linkColor: state2.settings.linkColor,
         alignment: state2.settings.alignment
       }
@@ -500,7 +475,6 @@ ${xml}`;
     const normalized = normalizeSettings(obj.settings, repairs);
     const settings = {
       palette: normalized.palette,
-      colorMode: normalized.colorMode,
       linkColor: normalized.linkColor,
       alignment: normalized.alignment
     };
@@ -769,15 +743,11 @@ ${xml}`;
     const root = d3.select("#node-editor");
     root.html("");
     root.append("h2").attr("id", "node-editor-heading").text("Nodes");
-    const manual = state2.settings.colorMode === "manual";
     const rowsContainer = root.append("div").attr("class", "node-rows");
-    const row = rowsContainer.selectAll(".node-row").data(state2.nodes, (d) => d.id).join("div").attr("class", `node-row${manual ? " manual" : ""}`);
+    const row = rowsContainer.selectAll(".node-row").data(state2.nodes, (d) => d.id).join("div").attr("class", "node-row");
     row.append("button").attr("type", "button").attr("class", "drag-handle").attr("data-index", (_d, i) => i).attr("data-id", (d) => d.id).attr("aria-label", (d) => `Reorder ${d.name}`).text("\u283F");
     row.append("span").attr("class", "node-swatch").style("background-color", (d) => nodeColor(d));
     row.append("input").attr("type", "text").attr("class", "node-name").attr("data-action", "rename-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Name for ${d.name}`).attr("value", (d) => d.name);
-    if (manual) {
-      row.append("input").attr("type", "color").attr("class", "node-color").attr("data-action", "update-node-color").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Color for ${d.name}`).attr("value", (d) => d.color ?? nodeColor(d));
-    }
     row.append("button").attr("type", "button").attr("class", "node-delete").attr("data-action", "delete-node").attr("data-id", (d) => d.id).attr("aria-label", (d) => `Delete ${d.name}`).text("Delete");
     root.append("button").attr("type", "button").attr("class", "add-node").attr("data-action", "add-node").text("Add node");
     const container = rowsContainer.node();
@@ -818,15 +788,8 @@ ${xml}`;
         const row = event.target.closest(".node-row");
         const deleteButton = row?.querySelector(".node-delete");
         deleteButton?.setAttribute("aria-label", `Delete ${event.target.value}`);
-        const colorInput = row?.querySelector(".node-color");
-        colorInput?.setAttribute("aria-label", `Color for ${event.target.value}`);
         const handle = row?.querySelector(".drag-handle");
         handle?.setAttribute("aria-label", `Reorder ${event.target.value}`);
-      } else if (action === "update-node-color" && id !== void 0) {
-        actions.updateNodeColor(id, event.target.value);
-        event.target.setAttribute("value", event.target.value);
-        const swatch = event.target.closest(".node-row")?.querySelector(".node-swatch");
-        if (swatch) swatch.style.backgroundColor = event.target.value;
       }
     });
   }
@@ -930,10 +893,6 @@ ${xml}`;
       renameNode(state, id, name);
       refresh({ rebuildNodes: false });
     },
-    updateNodeColor(id, color) {
-      updateNodeColor(state, id, color);
-      refresh({ rebuildNodes: false, rebuildLinks: false });
-    },
     moveNode(from, to) {
       moveNode(state, from, to);
       refresh();
@@ -972,7 +931,6 @@ ${xml}`;
       state.links.length = 0;
       state.links.push(...imported.links);
       state.settings.palette = imported.settings.palette;
-      state.settings.colorMode = imported.settings.colorMode;
       state.settings.linkColor = imported.settings.linkColor;
       state.settings.alignment = imported.settings.alignment;
       syncControls(state);
@@ -1000,13 +958,8 @@ ${xml}`;
       state.settings.alignment = value;
       refresh();
     },
-    selectPalette(raw) {
-      if (raw === "manual") {
-        enterManualMode(state);
-      } else {
-        state.settings.palette = raw;
-        state.settings.colorMode = "auto";
-      }
+    setPalette(value) {
+      state.settings.palette = value;
       refresh();
     },
     setTheme(value) {

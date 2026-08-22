@@ -296,10 +296,6 @@ select {
   gap: 0.5rem;
 }
 
-.node-row.manual {
-  grid-template-columns: auto auto 1fr auto auto;
-}
-
 .node-swatch {
   width: 0.9rem;
   height: 0.9rem;
@@ -309,30 +305,6 @@ select {
 
 .node-name {
   min-width: 0;
-}
-
-.node-color {
-  width: 1.5rem;
-  height: 1.5rem;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-1);
-  background: transparent;
-  cursor: pointer;
-}
-
-.node-color::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.node-color::-webkit-color-swatch {
-  border: none;
-  border-radius: var(--radius-1);
-}
-
-.node-color::-moz-color-swatch {
-  border: none;
-  border-radius: var(--radius-1);
 }
 
 .node-delete {
@@ -621,36 +593,6 @@ select {
   .link-delete {
     grid-area: delete;
   }
-
-  /* Manual color mode adds a color input; wrap color + delete to a second line
-     so the name field keeps a usable width. Non-manual node rows still fit. */
-  .node-row.manual {
-    grid-template-columns: auto auto 1fr auto;
-    grid-template-areas:
-      "handle swatch name  name"
-      ".      .      color delete";
-  }
-
-  .node-row.manual .drag-handle {
-    grid-area: handle;
-  }
-
-  .node-row.manual .node-swatch {
-    grid-area: swatch;
-  }
-
-  .node-row.manual .node-name {
-    grid-area: name;
-  }
-
-  .node-row.manual .node-color {
-    grid-area: color;
-    justify-self: end;
-  }
-
-  .node-row.manual .node-delete {
-    grid-area: delete;
-  }
 }
 
 /* Tier 3 — coarse pointers (touch) get larger tap targets. */
@@ -666,11 +608,6 @@ select {
     /* The glyph reads as a stray speck in the enlarged 44px touch target at
        the desktop 1rem size — scale it up to actually fill the target. */
     font-size: 1.4rem;
-  }
-
-  .node-color {
-    width: 2.5rem;
-    height: 2.5rem;
   }
 
   .node-rows,

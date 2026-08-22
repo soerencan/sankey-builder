@@ -1,4 +1,4 @@
-import { createNodeColorResolver, enterManualMode } from "./colors";
+import { createNodeColorResolver } from "./colors";
 import type { ControlsActions } from "./controls";
 import { setupControls, syncControls } from "./controls";
 import type { IoActions } from "./io-controls";
@@ -10,7 +10,7 @@ import { renderNodeEditor, setupNodeEditor } from "./node-editor";
 import { loadState, saveState } from "./persist";
 import { renderDiagram } from "./render";
 import { setupResizer } from "./resizer";
-import type { Palette, State } from "./state";
+import type { State } from "./state";
 import {
 	addLink,
 	addNode,
@@ -20,7 +20,6 @@ import {
 	moveNode,
 	renameNode,
 	updateLink,
-	updateNodeColor,
 } from "./state";
 import { applyTheme } from "./theme";
 import { validate } from "./validate";
@@ -102,14 +101,6 @@ const nodeEditorActions: NodeEditorActions = {
 		// go stale.
 		refresh({ rebuildNodes: false });
 	},
-	updateNodeColor(id, color) {
-		updateNodeColor(state, id, color);
-		// Skip both editor rebuilds: a color picker fires many 'input' events
-		// while dragging, and a rebuild mid-drag would tear down the input the
-		// user is actively using. Still re-render the diagram so the color
-		// change is visible live while dragging.
-		refresh({ rebuildNodes: false, rebuildLinks: false });
-	},
 	moveNode(from, to) {
 		moveNode(state, from, to);
 		// Node order drives the link dropdowns' option order, so rebuild both
@@ -157,7 +148,6 @@ const ioActions: IoActions = {
 		state.links.length = 0;
 		state.links.push(...imported.links);
 		state.settings.palette = imported.settings.palette;
-		state.settings.colorMode = imported.settings.colorMode;
 		state.settings.linkColor = imported.settings.linkColor;
 		state.settings.alignment = imported.settings.alignment;
 		// theme is deliberately untouched — a per-browser preference, not
@@ -194,13 +184,8 @@ const controlsActions: ControlsActions = {
 		state.settings.alignment = value;
 		refresh();
 	},
-	selectPalette(raw) {
-		if (raw === "manual") {
-			enterManualMode(state);
-		} else {
-			state.settings.palette = raw as Palette;
-			state.settings.colorMode = "auto";
-		}
+	setPalette(value) {
+		state.settings.palette = value;
 		refresh();
 	},
 	setTheme(value) {

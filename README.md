@@ -1,9 +1,9 @@
 # sankey-builder
 
 A D3 Sankey diagram generator that's build-free to run: edit nodes and links in the browser,
-pick a color palette or assign manual per-node colors, control link coloring
-and node alignment, and see the diagram update live. State autosaves to
-localStorage, and the UI supports light/dark themes.
+pick a color palette, control link coloring and node alignment, and see the
+diagram update live. State autosaves to localStorage, and the UI supports
+light/dark themes.
 
 ## Usage
 

@@ -131,36 +131,14 @@ describe("loadState", () => {
 		expect(state.links).toEqual([{ source: "n1", target: "n1", value: 1 }]);
 	});
 
-	describe("node color regex", () => {
-		function loadWithColor(color: unknown) {
-			const payload = {
-				nodes: [{ id: "n1", name: "A", color }],
-				links: [],
-				settings: {},
-			};
-			vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
-			return loadState().nodes[0];
-		}
-
-		it("keeps a valid 6-digit hex color", () => {
-			expect(loadWithColor("#a1b2c3")).toEqual({ id: "n1", name: "A", color: "#a1b2c3" });
-		});
-
-		it("keeps a valid uppercase 6-digit hex color", () => {
-			expect(loadWithColor("#A1B2C3")).toEqual({ id: "n1", name: "A", color: "#A1B2C3" });
-		});
-
-		it("drops a named color", () => {
-			expect(loadWithColor("red")).toEqual({ id: "n1", name: "A" });
-		});
-
-		it("drops a short hex color", () => {
-			expect(loadWithColor("#abc")).toEqual({ id: "n1", name: "A" });
-		});
-
-		it("drops an rgb() color", () => {
-			expect(loadWithColor("rgb(1,2,3)")).toEqual({ id: "n1", name: "A" });
-		});
+	it("loads a stored node carrying a legacy color without a color key", () => {
+		const payload = {
+			nodes: [{ id: "n1", name: "A", color: "#a1b2c3" }],
+			links: [],
+			settings: {},
+		};
+		vi.stubGlobal("localStorage", fakeLocalStorage({ [STORAGE_KEY]: JSON.stringify(payload) }));
+		expect(loadState().nodes[0]).toEqual({ id: "n1", name: "A" });
 	});
 
 	describe("link value coercion", () => {
@@ -229,12 +207,10 @@ describe("loadState", () => {
 			expect(loadWithSettings({ palette: "dark2" }).palette).toBe("dark2");
 		});
 
-		it("falls back to auto for an unknown colorMode", () => {
-			expect(loadWithSettings({ colorMode: "bogus" }).colorMode).toBe("auto");
-		});
-
-		it("keeps manual colorMode", () => {
-			expect(loadWithSettings({ colorMode: "manual" }).colorMode).toBe("manual");
+		it("loads a legacy manual colorMode silently, keeping the saved palette and dropping colorMode", () => {
+			const settings = loadWithSettings({ colorMode: "manual", palette: "set2" });
+			expect(settings.palette).toBe("set2");
+			expect("colorMode" in settings).toBe(false);
 		});
 
 		it("falls back to source-target for an unknown linkColor", () => {

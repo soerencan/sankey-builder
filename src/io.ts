@@ -26,7 +26,6 @@ export function serializeState(state: State): string {
 		links: state.links.filter(isComplete),
 		settings: {
 			palette: state.settings.palette,
-			colorMode: state.settings.colorMode,
 			linkColor: state.settings.linkColor,
 			alignment: state.settings.alignment,
 		},
@@ -67,7 +66,6 @@ export function parseImport(text: string): ImportResult {
 	const normalized = normalizeSettings(obj.settings, repairs);
 	const settings: ImportSettings = {
 		palette: normalized.palette,
-		colorMode: normalized.colorMode,
 		linkColor: normalized.linkColor,
 		alignment: normalized.alignment,
 	};
