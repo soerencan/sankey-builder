@@ -56,6 +56,8 @@ emulation).
 - [ ] The palette carousel's swatches (both the preview button and the dialog's rows) visually match the actual rendered node colors in the diagram, in both light and dark theme.
 - [ ] With the palette dialog open, pressing Escape closes it (native `<dialog>` cancel behavior — not exercised by the automated suite, since happy-dom doesn't simulate a real Escape-triggered cancel).
 - [ ] After closing the palette dialog (Escape, Close button, or backdrop click), focus visibly returns to the palette preview button — a visible focus ring lands there, not somewhere else on the page.
+- [ ] The four link-color pictograms (Source, Source to target, Target, Neutral — both the Links button and the dialog rows) are visually distinguishable from each other in both light and dark theme, without relying on hover or a tooltip.
+- [ ] At wide widths, the toolbar (palette carousel plus the Links button) stays on a single line — no wrapping, clipping, or overlap.
 
 ## Row reordering (drag feel)
 

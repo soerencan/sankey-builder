@@ -533,8 +533,8 @@ select {
 }
 
 /* ==========================================================================
-   Diagram toolbar: the palette carousel now; link-color and alignment
-   groups land in later steps, in the same row.
+   Diagram toolbar: the palette carousel and link-color chooser now; the
+   alignment group lands in a later step, in the same row.
    ========================================================================== */
 
 .toolbar-button {
@@ -549,6 +549,13 @@ select {
 
 .toolbar-button:hover {
   background: var(--border);
+}
+
+/* The links chooser trigger carries a visible "Links" label alongside its
+   icon, unlike the icon-only carousel buttons above — extra inline padding
+   keeps the label from crowding the button's edges. */
+#links-button {
+  padding-inline: 0.6rem;
 }
 
 /* The carousel's central trigger — a button, not a plain icon, so its
@@ -606,19 +613,29 @@ dialog h3 {
   font-size: 1rem;
 }
 
-.palette-options {
+/* .choice-options/.choice-option generalize the palette dialog's row styling
+   for other labelled choosers (the links dialog now, more later) — same
+   full-width tappable row and non-color-reliant selected state, just with
+   the icon+label pairing left-aligned instead of the palette row's
+   label/swatch split. */
+.palette-options,
+.choice-options {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
 }
 
-.palette-option {
+.palette-option,
+.choice-option {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
   width: 100%;
   text-align: left;
+}
+
+.palette-option {
+  justify-content: space-between;
 }
 
 /* Selected state must not rely on color alone: a background fill plus an
@@ -627,7 +644,8 @@ dialog h3 {
    it doesn't collide with the global :focus-visible outline below — the
    dialog helper focuses the selected option on open, and that focus ring
    needs to stay visible alongside the selection ring. */
-.palette-option[aria-pressed="true"] {
+.palette-option[aria-pressed="true"],
+.choice-option[aria-pressed="true"] {
   background: var(--border);
   box-shadow: inset 0 0 0 2px var(--accent);
 }

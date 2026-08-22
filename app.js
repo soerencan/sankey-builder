@@ -43,8 +43,6 @@
   function syncControls(state2) {
     const root = document.getElementById("controls");
     if (!root) return;
-    const linkColorSelect = root.querySelector("#link-color");
-    if (linkColorSelect) linkColorSelect.value = state2.settings.linkColor;
     const alignmentSelect = root.querySelector("#alignment");
     if (alignmentSelect) alignmentSelect.value = state2.settings.alignment;
     const themeSelect = root.querySelector("#theme");
@@ -57,9 +55,7 @@
     root.addEventListener("change", (event) => {
       if (!(event.target instanceof HTMLSelectElement)) return;
       const { action } = event.target.dataset;
-      if (action === "update-link-color") {
-        actions.setLinkColor(event.target.value);
-      } else if (action === "update-alignment") {
+      if (action === "update-alignment") {
         actions.setAlignment(event.target.value);
       } else if (action === "update-theme") {
         actions.setTheme(event.target.value);
@@ -913,6 +909,15 @@ ${xml}`;
 
   // src/toolbar.ts
   var SWATCH_COUNT = 5;
+  var LINK_COLOR_OPTIONS = {
+    source: { label: "Source", iconId: "icon-link-source" },
+    "source-target": { label: "Source to target (gradient)", iconId: "icon-link-gradient" },
+    target: { label: "Target", iconId: "icon-link-target" },
+    static: { label: "Neutral", iconId: "icon-link-neutral" }
+  };
+  function isLinkColorKey(value) {
+    return typeof value === "string" && Object.hasOwn(LINK_COLOR_OPTIONS, value);
+  }
   function buildSwatchStrip(strip, palette) {
     strip.replaceChildren();
     for (const color of paletteColors(palette).slice(0, SWATCH_COUNT)) {
@@ -942,12 +947,28 @@ ${xml}`;
       const strip = option.querySelector(".swatch-strip");
       if (strip) buildSwatchStrip(strip, value);
     }
+    const linkColor = state2.settings.linkColor;
+    const { label, iconId } = LINK_COLOR_OPTIONS[linkColor];
+    const linksButton = panel.querySelector("#links-button");
+    if (linksButton) {
+      const use = linksButton.querySelector("use");
+      use?.setAttribute("href", `#${iconId}`);
+      linksButton.setAttribute("aria-label", `Links: ${label}`);
+    }
+    const linkColorOptions = Array.from(
+      document.querySelectorAll('[data-action="set-link-color"]')
+    );
+    for (const option of linkColorOptions) {
+      option.setAttribute("aria-pressed", option.dataset.value === linkColor ? "true" : "false");
+    }
   }
   function setupToolbar(state2, actions) {
     const panel = document.querySelector(".diagram-panel");
     if (!panel) return;
     const dialogEl = panel.querySelector("#palette-dialog");
     const dialog = dialogEl ? setupDialog(dialogEl) : null;
+    const linksDialogEl = panel.querySelector("#links-dialog");
+    const linksDialog = linksDialogEl ? setupDialog(linksDialogEl) : null;
     panel.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
       const trigger = event.target.closest("[data-action]");
@@ -965,6 +986,12 @@ ${xml}`;
         actions.setPalette(value);
         syncToolbar(state2);
         dialog?.close();
+      } else if (action === "open-links-dialog") {
+        linksDialog?.open(trigger);
+      } else if (action === "set-link-color" && isLinkColorKey(value)) {
+        actions.setLinkColor(value);
+        syncToolbar(state2);
+        linksDialog?.close();
       }
     });
   }
@@ -1055,10 +1082,6 @@ ${xml}`;
     }
   };
   var controlsActions = {
-    setLinkColor(value) {
-      state.settings.linkColor = value;
-      refresh();
-    },
     setAlignment(value) {
       state.settings.alignment = value;
       refresh();
@@ -1072,6 +1095,10 @@ ${xml}`;
   var toolbarActions = {
     setPalette(value) {
       state.settings.palette = value;
+      refresh();
+    },
+    setLinkColor(value) {
+      state.settings.linkColor = value;
       refresh();
     }
   };

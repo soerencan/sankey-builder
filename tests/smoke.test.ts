@@ -11,6 +11,7 @@ import { PALETTE_LABELS } from "../src/colors";
 import { serializeState } from "../src/io";
 import { STORAGE_KEY } from "../src/persist";
 import { defaultState } from "../src/state";
+import { LINK_COLOR_OPTIONS } from "../src/toolbar";
 import { loadD3Global } from "./helpers/d3-global";
 import { loadSortableGlobal } from "./helpers/sortable-global";
 
@@ -162,6 +163,104 @@ describe("artifact smoke test", () => {
 		);
 		expect(dialog.open).toBe(false);
 		expect(document.activeElement).toBe(preview);
+	});
+
+	it("clicking the links button opens the links dialog", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const dialog = document.getElementById("links-dialog");
+		expect(dialog).toBeInstanceOf(HTMLDialogElement);
+		expect((dialog as HTMLDialogElement).open).toBe(false);
+
+		document
+			.getElementById("links-button")
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect((dialog as HTMLDialogElement).open).toBe(true);
+
+		// Pin index.html's hardcoded option labels to LINK_COLOR_OPTIONS
+		// (src/toolbar.ts) so the two can't drift apart.
+		for (const option of Array.from(
+			dialog?.querySelectorAll<HTMLElement>(".choice-option") ?? [],
+		)) {
+			const value = option.getAttribute("data-value");
+			expect(value).toBeTruthy();
+			expect(option.querySelector(".choice-option-label")?.textContent).toBe(
+				LINK_COLOR_OPTIONS[value as keyof typeof LINK_COLOR_OPTIONS].label,
+			);
+		}
+	});
+
+	it("choosing Neutral in the links dialog sets state, re-renders static links, and closes with focus back on the links button", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const linksButton = document.getElementById("links-button");
+		linksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
+		const staticOption = dialog.querySelector<HTMLButtonElement>('[data-value="static"]');
+		staticOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.linkColor).toBe("static");
+
+		// Only the chosen option is pressed.
+		expect(staticOption?.getAttribute("aria-pressed")).toBe("true");
+		for (const option of Array.from(
+			dialog.querySelectorAll<HTMLButtonElement>('[data-action="set-link-color"]'),
+		)) {
+			if (option !== staticOption) expect(option.getAttribute("aria-pressed")).toBe("false");
+		}
+
+		// Re-renders link paths with the static stroke (src/render.ts's linkStroke "static" case).
+		const paths = document.querySelectorAll("#diagram svg path");
+		expect(paths.length).toBeGreaterThan(0);
+		for (const path of Array.from(paths)) {
+			expect(path.getAttribute("stroke")).toBe("#aaa");
+		}
+
+		expect(linksButton?.getAttribute("aria-label")).toBe("Links: Neutral");
+		expect(dialog.open).toBe(false);
+		expect(document.activeElement).toBe(linksButton);
+	});
+
+	it("choosing the gradient option in the links dialog re-renders links with per-link gradient strokes", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const linksButton = document.getElementById("links-button");
+		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
+		const diagram = document.getElementById("diagram");
+
+		// Start from "static" (defaultState().linkColor is already
+		// "source-target", so asserting the post-click state alone wouldn't
+		// prove the click handler ran) — this leg proves the click landed.
+		linksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		const staticOption = dialog.querySelector<HTMLButtonElement>('[data-value="static"]');
+		staticOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const storedAfterStatic = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(storedAfterStatic.settings.linkColor).toBe("static");
+		for (const path of Array.from(document.querySelectorAll("#diagram svg path"))) {
+			expect(path.getAttribute("stroke")).toBe("#aaa");
+		}
+
+		// Now transition to the gradient option and assert the change actually took.
+		linksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		const gradientOption = dialog.querySelector<HTMLButtonElement>('[data-value="source-target"]');
+		gradientOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.linkColor).toBe("source-target");
+
+		const gradients = diagram?.querySelectorAll("linearGradient");
+		expect(gradients?.length).toBeGreaterThan(0);
+		expect(diagram?.querySelector('path[stroke="url(#link-grad-0)"]')).not.toBeNull();
 	});
 
 	it("round-trips a basic mutation: add node updates editor, diagram, and storage", () => {
@@ -483,9 +582,12 @@ describe("artifact smoke test", () => {
 		expect(stored.settings.linkColor).toBe("static");
 		// Theme stays the pre-import "light", NOT the file's "dark".
 		expect(stored.settings.theme).toBe("light");
-		// The toolbar's carousel preview follows the import too (syncToolbar).
+		// The toolbar's carousel preview and links button follow the import too (syncToolbar).
 		expect(document.getElementById("palette-preview")?.getAttribute("aria-label")).toBe(
 			"Palette: Set 2",
+		);
+		expect(document.getElementById("links-button")?.getAttribute("aria-label")).toBe(
+			"Links: Neutral",
 		);
 
 		expect(document.getElementById("io-notice")?.textContent).toBe("Imported 3 nodes, 2 links.");

@@ -1,16 +1,35 @@
 import { PALETTE_LABELS, PALETTE_ORDER, isPaletteKey, paletteColors } from "./colors";
 import type { DialogController } from "./dialog";
 import { setupDialog } from "./dialog";
-import type { Palette, State } from "./state";
+import type { LinkColorMode, Palette, State } from "./state";
 
 export interface ToolbarActions {
 	setPalette(value: Palette): void;
+	setLinkColor(mode: LinkColorMode): void;
 }
 
 // Number of swatches shown per strip — matches the five named palettes'
 // meaningful prefix; palettes with more entries (e.g. category10's 10) are
 // truncated to keep the preview/dialog rows a consistent width.
 const SWATCH_COUNT = 5;
+
+/**
+ * Label and sprite-symbol id per link-color mode, keyed by the actual state
+ * value (unchanged by this UI-only move — see PLAN.md's "Link colors").
+ * Exported so tests can pin index.html's hardcoded dialog row labels to this
+ * map, the same way tests/smoke.test.ts already pins the palette dialog to
+ * PALETTE_LABELS.
+ */
+export const LINK_COLOR_OPTIONS: Record<LinkColorMode, { label: string; iconId: string }> = {
+	source: { label: "Source", iconId: "icon-link-source" },
+	"source-target": { label: "Source to target (gradient)", iconId: "icon-link-gradient" },
+	target: { label: "Target", iconId: "icon-link-target" },
+	static: { label: "Neutral", iconId: "icon-link-neutral" },
+};
+
+function isLinkColorKey(value: unknown): value is LinkColorMode {
+	return typeof value === "string" && Object.hasOwn(LINK_COLOR_OPTIONS, value);
+}
 
 function buildSwatchStrip(strip: HTMLElement, palette: Palette): void {
 	strip.replaceChildren();
@@ -51,6 +70,26 @@ export function syncToolbar(state: State): void {
 		const strip = option.querySelector<HTMLElement>(".swatch-strip");
 		if (strip) buildSwatchStrip(strip, value);
 	}
+
+	const linkColor = state.settings.linkColor;
+	const { label, iconId } = LINK_COLOR_OPTIONS[linkColor];
+	const linksButton = panel.querySelector<HTMLButtonElement>("#links-button");
+	if (linksButton) {
+		const use = linksButton.querySelector("use");
+		use?.setAttribute("href", `#${iconId}`);
+		linksButton.setAttribute("aria-label", `Links: ${label}`);
+	}
+
+	// Document-scoped (not panel-scoped) rather than following the
+	// panel-only pattern above: a later step adds a second copy of these
+	// buttons in the narrow Display dialog, and both copies must stay in
+	// sync without this function needing to know where they live.
+	const linkColorOptions = Array.from(
+		document.querySelectorAll<HTMLButtonElement>('[data-action="set-link-color"]'),
+	);
+	for (const option of linkColorOptions) {
+		option.setAttribute("aria-pressed", option.dataset.value === linkColor ? "true" : "false");
+	}
 }
 
 /**
@@ -70,6 +109,9 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 
 	const dialogEl = panel.querySelector<HTMLDialogElement>("#palette-dialog");
 	const dialog: DialogController | null = dialogEl ? setupDialog(dialogEl) : null;
+
+	const linksDialogEl = panel.querySelector<HTMLDialogElement>("#links-dialog");
+	const linksDialog: DialogController | null = linksDialogEl ? setupDialog(linksDialogEl) : null;
 
 	panel.addEventListener("click", (event) => {
 		if (!(event.target instanceof Element)) return;
@@ -92,6 +134,12 @@ export function setupToolbar(state: State, actions: ToolbarActions): void {
 			actions.setPalette(value);
 			syncToolbar(state);
 			dialog?.close();
+		} else if (action === "open-links-dialog") {
+			linksDialog?.open(trigger);
+		} else if (action === "set-link-color" && isLinkColorKey(value)) {
+			actions.setLinkColor(value);
+			syncToolbar(state);
+			linksDialog?.close();
 		}
 	});
 }

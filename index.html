@@ -10,7 +10,7 @@
 <body>
   <!-- Inline icon sprite: small currentColor pictograms, no icon-font/image
        dependency. Referenced elsewhere via <use href="#icon-name">. More
-       symbols land alongside later toolbar controls (link color, alignment). -->
+       symbols land alongside later toolbar controls (alignment). -->
   <svg hidden>
     <symbol id="icon-chevron-left" viewBox="0 0 24 24">
       <polyline
@@ -31,6 +31,37 @@
         stroke-linecap="round"
         stroke-linejoin="round"
       />
+    </symbol>
+
+    <!-- Link-color mode pictograms: two endpoint dots joined by a ribbon.
+         Modes are distinguished structurally (which endpoint is filled vs.
+         outlined, and how the ribbon's opacity ramps) rather than by hue, so
+         they stay legible in both themes and under reduced color/contrast. -->
+    <symbol id="icon-link-source" viewBox="0 0 24 24">
+      <circle cx="5" cy="12" r="3" fill="currentColor" />
+      <circle cx="19" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+      <path d="M8 12 L10.67 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.9" />
+      <path d="M10.67 12 L13.33 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.55" />
+      <path d="M13.33 12 L16 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.25" />
+    </symbol>
+    <symbol id="icon-link-target" viewBox="0 0 24 24">
+      <circle cx="5" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+      <circle cx="19" cy="12" r="3" fill="currentColor" />
+      <path d="M8 12 L10.67 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.25" />
+      <path d="M10.67 12 L13.33 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.55" />
+      <path d="M13.33 12 L16 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.9" />
+    </symbol>
+    <symbol id="icon-link-gradient" viewBox="0 0 24 24">
+      <circle cx="5" cy="12" r="3" fill="currentColor" />
+      <circle cx="19" cy="12" r="3" fill="currentColor" />
+      <path d="M8 12 L10.67 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.35" />
+      <path d="M10.67 12 L13.33 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.6" />
+      <path d="M13.33 12 L16 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.85" />
+    </symbol>
+    <symbol id="icon-link-neutral" viewBox="0 0 24 24">
+      <circle cx="5" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+      <circle cx="19" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+      <path d="M8 12 L16 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-opacity="0.5" />
     </symbol>
   </svg>
 
@@ -53,15 +84,6 @@
 
       <section id="controls" aria-labelledby="controls-heading">
         <h2 id="controls-heading">Diagram controls</h2>
-        <div class="control-row">
-          <label for="link-color">Link color</label>
-          <select id="link-color" data-action="update-link-color">
-            <option value="source">Source</option>
-            <option value="target">Target</option>
-            <option value="source-target">Source → target</option>
-            <option value="static">Static</option>
-          </select>
-        </div>
         <div class="control-row">
           <label for="alignment">Alignment</label>
           <select id="alignment" data-action="update-alignment">
@@ -120,6 +142,16 @@
         <button type="button" class="toolbar-button" data-action="palette-next" aria-label="Next palette">
           <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-chevron-right"></use></svg>
         </button>
+        <button
+          type="button"
+          id="links-button"
+          class="toolbar-button"
+          data-action="open-links-dialog"
+          aria-haspopup="dialog"
+        >
+          Links
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-gradient"></use></svg>
+        </button>
       </header>
 
       <div id="diagram" aria-label="Sankey diagram"></div>
@@ -176,6 +208,53 @@
           >
             <span class="palette-option-label">Dark 2</span>
             <span class="swatch-strip"></span>
+          </button>
+        </div>
+        <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
+      </dialog>
+
+      <dialog id="links-dialog" aria-labelledby="links-dialog-heading">
+        <h3 id="links-dialog-heading">Link colors</h3>
+        <div class="choice-options" role="group" aria-label="Link colors">
+          <button
+            type="button"
+            class="choice-option"
+            data-action="set-link-color"
+            data-value="source"
+            aria-pressed="false"
+          >
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-source"></use></svg>
+            <span class="choice-option-label">Source</span>
+          </button>
+          <button
+            type="button"
+            class="choice-option"
+            data-action="set-link-color"
+            data-value="source-target"
+            aria-pressed="false"
+          >
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-gradient"></use></svg>
+            <span class="choice-option-label">Source to target (gradient)</span>
+          </button>
+          <button
+            type="button"
+            class="choice-option"
+            data-action="set-link-color"
+            data-value="target"
+            aria-pressed="false"
+          >
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-target"></use></svg>
+            <span class="choice-option-label">Target</span>
+          </button>
+          <button
+            type="button"
+            class="choice-option"
+            data-action="set-link-color"
+            data-value="static"
+            aria-pressed="false"
+          >
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-link-neutral"></use></svg>
+            <span class="choice-option-label">Neutral</span>
           </button>
         </div>
         <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
