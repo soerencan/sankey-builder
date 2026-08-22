@@ -1,3 +1,5 @@
+import Sortable from "sortablejs";
+
 export interface RowReorderConfig {
 	/** id of the editor box root (e.g. "node-editor"). */
 	rootId: string;

@@ -1,3 +1,12 @@
+import { select } from "d3";
+import {
+	sankey,
+	sankeyCenter,
+	sankeyJustify,
+	sankeyLeft,
+	sankeyLinkHorizontal,
+	sankeyRight,
+} from "d3-sankey";
 import type { SankeyLink, SankeyNode } from "d3-sankey";
 import { aspectRatioOption } from "./aspect-ratio";
 import type { NodeColorResolver } from "./colors";
@@ -43,18 +52,15 @@ type LayoutLink = Omit<SankeyGraphLink, "source" | "target"> & {
 	index: number;
 };
 
-/**
- * Mirrors app.js's alignFn: a name-keyed lookup falling back to justify.
- * Rebuilt on every call (not hoisted to module scope) so nothing touches the
- * `d3` global at module-eval time.
- */
-function alignFn(name: Alignment): typeof d3.sankeyJustify {
-	const table: Partial<Record<Alignment, typeof d3.sankeyJustify>> = {
-		left: d3.sankeyLeft,
-		right: d3.sankeyRight,
-		center: d3.sankeyCenter,
-	};
-	return table[name] ?? d3.sankeyJustify;
+// Mirrors app.js's alignFn: a name-keyed lookup falling back to justify.
+const ALIGN_FNS: Partial<Record<Alignment, typeof sankeyJustify>> = {
+	left: sankeyLeft,
+	right: sankeyRight,
+	center: sankeyCenter,
+};
+
+function alignFn(name: Alignment): typeof sankeyJustify {
+	return ALIGN_FNS[name] ?? sankeyJustify;
 }
 
 /**
@@ -68,8 +74,7 @@ function layout(
 	height: number,
 ): { nodes: LayoutNode[]; links: LayoutLink[] } {
 	const { nodes, links } = structuredClone({ nodes: state.nodes, links: sourceLinks });
-	const graph = d3
-		.sankey<Node, LinkExtra>()
+	const graph = sankey<Node, LinkExtra>()
 		.nodeId((d) => d.id)
 		.nodeAlign(alignFn(state.settings.alignment))
 		.nodeWidth(15)
@@ -95,7 +100,7 @@ function linkStroke(mode: LinkColorMode, nodeColor: NodeColorResolver): (d: Layo
 }
 
 export function renderDiagram(doc: Document, state: State, nodeColor: NodeColorResolver): void {
-	const container = d3.select(doc.getElementById("diagram"));
+	const container = select(doc.getElementById("diagram"));
 	container.html("");
 
 	// d3-sankey's internal bin-by-column step does `new Array(-1)` on an
@@ -147,7 +152,7 @@ export function renderDiagram(doc: Document, state: State, nodeColor: NodeColorR
 
 	linkGroup
 		.append("path")
-		.attr("d", d3.sankeyLinkHorizontal())
+		.attr("d", sankeyLinkHorizontal())
 		.attr("stroke", linkStroke(state.settings.linkColor, nodeColor))
 		.attr("stroke-width", (d) => Math.max(1, d.width));
 

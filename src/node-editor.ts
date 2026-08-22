@@ -1,3 +1,5 @@
+import { select } from "d3";
+import type Sortable from "sortablejs";
 import type { NodeColorResolver } from "./colors";
 import { attachRowSortable, setupRowReorder } from "./row-reorder";
 import type { Node, State } from "./state";
@@ -24,7 +26,7 @@ export function renderNodeEditor(
 	moveNode: (from: number, to: number) => void,
 	previousSortable: Sortable | null,
 ): Sortable | null {
-	const root = d3.select(doc.getElementById("node-editor"));
+	const root = select(doc.getElementById("node-editor"));
 	root.html("");
 	root.append("h3").attr("id", "node-editor-heading").text("Nodes");
 

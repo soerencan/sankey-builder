@@ -18,10 +18,16 @@
 		"@biomejs/biome": "^1.9.0",
 		"@types/d3": "^7.4.0",
 		"@types/d3-sankey": "^0.12.0",
+		"@types/sortablejs": "^1.15.9",
 		"esbuild": "^0.28.0",
 		"happy-dom": "^20.11.0",
 		"typescript": "^5.7.0",
 		"vitest": "^3.0.0"
 	},
-	"trustedDependencies": ["@biomejs/biome"]
+	"trustedDependencies": ["@biomejs/biome"],
+	"dependencies": {
+		"d3": "^7.9.0",
+		"d3-sankey": "^0.12.3",
+		"sortablejs": "^1.15.7"
+	}
 }

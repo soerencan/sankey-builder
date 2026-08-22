@@ -1,3 +1,5 @@
+import { select } from "d3";
+import type Sortable from "sortablejs";
 import { attachRowSortable, setupRowReorder } from "./row-reorder";
 import type { Link, Node, State } from "./state";
 import {
@@ -59,14 +61,14 @@ function renderLinkOptions(
 	// built via cloneNode, which copies attributes only — property-only state
 	// would reset the ghost's selects to the placeholder mid-drag. Safe because
 	// every committed change rebuilds these options from state.
-	const select = d3.select(selectEl);
-	select.selectAll("option").remove();
-	select
+	const sel = select(selectEl);
+	sel.selectAll("option").remove();
+	sel
 		.append("option")
 		.attr("value", "")
 		.attr("selected", selectedId === null ? "" : null)
 		.text("— select —");
-	select
+	sel
 		.selectAll("option.node-option")
 		.data(nodes)
 		.join("option")
@@ -90,7 +92,7 @@ export function renderLinkEditor(
 	moveLink: (from: number, to: number) => void,
 	previousSortable: Sortable | null,
 ): Sortable | null {
-	const root = d3.select(doc.getElementById("link-editor"));
+	const root = select(doc.getElementById("link-editor"));
 	root.html("");
 	root.append("h3").attr("id", "link-editor-heading").text("Links");
 

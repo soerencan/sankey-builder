@@ -1,3 +1,5 @@
+import { select } from "d3";
+import type Sortable from "sortablejs";
 import { createNodeColorResolver } from "./colors";
 import type { IoActions } from "./io-controls";
 import { setupIo } from "./io-controls";
@@ -94,20 +96,20 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	function refresh({ rebuildNodes = true, rebuildLinks = true }: RefreshOptions = {}): void {
 		const nodeColor = createNodeColorResolver(state);
 		const result = validate(state);
-		d3.select(doc.getElementById("error")).text(result.ok ? "" : (result.error ?? ""));
+		select(doc.getElementById("error")).text(result.ok ? "" : (result.error ?? ""));
 
 		// Clear any I/O notice (import or export): it's a one-shot result of the last
 		// action, so the next user action retires it. importDiagram() sets #io-notice
 		// AFTER its own refresh() call, so its message survives that refresh and
 		// clears here on the following action.
-		d3.select(doc.getElementById("io-notice")).text("");
+		select(doc.getElementById("io-notice")).text("");
 
 		// Always persist, even when invalid — see the rationale above.
 		const saved = saveState(win.localStorage, state);
 		// Storage may recover (e.g. quota freed up elsewhere) — clear a
 		// previously shown notice rather than leaving it stuck once saves work
 		// again.
-		d3.select(doc.getElementById("storage-notice")).text(saved ? "" : STORAGE_NOTICE);
+		select(doc.getElementById("storage-notice")).text(saved ? "" : STORAGE_NOTICE);
 
 		if (rebuildNodes) {
 			nodeRowSortable = renderNodeEditor(
@@ -205,19 +207,19 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			// Set AFTER refresh() (which clears #io-notice) so this message survives
 			// the import's own refresh and only retires on the next user action.
 			// Separate from #storage-notice so it doesn't disturb that lifecycle.
-			d3.select(doc.getElementById("io-notice")).text(message);
+			select(doc.getElementById("io-notice")).text(message);
 		},
 		reportImportError(message) {
-			d3.select(doc.getElementById("io-notice")).text(message);
+			select(doc.getElementById("io-notice")).text(message);
 		},
 		reportExportError(message) {
-			d3.select(doc.getElementById("io-notice")).text(message);
+			select(doc.getElementById("io-notice")).text(message);
 		},
 		reportExportSuccess(filename) {
 			// Not preceded by refresh() (export doesn't touch state), so no risk of
 			// this being cleared before it's shown; it retires the same way import's
 			// notice does, on the next refresh()-triggering user action.
-			d3.select(doc.getElementById("io-notice")).text(`Exported ${filename}.`);
+			select(doc.getElementById("io-notice")).text(`Exported ${filename}.`);
 		},
 	};
 

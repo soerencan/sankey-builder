@@ -1,12 +1,8 @@
 // @vitest-environment happy-dom
 
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import Sortable from "sortablejs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { attachRowSortable } from "../src/row-reorder";
-import { loadSortableGlobal } from "./helpers/sortable-global";
-
-beforeAll(() => {
-	loadSortableGlobal();
-});
 
 beforeEach(() => {
 	document.body.innerHTML = '<div id="rows"></div>';

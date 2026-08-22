@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { STORAGE_KEY, loadState, saveState } from "../src/persist";
 import { defaultState } from "../src/state";
 
-// No d3-global helper import in this file — proves persist.ts (and its
-// palette.ts dependency, isPaletteKey) stay d3-free at both module-eval and
-// call time.
+// No import from colors.ts (or anything importing it) in this file — proves
+// persist.ts (and its palette.ts dependency, isPaletteKey) stay d3-free at
+// both module-eval and call time.
 
 /** Minimal in-memory stand-in for the `Storage` interface. */
 function fakeLocalStorage(initial: Record<string, string> = {}): Storage {

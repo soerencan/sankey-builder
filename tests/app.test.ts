@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import Sortable from "sortablejs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppHandle } from "../src/app";
 import { startApp } from "../src/app";
 import { serializeState } from "../src/io";
@@ -9,9 +10,7 @@ import { STORAGE_KEY } from "../src/persist";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../src/preview-resizer";
 import { defaultState } from "../src/state";
 import { ASPECT_RATIO_OPTIONS, LINK_COLOR_OPTIONS } from "../src/toolbar";
-import { loadD3Global } from "./helpers/d3-global";
 import { bodyMarkup } from "./helpers/fixture";
-import { loadSortableGlobal } from "./helpers/sortable-global";
 
 // Pinned verbatim from src/app.ts's STORAGE_NOTICE — app.ts doesn't export
 // it, so this hardcodes (and thereby pins) the user-visible copy.
@@ -21,11 +20,6 @@ const STORAGE_NOTICE =
 	"try freeing up space or leaving private/incognito mode.";
 
 let app: AppHandle | undefined;
-
-beforeAll(() => {
-	loadD3Global();
-	loadSortableGlobal();
-});
 
 beforeEach(() => {
 	document.body.innerHTML = bodyMarkup();
@@ -1111,6 +1105,14 @@ describe("application integration", () => {
 	// a drop target, and invoking the registered onEnd (as Sortable itself
 	// would once a real drag completes) commits the same state/DOM/storage
 	// change the old pointer-drag tests asserted.
+	//
+	// row-reorder.ts's onEnd handler only reads oldIndex/newIndex off the
+	// event, so these synthetic events omit every other SortableEvent field —
+	// fakeSortableEvent casts past that rather than constructing a full Event.
+	const fakeSortableEvent = (
+		event: Partial<Pick<Sortable.SortableEvent, "oldIndex" | "newIndex">>,
+	): Sortable.SortableEvent => event as unknown as Sortable.SortableEvent;
+
 	it("wires a SortableJS instance onto each rows container with the shared drag options", () => {
 		app = startApp(document);
 
@@ -1141,7 +1143,8 @@ describe("application integration", () => {
 		// row class, so the two instances never share a group and a drag can
 		// never be dropped from one box into the other. Sortable normalizes the
 		// string `group` option it was given into a `{name, ...}` object on the
-		// instance — cast to read that runtime shape back out (see global.d.ts).
+		// instance — cast (@types/sortablejs still types `group` as the string
+		// input, not that runtime shape) to read it back out.
 		const groupName = (instance: Sortable) =>
 			(instance.options.group as unknown as { name: string }).name;
 		expect(groupName(nodeSortable)).toBe("node-row");
@@ -1166,7 +1169,7 @@ describe("application integration", () => {
 		// Sortable has already reordered the DOM by the time onEnd fires for a
 		// real drag; the handler itself only needs the before/after indices, so
 		// a synthetic event is enough to exercise the commit path in isolation.
-		onEnd({ oldIndex: 0, newIndex: 2 });
+		onEnd(fakeSortableEvent({ oldIndex: 0, newIndex: 2 }));
 
 		expect(nodeNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
 		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
@@ -1192,7 +1195,7 @@ describe("application integration", () => {
 		const onEnd = Sortable.get(linkRows)?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
-		onEnd({ oldIndex: 0, newIndex: 1 });
+		onEnd(fakeSortableEvent({ oldIndex: 0, newIndex: 1 }));
 
 		expect(linkValues()).toEqual(["6", "10", "14"]);
 		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
@@ -1245,10 +1248,10 @@ describe("application integration", () => {
 		const onEnd = instance?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
-		onEnd({ oldIndex: 1, newIndex: 1 });
-		onEnd({});
-		onEnd({ oldIndex: 1 });
-		onEnd({ newIndex: 1 });
+		onEnd(fakeSortableEvent({ oldIndex: 1, newIndex: 1 }));
+		onEnd(fakeSortableEvent({}));
+		onEnd(fakeSortableEvent({ oldIndex: 1 }));
+		onEnd(fakeSortableEvent({ newIndex: 1 }));
 
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 		// Still the same instance on the same container — none of the no-op

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PALETTE_LABELS, PALETTE_ORDER, isPaletteKey } from "../src/palette";
 
-// No d3-global helper import in this file — palette.ts (unlike colors.ts) is
+// No import from colors.ts in this file — palette.ts (unlike colors.ts) is
 // d3-free at both module-eval and call time, same as persist.ts which
 // depends on that.
 

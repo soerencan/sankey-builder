@@ -1,14 +1,9 @@
 // @vitest-environment happy-dom
 
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createNodeColorResolver } from "../src/colors";
 import { renderDiagram } from "../src/render";
 import { defaultState } from "../src/state";
-import { loadD3Global } from "./helpers/d3-global";
-
-beforeAll(() => {
-	loadD3Global();
-});
 
 beforeEach(() => {
 	document.body.innerHTML = '<section id="diagram" aria-label="Sankey diagram"></section>';

@@ -1,20 +1,13 @@
 // @vitest-environment happy-dom
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AppHandle } from "../src/app";
 import { startApp } from "../src/app";
 import { STORAGE_KEY } from "../src/persist";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../src/preview-resizer";
-import { loadD3Global } from "./helpers/d3-global";
 import { bodyMarkup } from "./helpers/fixture";
-import { loadSortableGlobal } from "./helpers/sortable-global";
 
 let app: AppHandle | undefined;
-
-beforeAll(() => {
-	loadD3Global();
-	loadSortableGlobal();
-});
 
 beforeEach(() => {
 	document.body.innerHTML = bodyMarkup();

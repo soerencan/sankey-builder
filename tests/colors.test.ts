@@ -1,11 +1,7 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { schemeCategory10, schemeDark2, schemeObservable10, schemeSet2, schemeTableau10 } from "d3";
+import { describe, expect, it } from "vitest";
 import { createNodeColorResolver, paletteColors } from "../src/colors";
 import { defaultState } from "../src/state";
-import { loadD3Global } from "./helpers/d3-global";
-
-beforeAll(() => {
-	loadD3Global();
-});
 
 describe("createNodeColorResolver", () => {
 	it("resolves the same node id to the same color across separate instances", () => {
@@ -32,10 +28,10 @@ describe("createNodeColorResolver", () => {
 
 describe("paletteColors", () => {
 	it("returns the real d3 scheme array for each palette", () => {
-		expect(paletteColors("observable10")).toEqual(d3.schemeObservable10);
-		expect(paletteColors("tableau10")).toEqual(d3.schemeTableau10);
-		expect(paletteColors("category10")).toEqual(d3.schemeCategory10);
-		expect(paletteColors("set2")).toEqual(d3.schemeSet2);
-		expect(paletteColors("dark2")).toEqual(d3.schemeDark2);
+		expect(paletteColors("observable10")).toEqual(schemeObservable10);
+		expect(paletteColors("tableau10")).toEqual(schemeTableau10);
+		expect(paletteColors("category10")).toEqual(schemeCategory10);
+		expect(paletteColors("set2")).toEqual(schemeSet2);
+		expect(paletteColors("dark2")).toEqual(schemeDark2);
 	});
 });
