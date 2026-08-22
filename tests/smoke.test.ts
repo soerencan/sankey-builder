@@ -316,6 +316,72 @@ describe("artifact smoke test", () => {
 		}
 	});
 
+	it("boots with exactly one theme option pressed, matching the default (System)", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const pressed = Array.from(
+			document.querySelectorAll<HTMLButtonElement>('[data-action="set-theme"]'),
+		).filter((option) => option.getAttribute("aria-pressed") === "true");
+
+		expect(pressed).toHaveLength(1);
+		expect(pressed[0]?.dataset.value).toBe(defaultState().settings.theme);
+		expect(document.getElementById("theme-button")?.getAttribute("aria-label")).toBe(
+			"Theme: System",
+		);
+	});
+
+	it("choosing Light in the theme dialog sets data-theme, persists it, updates the button, and closes with focus back on it", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const themeButton = document.getElementById("theme-button");
+		themeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
+		expect(dialog.open).toBe(true);
+		const lightOption = dialog.querySelector<HTMLButtonElement>('[data-value="light"]');
+		lightOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.theme).toBe("light");
+		expect(themeButton?.getAttribute("aria-label")).toBe("Theme: Light");
+		expect(lightOption?.getAttribute("aria-pressed")).toBe("true");
+		expect(dialog.querySelector('[data-value="auto"]')?.getAttribute("aria-pressed")).toBe("false");
+		expect(dialog.open).toBe(false);
+		expect(document.activeElement).toBe(themeButton);
+	});
+
+	it("choosing System in the theme dialog removes data-theme entirely", () => {
+		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
+		const globalEval = eval;
+		globalEval(bundle);
+
+		const themeButton = document.getElementById("theme-button");
+		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
+
+		// Start from Light so the System transition actually removes the attribute
+		// rather than it never having been set.
+		themeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		dialog
+			.querySelector<HTMLButtonElement>('[data-value="light"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+
+		themeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		dialog
+			.querySelector<HTMLButtonElement>('[data-value="auto"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
+		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		expect(stored.settings.theme).toBe("auto");
+		expect(themeButton?.getAttribute("aria-label")).toBe("Theme: System");
+	});
+
 	it("round-trips a basic mutation: add node updates editor, diagram, and storage", () => {
 		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
 		const globalEval = eval;
@@ -595,9 +661,12 @@ describe("artifact smoke test", () => {
 		globalEval(bundle);
 
 		// Set a distinct current theme so import-preserves-theme is unambiguous.
-		const themeSelect = document.getElementById("theme") as HTMLSelectElement;
-		themeSelect.value = "light";
-		themeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+		document
+			.getElementById("theme-button")
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		document
+			.querySelector('[data-action="set-theme"][data-value="light"]')
+			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
 		const payload = {
 			nodes: [

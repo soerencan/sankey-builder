@@ -71,14 +71,30 @@ body {
   color: var(--ink);
 }
 
+/* One line at every supported width: h1 + the theme button, space-between so
+   the button stays pinned to the trailing edge. */
 .app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border);
 }
 
 .app-header h1 {
   margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 1.25rem;
+}
+
+/* Sized to match the diagram toolbar's own buttons (.toolbar-button, shared
+   class) even though this one sits outside .diagram-panel. */
+#theme-button {
+  flex: 0 0 auto;
 }
 
 #error {

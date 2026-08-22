@@ -39,26 +39,6 @@
     return (node) => scale(node.id);
   }
 
-  // src/controls.ts
-  function syncControls(state2) {
-    const root = document.getElementById("controls");
-    if (!root) return;
-    const themeSelect = root.querySelector("#theme");
-    if (themeSelect) themeSelect.value = state2.settings.theme;
-  }
-  function setupControls(state2, actions) {
-    const root = document.getElementById("controls");
-    if (!root) return;
-    syncControls(state2);
-    root.addEventListener("change", (event) => {
-      if (!(event.target instanceof HTMLSelectElement)) return;
-      const { action } = event.target.dataset;
-      if (action === "update-theme") {
-        actions.setTheme(event.target.value);
-      }
-    });
-  }
-
   // src/state.ts
   function isComplete(link) {
     return link.source !== null && link.target !== null;
@@ -903,6 +883,53 @@ ${xml}`;
     return { open, close };
   }
 
+  // src/theme-control.ts
+  var THEME_OPTIONS = {
+    auto: { label: "System", iconId: "icon-theme-system" },
+    light: { label: "Light", iconId: "icon-theme-light" },
+    dark: { label: "Dark", iconId: "icon-theme-dark" }
+  };
+  function isThemeKey(value) {
+    return typeof value === "string" && Object.hasOwn(THEME_OPTIONS, value);
+  }
+  function syncThemeControl(state2) {
+    const theme = state2.settings.theme;
+    const { label, iconId } = THEME_OPTIONS[theme];
+    const button = document.getElementById("theme-button");
+    if (button) {
+      const use = button.querySelector("use");
+      use?.setAttribute("href", `#${iconId}`);
+      button.setAttribute("aria-label", `Theme: ${label}`);
+    }
+    const options = Array.from(
+      document.querySelectorAll('[data-action="set-theme"]')
+    );
+    for (const option of options) {
+      option.setAttribute("aria-pressed", option.dataset.value === theme ? "true" : "false");
+    }
+  }
+  function setupThemeControl(state2, actions) {
+    const button = document.getElementById("theme-button");
+    const dialogEl = document.getElementById("theme-dialog");
+    if (!button || !(dialogEl instanceof HTMLDialogElement)) return;
+    const dialog = setupDialog(dialogEl);
+    function handleClick(event) {
+      if (!(event.target instanceof Element)) return;
+      const trigger = event.target.closest("[data-action]");
+      if (!trigger) return;
+      const { action, value } = trigger.dataset;
+      if (action === "open-theme-dialog") {
+        dialog.open(trigger);
+      } else if (action === "set-theme" && isThemeKey(value)) {
+        actions.setTheme(value);
+        syncThemeControl(state2);
+        dialog.close();
+      }
+    }
+    button.addEventListener("click", handleClick);
+    dialogEl.addEventListener("click", handleClick);
+  }
+
   // src/toolbar.ts
   var SWATCH_COUNT = 5;
   var LINK_COLOR_OPTIONS = {
@@ -1079,7 +1106,6 @@ ${xml}`;
       state.settings.palette = imported.settings.palette;
       state.settings.linkColor = imported.settings.linkColor;
       state.settings.alignment = imported.settings.alignment;
-      syncControls(state);
       syncToolbar(state);
       refresh();
       let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
@@ -1096,7 +1122,7 @@ ${xml}`;
       d3.select("#io-notice").text(`Exported ${filename}.`);
     }
   };
-  var controlsActions = {
+  var themeControlActions = {
     setTheme(value) {
       state.settings.theme = value;
       applyTheme(value);
@@ -1122,12 +1148,13 @@ ${xml}`;
     applyTheme(state.settings.theme);
     setupNodeEditor(nodeEditorActions);
     setupLinkEditor(linkEditorActions, state);
-    setupControls(state, controlsActions);
+    setupThemeControl(state, themeControlActions);
     setupToolbar(state, toolbarActions);
     setupIo(state, ioActions);
     setupResizer();
     refresh();
     syncToolbar(state);
+    syncThemeControl(state);
   }
   init();
 })();

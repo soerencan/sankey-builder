@@ -1,6 +1,4 @@
 import { createNodeColorResolver } from "./colors";
-import type { ControlsActions } from "./controls";
-import { setupControls, syncControls } from "./controls";
 import type { IoActions } from "./io-controls";
 import { setupIo } from "./io-controls";
 import type { LinkEditorActions } from "./link-editor";
@@ -22,6 +20,8 @@ import {
 	updateLink,
 } from "./state";
 import { applyTheme } from "./theme";
+import type { ThemeControlActions } from "./theme-control";
+import { setupThemeControl, syncThemeControl } from "./theme-control";
 import type { ToolbarActions } from "./toolbar";
 import { setupToolbar, syncToolbar } from "./toolbar";
 import { validate } from "./validate";
@@ -153,8 +153,8 @@ const ioActions: IoActions = {
 		state.settings.linkColor = imported.settings.linkColor;
 		state.settings.alignment = imported.settings.alignment;
 		// theme is deliberately untouched — a per-browser preference, not
-		// diagram data, so it survives an import.
-		syncControls(state);
+		// diagram data, so it survives an import. No syncThemeControl call
+		// here for that reason: nothing about the theme control could go stale.
 		syncToolbar(state);
 		refresh();
 		let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
@@ -178,7 +178,7 @@ const ioActions: IoActions = {
 	},
 };
 
-const controlsActions: ControlsActions = {
+const themeControlActions: ThemeControlActions = {
 	setTheme(value) {
 		state.settings.theme = value;
 		applyTheme(value);
@@ -208,14 +208,16 @@ function init(): void {
 	applyTheme(state.settings.theme);
 	setupNodeEditor(nodeEditorActions);
 	setupLinkEditor(linkEditorActions, state);
-	setupControls(state, controlsActions);
+	setupThemeControl(state, themeControlActions);
 	setupToolbar(state, toolbarActions);
 	setupIo(state, ioActions);
 	setupResizer();
 	refresh();
-	// setupToolbar wires listeners only (see its own doc) — sync the initial
-	// preview/dialog rows here, against the state loadState() just restored.
+	// setupToolbar/setupThemeControl wire listeners only (see their own docs) —
+	// sync the initial preview/dialog rows here, against the state
+	// loadState() just restored.
 	syncToolbar(state);
+	syncThemeControl(state);
 }
 
 init();

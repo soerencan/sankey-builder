@@ -19,10 +19,13 @@ covers it.
 
 ## Theme
 
-- [ ] On Auto theme, the page visually matches the OS light/dark preference.
-- [ ] With Auto selected, flipping the OS light/dark preference updates the page live, without reload.
+- [ ] The app-header theme button and dialog show the current mode's icon/label (System, Light, or Dark) and stay in sync after each choice.
+- [ ] On System (Auto), the page visually matches the OS light/dark preference — the mechanism (no `data-theme` attribute, `prefers-color-scheme` media query) is unchanged by this move.
+- [ ] With System selected, flipping the OS light/dark preference updates the page live, without reload.
 - [ ] In dark mode, error text and the node/link delete buttons render legibly — no low-contrast red-on-dark.
 - [ ] Native form controls (selects) render dark chrome in dark mode and light chrome in light mode, matching the theme.
+- [ ] The app header (title plus theme button) stays on one line at 360px, with no wrapping or clipping.
+- [ ] With the theme dialog open, pressing Escape closes it (native `<dialog>` cancel behavior — not exercised by the automated suite, since happy-dom doesn't simulate a real Escape-triggered cancel).
 
 ## Cold start / file:// load
 

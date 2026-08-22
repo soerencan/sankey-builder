@@ -89,11 +89,80 @@
       <rect x="10.5" y="8" width="3" height="8" rx="1" fill="currentColor" />
       <rect x="19.5" y="2" width="3" height="20" rx="1" fill="currentColor" />
     </symbol>
+
+    <!-- Theme mode pictograms. System is a half-filled circle (outline plus a
+         solid right half) rather than a monitor glyph, echoing the sun/moon
+         pair's own circular shape so all three read as one family. -->
+    <symbol id="icon-theme-system" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+      <path d="M12 3 A9 9 0 0 1 12 21 Z" fill="currentColor" />
+    </symbol>
+    <symbol id="icon-theme-light" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2" />
+      <path d="M12 2 L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M12 19 L12 22" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M2 12 L5 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M19 12 L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M4.93 4.93 L7.05 7.05" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M16.95 16.95 L19.07 19.07" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M4.93 19.07 L7.05 16.95" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M16.95 7.05 L19.07 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    </symbol>
+    <symbol id="icon-theme-dark" viewBox="0 0 24 24">
+      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" fill="currentColor" />
+    </symbol>
   </svg>
 
   <header class="app-header">
     <h1>Sankey Builder</h1>
+    <button
+      type="button"
+      id="theme-button"
+      class="toolbar-button"
+      data-action="open-theme-dialog"
+      aria-haspopup="dialog"
+      aria-label="Theme: System"
+    >
+      <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-theme-system"></use></svg>
+    </button>
   </header>
+
+  <dialog id="theme-dialog" aria-labelledby="theme-dialog-heading">
+    <h3 id="theme-dialog-heading">Theme</h3>
+    <div class="choice-options" role="group" aria-label="Theme">
+      <button
+        type="button"
+        class="choice-option"
+        data-action="set-theme"
+        data-value="auto"
+        aria-pressed="true"
+      >
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-theme-system"></use></svg>
+        <span class="choice-option-label">System</span>
+      </button>
+      <button
+        type="button"
+        class="choice-option"
+        data-action="set-theme"
+        data-value="light"
+        aria-pressed="false"
+      >
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-theme-light"></use></svg>
+        <span class="choice-option-label">Light</span>
+      </button>
+      <button
+        type="button"
+        class="choice-option"
+        data-action="set-theme"
+        data-value="dark"
+        aria-pressed="false"
+      >
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-theme-dark"></use></svg>
+        <span class="choice-option-label">Dark</span>
+      </button>
+    </div>
+    <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
+  </dialog>
 
   <div id="error" role="status" aria-live="polite"></div>
   <div id="storage-notice" role="status" aria-live="polite"></div>
@@ -110,14 +179,6 @@
 
       <section id="controls" aria-labelledby="controls-heading">
         <h2 id="controls-heading">Diagram controls</h2>
-        <div class="control-row">
-          <label for="theme">Theme</label>
-          <select id="theme" data-action="update-theme">
-            <option value="auto">Auto</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </div>
       </section>
 
       <!-- App-level actions, deliberately outside the settings boxes above. -->
