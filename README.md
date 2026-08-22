@@ -25,7 +25,8 @@ through in a real browser after any change.
 
 Running the app needs nothing beyond a browser (see Usage above). Developing
 it needs [bun](https://bun.sh) — that's the only required tool. Install
-dependencies once with `bun install`.
+dependencies once with `bun install`. Tooling runs on Node 24 (managed via
+nvm / `.nvmrc`) and Bun 1.3.14 (already pinned in CI).
 
 The app is written in TypeScript under `src/` and bundled into the committed
 `app.js`. **`app.js` is generated — never edit it by hand.** Run `make watch`

@@ -2,6 +2,9 @@
 	"name": "sankey-builder",
 	"private": true,
 	"type": "module",
+	"engines": {
+		"node": ">=24"
+	},
 	"scripts": {
 		"lint": "biome check .",
 		"format": "biome check --write .",
