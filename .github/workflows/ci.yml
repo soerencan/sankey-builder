@@ -29,7 +29,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: make typecheck
 
-  unit-tests:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -37,12 +37,12 @@ jobs:
         with:
           bun-version: 1.3.14
       - run: bun install --frozen-lockfile
-      - run: make test-unit
+      - run: make test
 
-  # smoke.test.ts builds to its own mkdtemp path internally and make
-  # freshness builds to .scratch/; plumbing one output into both isn't worth
-  # it given the build is deterministic, so the double build is equivalent
-  # to a single shared scratch build.
+  # Artifact boot coverage (building app.js and evaluating it) is retired now
+  # that tests/app.test.ts boots the app through startApp() directly instead
+  # of a freshly built bundle; it returns as a small dist/ smoke test in the
+  # upcoming delivery flip (see PLAN.md).
   artifact:
     runs-on: ubuntu-latest
     steps:
@@ -51,5 +51,4 @@ jobs:
         with:
           bun-version: 1.3.14
       - run: bun install --frozen-lockfile
-      - run: make test-smoke
       - run: make freshness

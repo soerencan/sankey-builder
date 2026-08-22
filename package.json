@@ -12,9 +12,7 @@
 		"bundle": "esbuild src/main.ts --bundle --format=iife",
 		"build": "bun run bundle --outfile=app.js",
 		"watch": "bun run bundle --outfile=app.js --watch",
-		"test": "vitest run",
-		"test:unit": "vitest run --exclude tests/smoke.test.ts",
-		"test:smoke": "vitest run tests/smoke.test.ts"
+		"test": "vitest run"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.0",

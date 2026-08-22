@@ -1,12 +1,8 @@
 // @vitest-environment happy-dom
 
-import { execFileSync } from "node:child_process";
-import { readFileSync, rmSync } from "node:fs";
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AppHandle } from "../src/app";
+import { startApp } from "../src/app";
 import { serializeState } from "../src/io";
 import { PALETTE_LABELS } from "../src/palette";
 import { STORAGE_KEY } from "../src/persist";
@@ -14,51 +10,31 @@ import { PREVIEW_HEIGHT_STORAGE_KEY } from "../src/preview-resizer";
 import { defaultState } from "../src/state";
 import { ASPECT_RATIO_OPTIONS, LINK_COLOR_OPTIONS } from "../src/toolbar";
 import { loadD3Global } from "./helpers/d3-global";
+import { bodyMarkup } from "./helpers/fixture";
 import { loadSortableGlobal } from "./helpers/sortable-global";
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
-// Pinned verbatim from src/main.ts's STORAGE_NOTICE — main.ts doesn't export
+// Pinned verbatim from src/app.ts's STORAGE_NOTICE — app.ts doesn't export
 // it, so this hardcodes (and thereby pins) the user-visible copy.
 const STORAGE_NOTICE =
 	"Changes can't be saved in this browser right now (storage may be full or unavailable). " +
 	"The diagram keeps working, but edits won't survive closing or reloading this tab — " +
 	"try freeing up space or leaving private/incognito mode.";
 
-let bundle: string;
-let bodyMarkup: string;
-let tempDir: string;
+let app: AppHandle | undefined;
 
-beforeAll(async () => {
+beforeAll(() => {
 	loadD3Global();
 	loadSortableGlobal();
-
-	// A fresh scratch build, never the committed app.js — the whole point of
-	// this test is to catch a stale/missing bundle that `make check`'s cmp
-	// guard hasn't run yet. Built via the same "bundle" script the build,
-	// watch, and freshness Makefile targets use, so the esbuild option set
-	// can't drift from what actually produced the committed artifact.
-	tempDir = await mkdtemp(join(tmpdir(), "sankey-builder-smoke-"));
-	const outfile = join(tempDir, "app.js");
-	execFileSync("bun", ["run", "bundle", `--outfile=${outfile}`], { cwd: REPO_ROOT });
-	bundle = readFileSync(outfile, "utf8");
-
-	// Real markup, not a hand-rolled fixture, so the smoke test exercises the
-	// actual element ids/structure — but strip the <script> tags, since
-	// evaluating this bundle directly is the whole point.
-	const html = readFileSync(join(REPO_ROOT, "index.html"), "utf8");
-	const bodyMatch = /<body>([\s\S]*)<\/body>/.exec(html);
-	if (!bodyMatch) throw new Error("index.html has no <body> to extract");
-	bodyMarkup = bodyMatch[1].replace(/<script[\s\S]*?<\/script>\s*/g, "");
-}, 30_000);
-
-afterAll(() => {
-	rmSync(tempDir, { recursive: true, force: true });
 });
 
 beforeEach(() => {
-	document.body.innerHTML = bodyMarkup;
+	document.body.innerHTML = bodyMarkup();
 	localStorage.clear();
+});
+
+afterEach(() => {
+	app?.destroy();
+	app = undefined;
 });
 
 function removeAllNodes(): void {
@@ -71,7 +47,7 @@ function removeAllNodes(): void {
 	}
 }
 
-describe("artifact smoke test", () => {
+describe("application integration", () => {
 	it("places the diagram before the data editor and has no obsolete resize control", () => {
 		const diagramPanel = document.querySelector(".diagram-panel");
 		const dataCard = document.querySelector(".data-card");
@@ -86,9 +62,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("resizes only the preview through the splitter controls", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const diagram = document.getElementById("diagram");
 		const viewBoxBefore = diagram?.querySelector("svg")?.getAttribute("viewBox");
@@ -103,12 +77,9 @@ describe("artifact smoke test", () => {
 	});
 
 	it("boots without throwing and renders the default diagram", () => {
-		// Indirect eval, same pattern as the d3-global helper: runs as global
-		// code so the IIFE's own top-level `init()` call executes against the
-		// real `document`/`localStorage` rather than this module's scope.
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		expect(() => globalEval(bundle)).not.toThrow();
+		expect(() => {
+			app = startApp(document);
+		}).not.toThrow();
 
 		const diagram = document.getElementById("diagram");
 		expect(diagram?.querySelector("svg")).not.toBeNull();
@@ -121,9 +92,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("palette-next advances the carousel: state, preview label, and rendered colors all follow", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const fills = () =>
 			Array.from(document.querySelectorAll("#diagram svg rect")).map((r) => r.getAttribute("fill"));
@@ -142,9 +111,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("palette-prev wraps from the first palette (observable10) to the last (dark2)", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		document
 			.querySelector<HTMLButtonElement>('[data-action="palette-prev"]')
@@ -157,9 +124,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("clicking the palette preview opens the palette dialog", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const dialog = document.getElementById("palette-dialog");
 		expect(dialog).toBeInstanceOf(HTMLDialogElement);
@@ -185,9 +150,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("choosing a palette in the dialog sets state, updates aria-pressed, and closes with focus back on the preview", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const preview = document.getElementById("palette-preview");
 		preview?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -207,9 +170,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("clicking the links button opens the links dialog", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const dialog = document.getElementById("links-dialog");
 		expect(dialog).toBeInstanceOf(HTMLDialogElement);
@@ -235,9 +196,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("choosing Neutral in the links dialog sets state, re-renders static links, and closes with focus back on the links button", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const linksButton = document.getElementById("links-button");
 		linksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -270,9 +229,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("choosing the gradient option in the links dialog re-renders links with per-link gradient strokes", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const linksButton = document.getElementById("links-button");
 		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
@@ -305,9 +262,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("boots with exactly one alignment value pressed, matching the default alignment, on both the wide and narrow copies", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		// Two DOM copies of each alignment button exist (the wide toolbar's
 		// .align-group and the narrow Diagram dialog) — syncToolbar keeps both
@@ -323,9 +278,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("clicking Left in the alignment group sets state, updates aria-pressed on both copies, and re-renders the diagram", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const svgBefore = document.querySelector("#diagram svg");
 		const options = Array.from(
@@ -354,9 +307,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("every alignment button has a non-empty accessible name", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const options = document.querySelectorAll<HTMLButtonElement>(".align-group button");
 		expect(options.length).toBeGreaterThan(0);
@@ -366,9 +317,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("changes the intrinsic diagram and both selectors when an aspect ratio is chosen", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const trigger = document.getElementById("aspect-ratio-button");
 		trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -395,9 +344,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("offers every labelled aspect-ratio preset in the wide picker and narrow Diagram sheet", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		for (const preset of ASPECT_RATIO_OPTIONS) {
 			const copies = document.querySelectorAll<HTMLElement>(
@@ -412,9 +359,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("clicking the Diagram button opens the diagram-options dialog", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const dialog = document.getElementById("display-dialog");
 		expect(dialog).toBeInstanceOf(HTMLDialogElement);
@@ -428,9 +373,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("choosing Gradient in the display dialog re-renders links, syncs both link-color copies, and stays open", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const displayButton = document.getElementById("display-button");
 		displayButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -481,9 +424,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("choosing Left in the display dialog's alignment group persists and stays open", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		document
 			.getElementById("display-button")
@@ -509,9 +450,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("closing the diagram-options dialog via its Close button returns focus to the Diagram button", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const displayButton = document.getElementById("display-button");
 		displayButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -528,9 +467,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("regression: choosing a link color via the links dialog (wide toolbar) still closes it", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const linksButton = document.getElementById("links-button");
 		linksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -549,9 +486,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("boots with exactly one theme option pressed, matching the default (System)", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const pressed = Array.from(
 			document.querySelectorAll<HTMLButtonElement>('[data-action="set-theme"]'),
@@ -565,9 +500,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("choosing Light in the theme dialog sets data-theme, persists it, updates the button, and closes with focus back on it", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const themeButton = document.getElementById("theme-button");
 		themeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -588,9 +521,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("choosing System in the theme dialog removes data-theme entirely", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const themeButton = document.getElementById("theme-button");
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
@@ -615,9 +546,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("round-trips a basic mutation: add node updates editor, diagram, and storage", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const addNodeButton = document.querySelector<HTMLButtonElement>('[data-action="add-node"]');
 		expect(addNodeButton).not.toBeNull();
@@ -633,9 +562,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("leaves state untouched on empty/invalid value edits and restores the text on blur", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
@@ -692,9 +619,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("shows an inline, accessible error message for an invalid link value and clears it once valid", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const valueInput = document.querySelector<HTMLInputElement>('.link-value[data-index="0"]');
 		if (!valueInput) throw new Error("unreachable");
@@ -750,9 +675,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("intercepts the 4-decimal cap at beforeinput (block keystroke, truncate paste)", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const valueInput = document.querySelector<HTMLInputElement>('.link-value[data-index="0"]');
 		if (!valueInput) throw new Error("unreachable");
@@ -832,9 +755,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("Add link appends an unassigned row that stays inert until both endpoints are chosen", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
@@ -888,9 +809,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("imports a constructed file: replaces state, rebuilds editors and diagram, preserves theme", async () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		// Set a distinct current theme so import-preserves-theme is unambiguous.
 		document
@@ -956,9 +875,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("rejects a non-diagram file, leaving state and storage untouched, and shows the error", async () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const storedBefore = localStorage.getItem(STORAGE_KEY);
 		const rectsBefore = document.querySelectorAll("#diagram svg rect").length;
@@ -977,9 +894,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("reports import repairs in the notice with the exact counts + adjustments format", async () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const payload = {
 			nodes: [
@@ -1002,9 +917,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("exports the current diagram as a pretty-printed JSON blob download", async () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
 		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
@@ -1045,9 +958,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("announces a successful export via #io-notice", async () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
 		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
@@ -1065,9 +976,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("opens the diagram export dialog and moves focus into its format choices", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const trigger = document.getElementById("diagram-export-button");
 		const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
@@ -1082,9 +991,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("reports 'nothing to export' for SVG and closes the export dialog with focus restored", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		removeAllNodes();
 		expect(document.querySelector("#diagram svg")).toBeNull();
@@ -1107,9 +1014,7 @@ describe("artifact smoke test", () => {
 		// Rasterization itself (Image/canvas) isn't exercisable under happy-dom —
 		// this only proves the empty-diagram guard fires before any of that runs,
 		// same as the SVG export's guard.
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		expect(document.querySelectorAll('[data-action="export-svg"]')).toHaveLength(2);
 		expect(document.querySelectorAll('[data-action="export-png"]')).toHaveLength(2);
@@ -1132,9 +1037,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("keyboard-reorders a node row: order, dropdowns, storage, and focus all follow", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const nodeNames = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
@@ -1171,9 +1074,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("keyboard-reorders a link row: order, storage, and focus all follow", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const linkValues = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#link-editor .link-value")).map(
@@ -1211,9 +1112,7 @@ describe("artifact smoke test", () => {
 	// would once a real drag completes) commits the same state/DOM/storage
 	// change the old pointer-drag tests asserted.
 	it("wires a SortableJS instance onto each rows container with the shared drag options", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const nodeRows = document.querySelector<HTMLElement>("#node-editor .node-rows");
 		const linkRows = document.querySelector<HTMLElement>("#link-editor .link-rows");
@@ -1251,9 +1150,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("committing a node row's Sortable onEnd reorders it: order, dropdowns, and storage all follow", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const nodeNames = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
@@ -1282,9 +1179,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("committing a link row's Sortable onEnd reorders it: order and storage follow", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const linkValues = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#link-editor .link-value")).map(
@@ -1305,9 +1200,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("a cloned row keeps its select/input values (Sortable's drag ghost is a cloneNode)", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		// Sortable builds the floating drag ghost via cloneNode, which copies
 		// attributes but not live properties — selection/value state must
@@ -1340,9 +1233,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("the onEnd no-op guard: a same-index or indexless event moves nothing", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const nodeNames = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
@@ -1366,9 +1257,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("rebuilding the node editor destroys the previous Sortable instance rather than leaking it", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const before = document.querySelector<HTMLElement>("#node-editor .node-rows");
 		if (!before) throw new Error("unreachable");
@@ -1389,9 +1278,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("boundary keyboard move is a no-op (ArrowUp on the first node row)", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const nodeNames = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
@@ -1412,9 +1299,7 @@ describe("artifact smoke test", () => {
 	});
 
 	it("surfaces a storage notice on save failure and clears it once saves recover", () => {
-		// biome-ignore lint/security/noGlobalEval: intentionally evaluating the freshly built artifact
-		const globalEval = eval;
-		globalEval(bundle);
+		app = startApp(document);
 
 		const notice = () => document.getElementById("storage-notice")?.textContent;
 		expect(notice()).toBe("");

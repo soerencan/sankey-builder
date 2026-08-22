@@ -135,7 +135,7 @@ pipeline), so verify per engine which behavior actually occurs.
 
 ## Export / Import
 
-The parse/serialize logic and the DOM wiring are automated (unit + smoke), but
+The parse/serialize logic and the DOM wiring are automated (unit + integration), but
 the real browser download dialog and native file picker aren't reachable from
 happy-dom — verify those, and confirm they work under `file://` where storage
 and origin behavior differ.

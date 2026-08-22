@@ -45,15 +45,14 @@ Available `make` targets:
 | `typecheck` | Type-check with `tsc --noEmit` |
 | `check` | Typecheck plus bundle-freshness check (fails if `app.js` is stale) |
 | `test` | Run all tests |
-| `test-unit` | Run unit tests (excludes the artifact smoke test) |
-| `test-smoke` | Run only the artifact smoke test |
 
-Unit tests in `tests/` import `src/` directly. The smoke test is different:
-it builds a fresh bundle and boots it against the real `index.html` markup
-with the vendored d3, to catch bundling issues the unit tests can't see.
+Most tests in `tests/` import `src/` directly. `tests/app.test.ts` and
+`tests/lifecycle.test.ts` are broader: they boot the application through
+`startApp()` (`src/app.ts`) against the real `index.html` markup with the
+vendored d3/SortableJS, to catch integration issues unit tests can't see.
 
-CI runs four jobs in parallel: lint, typecheck, unit tests, and an artifact
-job (smoke test plus bundle-freshness check).
+CI runs four jobs in parallel: lint, typecheck, tests, and an artifact job
+(bundle-freshness check).
 
 ## Known limitations
 

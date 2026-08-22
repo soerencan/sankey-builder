@@ -1,4 +1,4 @@
-.PHONY: lint format typecheck freshness check build watch test test-unit test-smoke
+.PHONY: lint format typecheck freshness check build watch test
 
 # Lint (no fixes)
 lint:
@@ -15,9 +15,9 @@ typecheck:
 # Build the committed app.js bundle from src/
 #
 # The esbuild option set (bundle, format=iife, no minify, no extra flags)
-# lives once in package.json's "bundle" script; this target, watch,
-# freshness, and tests/smoke.test.ts all invoke it rather than repeating
-# the flags, so the artifact they build/check/exercise can't drift.
+# lives once in package.json's "bundle" script; this target, watch, and
+# freshness all invoke it rather than repeating the flags, so the artifact
+# they build/check can't drift.
 build:
 	bun run build
 
@@ -37,11 +37,3 @@ check: typecheck freshness
 # Run all tests
 test:
 	bun run test
-
-# Run unit tests only (excludes the artifact smoke test)
-test-unit:
-	bun run test:unit
-
-# Run only the artifact smoke test
-test-smoke:
-	bun run test:smoke
