@@ -8,10 +8,14 @@ setting according to its scope:
 
 - Diagram appearance belongs in a toolbar attached to the diagram.
 - The application theme belongs in the application header.
-- The Nodes and Links boxes remain focused on constructing the diagram.
+- Nodes and Links live together in a single Data card focused on constructing
+  the diagram.
 
-The result must work comfortably on mobile and when the resizable desktop
-editor leaves the diagram with limited width.
+The page uses one consistent reading order at every width: the full-width
+diagram comes first, followed by the full-width Data card. The Data card lays
+out Nodes and Links side by side when it has enough room and stacks them when
+it does not. The result must work comfortably on mobile without maintaining a
+second desktop-only layout model.
 
 ## Decisions
 
@@ -65,9 +69,9 @@ Narrow layout:
 ```
 
 Use a container query on the diagram panel rather than a viewport media query.
-This covers both mobile screens and a diagram narrowed by dragging the desktop
-editor divider. Determine the final breakpoint by where the controls actually
-fit; the implemented starting point is 680px after adding diagram export.
+This lets the toolbar respond to the space it actually receives. Determine the
+final breakpoint by where the controls fit; the implemented starting point is
+680px after adding diagram export.
 
 ## Control behavior
 
@@ -127,7 +131,7 @@ surface.
 
 The narrow toolbar contains one **Diagram** button for the less-frequently
 changed diagram settings and exports. Activating it opens a mobile-friendly
-modal or bottom-sheet surface rather than expanding inside the sticky diagram.
+modal or bottom-sheet surface rather than expanding inside the diagram panel.
 
 ```text
 Diagram
@@ -149,7 +153,7 @@ Requirements:
 - Focus must move into it when opened and return to the trigger when closed.
 - Choices must be comfortably tappable on coarse pointers.
 - It must not depend on hover or tooltips for comprehension.
-- It must not increase the height of the sticky diagram while open.
+- It must not increase the height of the diagram panel while open.
 
 ### Theme
 
@@ -181,6 +185,30 @@ Distribute file actions according to what they operate on:
 
 ## Structure and rendering
 
+Use a single-column page structure whose DOM order is also its visual and
+assistive-technology reading order:
+
+```text
+Application header
+Diagram panel (full content width)
+Data card (full content width)
+  Nodes | Links   ← side by side when the card is wide enough
+  Nodes
+  Links           ← stacked when the card is narrow
+```
+
+The diagram is the primary output and therefore appears first. The Data card
+follows it in normal page flow. Use a container query on the Data card for its
+two-section layout rather than coupling the switch to viewport width. This
+also keeps the sections responsive if the app is embedded in a narrower
+container later.
+
+Do not use a desktop editor/diagram split, draggable resizer, stored editor
+width, sticky diagram, content underlay, or compensating scroll padding. The
+page should use ordinary vertical scrolling on desktop and mobile. Removing
+those mechanisms includes removing their markup, styling, setup calls,
+persistence, and directly related dead code.
+
 Introduce a diagram-panel wrapper with a persistent header and a dedicated
 render target:
 
@@ -195,10 +223,9 @@ Do not insert the toolbar directly into the existing `#diagram`. The renderer
 currently clears that element before rebuilding the SVG, which would delete
 the toolbar after every change.
 
-Update the responsive sticky behavior to apply to the complete diagram panel.
-The toolbar's height must be included when calculating the SVG's available
-space under the existing mobile `45vh` cap. The diagram should continue to be
-letterboxed rather than cropped.
+Let the diagram preserve its intrinsic aspect ratio at the available content
+width. It must remain visible in normal document flow and must not be cropped,
+overlaid, or pinned while the user scrolls to the Data card.
 
 Use small inline SVG pictograms with `currentColor` rather than Unicode glyphs
 or a new icon dependency. Icons should have a consistent visual weight and
@@ -247,7 +274,7 @@ remain legible in both themes.
 - Swap the wide controls for the narrow Diagram trigger without wrapping.
 - Implement the labelled link-color, alignment, and SVG/PNG export choices in
   the mobile surface.
-- Adjust sticky sizing and focus behavior.
+- Verify dialog sizing and focus behavior at narrow widths.
 
 ### 5. Remove the old Diagram controls box
 
@@ -257,7 +284,18 @@ remain legible in both themes.
 - Add one grouped SVG/PNG export control to the wide diagram toolbar.
 - Remove obsolete control-row styling if it has no remaining consumers.
 
-### 6. Verify before broader refactoring
+### 6. Establish the diagram-first page layout
+
+- Put the diagram panel before the Data card in the actual DOM.
+- Make both cards span the available content width.
+- Lay out Nodes and Links side by side using a Data-card container query, then
+  stack them when the card itself becomes too narrow.
+- Remove the resizer, editor-width persistence, desktop split layout, sticky
+  positioning, content-underlay treatment, and compensating scroll padding.
+- Confirm live data edits still update the diagram above immediately and do
+  not cause horizontal overflow or unexpected page jumps.
+
+### 7. Verify before broader refactoring
 
 - Run formatting, type checking, unit tests, the smoke test, and bundle
   freshness checks.
@@ -269,17 +307,21 @@ remain legible in both themes.
 ### Desktop
 
 - The separate Diagram controls box no longer exists.
+- The diagram appears first at full content width, with the Data card below it;
+  DOM order and visual order match.
+- Nodes and Links share the Data card and sit side by side when the card is
+  sufficiently wide.
 - Palette, link-color, and alignment changes are available from the diagram
   toolbar and update the diagram immediately.
 - The toolbar remains a single line at all supported diagram widths.
-- Dragging the editor divider across its full range switches toolbar layouts
-  cleanly without clipped or overlapping controls.
 - The theme control is in the application header and retains all three modes.
+- The page has no resizer or stored editor-width behavior and scrolls normally.
 
 ### Mobile and narrow containers
 
-- The diagram remains above the editor and sticky under the existing mobile
-  layout.
+- The diagram remains above the Data card in normal page flow and scrolls away
+  naturally as the user moves down the page.
+- Nodes and Links stack in DOM order when the Data card is narrow.
 - The narrow toolbar contains the palette carousel and one Diagram trigger.
 - Link colors, alignment, and SVG/PNG exports are available in a labelled,
   touch-friendly surface.
@@ -287,7 +329,8 @@ remain legible in both themes.
   toolbar to wrap.
 - Nothing is cropped, overlapped, or horizontally scrollable at 360px, 390px,
   and 768px.
-- Focused editor controls still scroll clear of the sticky diagram.
+- Keyboard focus follows the same diagram-then-Nodes-then-Links reading order
+  shown visually.
 
 ### Compatibility and regression checks
 

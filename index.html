@@ -198,54 +198,6 @@
   <div id="io-notice" role="status" aria-live="polite"></div>
 
   <main class="app-layout">
-    <aside class="editor-column">
-      <section class="data-card" aria-labelledby="data-heading">
-        <header class="data-card-header">
-          <h2 id="data-heading">Data</h2>
-          <div class="data-actions" role="group" aria-label="Data file actions">
-            <button
-              type="button"
-              id="import-button"
-              class="data-action"
-              data-action="import"
-              aria-label="Import data"
-              title="Import data"
-            >
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-import"></use></svg>
-            </button>
-            <button
-              type="button"
-              id="export-button"
-              class="data-action"
-              data-action="export"
-              aria-label="Export data as JSON"
-              title="Export data as JSON"
-            >
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-export"></use></svg>
-            </button>
-            <input type="file" id="import-file" accept=".json,application/json" hidden />
-          </div>
-        </header>
-
-        <section id="node-editor" class="data-section" aria-labelledby="node-editor-heading">
-          <h3 id="node-editor-heading">Nodes</h3>
-        </section>
-
-        <section id="link-editor" class="data-section" aria-labelledby="link-editor-heading">
-          <h3 id="link-editor-heading">Links</h3>
-        </section>
-      </section>
-    </aside>
-
-    <div
-      id="resizer"
-      class="resizer"
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize editor column"
-      tabindex="0"
-    ></div>
-
     <section class="diagram-panel" aria-labelledby="diagram-heading">
       <header class="diagram-toolbar">
         <h2 id="diagram-heading" class="visually-hidden">Diagram</h2>
@@ -563,6 +515,45 @@
         </div>
         <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
       </dialog>
+    </section>
+
+    <section class="data-card" aria-labelledby="data-heading">
+      <header class="data-card-header">
+        <h2 id="data-heading">Data</h2>
+        <div class="data-actions" role="group" aria-label="Data file actions">
+          <button
+            type="button"
+            id="import-button"
+            class="data-action"
+            data-action="import"
+            aria-label="Import data"
+            title="Import data"
+          >
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-import"></use></svg>
+          </button>
+          <button
+            type="button"
+            id="export-button"
+            class="data-action"
+            data-action="export"
+            aria-label="Export data as JSON"
+            title="Export data as JSON"
+          >
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-export"></use></svg>
+          </button>
+          <input type="file" id="import-file" accept=".json,application/json" hidden />
+        </div>
+      </header>
+
+      <div class="data-sections">
+        <section id="node-editor" class="data-section" aria-labelledby="node-editor-heading">
+          <h3 id="node-editor-heading">Nodes</h3>
+        </section>
+
+        <section id="link-editor" class="data-section" aria-labelledby="link-editor-heading">
+          <h3 id="link-editor-heading">Links</h3>
+        </section>
+      </div>
     </section>
   </main>
 

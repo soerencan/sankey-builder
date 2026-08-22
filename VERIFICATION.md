@@ -37,10 +37,14 @@ covers it.
 
 ## Layout feel
 
-- [ ] Dragging the divider between the editor column and the diagram resizes the column smoothly within its 240–640px bounds and reflows the diagram live.
-- [ ] The editor column contains one visually coherent **Data** card with distinct Nodes and Links sections; there are no separate input cards, detached file-actions area, empty leftover box, or stray gap.
+- [ ] At wide widths, the diagram panel appears first and spans the available content width; the Data card follows below at the same width.
+- [ ] The actual DOM, visual, screen-reader, and keyboard order all agree: app header → diagram → Data header/actions → Nodes → Links.
+- [ ] The page contains one visually coherent **Data** card with distinct Nodes and Links sections; there are no separate input cards, detached file-actions area, empty leftover box, or stray gap.
+- [ ] When the Data card is sufficiently wide, Nodes and Links render side by side with balanced usable space; resizing through the Data-card container-query breakpoint stacks them cleanly as Nodes then Links.
 - [ ] The Data header contains Import and Export JSON controls, and both remain visually and semantically associated with the data editor at wide and narrow widths.
-- [ ] The Data header actions do not collide with or wrap the Data title into an awkward multi-line header at 360px, 390px, or a desktop editor width near its 240px minimum.
+- [ ] The Data header actions do not collide with or wrap the Data title into an awkward multi-line header at 360px, 390px, or 768px.
+- [ ] There is no divider/resizer, saved editor-width behavior, sticky diagram, translucent content underlay, or large compensating top scroll padding.
+- [ ] Scrolling is ordinary document scrolling: the diagram moves out of view naturally before the Data sections, without jumps or content passing beneath it.
 
 ## Responsive
 
@@ -48,16 +52,17 @@ Media/container queries do no real layout under happy-dom, so none of this is
 automated — verify in a real browser (resize the window and use device
 emulation).
 
-- [ ] Above 820px: side-by-side layout with a working divider; the diagram panel hugs its own toolbar-plus-SVG height (no extra whitespace below it).
-- [ ] Just below 820px: layout stacks to one column with the **diagram panel (toolbar + SVG) on top** and the editor column below; the divider is gone.
-- [ ] While stacked, scrolling the editor content keeps the diagram panel pinned at the top (sticky), capped at ~45vh **including the toolbar**, with the SVG **letterboxed not cropped** inside the space the toolbar leaves it, and editor rows do not show through the panel's margins.
+- [ ] At desktop widths (for example 1440px and 1024px), the diagram remains first at full content width, with no legacy two-column editor/diagram split or unused gutter.
+- [ ] At 768px, 390px, and 360px, the same diagram-first DOM order is preserved; only controls and the Data card's internal Nodes/Links layout adapt.
+- [ ] Across the Data-card container-query breakpoint, Nodes and Links switch exactly once between side-by-side and stacked layouts, with no intermediate collision, overlap, or awkward sliver column.
 - [ ] No horizontal scrollbar at 360px, 390px, and 768px widths.
-- [ ] Stacked with an EMPTY diagram (delete all links at phone width): the diagram box collapses to a small placeholder rather than an opaque ~480px block (the toolbar above it stays visible and usable), and the editors below stay usable.
-- [ ] Focus-under-sticky at phone width: Tab through the editor controls and confirm each focused field scrolls clear of the sticky diagram panel, never hidden behind it.
-- [ ] On desktop, drag the column narrow (~240px): link rows wrap to two lines (source/target on top; handle, value, delete below with the handle leftmost). The same wrap appears purely from column width, independent of window width.
+- [ ] With an EMPTY diagram (delete all links at phone width), the diagram box collapses to an appropriate placeholder rather than leaving an excessive blank block; the toolbar and Data card remain usable.
+- [ ] At phone width, Tab through the entire page and confirm focused controls scroll into view normally, with no sticky overlay obscuring them and no unexpected scroll jump.
+- [ ] Narrow the Data card until a link row wraps to two lines (source/target on top; handle, value, delete below with the handle leftmost). The wrap responds to the containing card/section width rather than an unrelated viewport breakpoint.
 - [ ] Tab order through a wrapped link row is still handle → source → target → value → delete.
 - [ ] On a real phone (coarse pointer): buttons, the drag handles, selects, and inputs are comfortably tappable (~44px), with slightly larger row spacing.
-- [ ] Dark mode in the stacked layout: the sticky diagram panel's background (toolbar and diagram both) matches the surface, no light seams.
+- [ ] In dark mode, the diagram and Data surfaces match cleanly with no light seams or content visible through margins.
+- [ ] Edit node names, link endpoints/values, order, palette, link color, and alignment while the Data card is both side-by-side and stacked; every valid change updates the full-width diagram immediately without changing page order or causing overflow.
 
 ## Diagram toolbar
 
@@ -77,12 +82,11 @@ emulation).
 ## Diagram toolbar — narrow mode
 
 The wide/narrow swap is a container query on `.diagram-panel` itself
-(`@container diagram-panel (max-width: 540px)`, in style.css's "Diagram
-toolbar" section — that's the only place the 680px constant lives), not a
-viewport media query. happy-dom doesn't evaluate container queries, so none
-of this is automated.
+(`@container diagram-panel (max-width: 680px)` in style.css's "Diagram
+toolbar" section), not a viewport media query. happy-dom doesn't evaluate
+container queries, so none of this is automated.
 
-- [ ] On desktop, drag the divider so the diagram panel's width sweeps from its narrowest (~240px) to its widest (~640px): the wide Links button + alignment group + Export diagram control and the narrow Diagram button swap cleanly at one width, with no point in between where controls are clipped, overlapping, or wrapped onto a second line.
+- [ ] Resize the browser through the diagram toolbar's container-query breakpoint: the wide Links button + alignment group + Export diagram control and the narrow Diagram button swap cleanly at one width, with no point where controls clip, overlap, or wrap onto a second line.
 - [ ] If the swap happens too early or too late relative to where the wide row actually stops fitting, tune the 680px value in style.css rather than filing it as a bug.
 - [ ] No horizontal scrollbar appears at 360px, 390px, or 768px viewport widths with the narrow toolbar showing.
 - [ ] At 360px, 390px, and 768px, whichever toolbar representation the diagram container selects remains exactly one line tall; no control wraps, overlaps, clips, or forces horizontal page overflow.
@@ -90,10 +94,9 @@ of this is automated.
 - [ ] The Diagram sheet contains all narrow-mode diagram actions: labelled Link color choices, labelled Alignment choices, and clearly labelled SVG and PNG export actions.
 - [ ] Choosing a link color or alignment option inside the Diagram sheet updates the diagram immediately, WITHOUT closing the sheet — repeated taps across both groups keep it open so several changes can be made in one visit.
 - [ ] Choosing SVG or PNG from the Diagram sheet performs the requested download and leaves any resulting success/error feedback visible after the sheet closes.
-- [ ] The sticky diagram panel's rendered height does not change while the Diagram sheet is open (the sheet is a top-layer overlay, not part of panel layout).
+- [ ] The diagram panel's rendered height does not change while the Diagram sheet is open (the sheet is a top-layer overlay, not part of panel layout).
 - [ ] With the Diagram sheet open, pressing Escape closes it; Tab/Shift+Tab reach every interactive choice, Enter/Space activates controls, and all rows/buttons remain comfortable touch targets (~44px).
 - [ ] After closing the Diagram sheet (format choice, Close button, backdrop click, or Escape), focus visibly returns to the Diagram button.
-- [ ] Confirm `.diagram-panel`'s new `container-type: inline-size` doesn't break its `position: sticky` behavior in the stacked mobile layout (containment can interact with sticky positioning in some engines) — re-check the "diagram panel pinned at the top while scrolling" behavior from the Responsive section above with this change in place.
 - [ ] Link color and alignment choices made in the Diagram sheet stay in sync with the wide toolbar's Links button/alignment group when the layout swaps back to wide (e.g. widen the window after choosing Neutral in Diagram) — both copies reflect the same state.
 - [ ] Coarse-pointer targets (both toolbar buttons and the Diagram sheet's option rows) are comfortably tappable (~44px) on a real touch device.
 
@@ -152,4 +155,4 @@ and origin behavior differ.
 - [ ] Export PNG on an empty diagram (delete all links first): clicking Export PNG downloads nothing; `#io-notice` shows "Nothing to export — the diagram is empty."
 - [ ] `file://` PNG export: double-click `index.html` from disk, click Export PNG → the download still lands in Downloads (no console errors about blob URLs, canvas tainting, or the object-URL lifecycle).
 - [ ] Safari PNG export specifically: repeat the above (served and `file://`) in Safari — canvas + SVG rasterization (drawImage of an svg: URL, toBlob) is the part most likely to diverge from Chrome/Firefox; confirm the PNG downloads and its colors/dimensions match.
-- [ ] Feedback from both contexts appears in the shared status toast: import/JSON notices and SVG/PNG success or empty-diagram errors remain visible after menus/sheets close, and the toast is not hidden beneath the sticky diagram panel at 360px or 390px.
+- [ ] Feedback from both contexts appears in the shared status toast: import/JSON notices and SVG/PNG success or empty-diagram errors remain visible after menus/sheets close and do not cause overlap or horizontal overflow at 360px or 390px.

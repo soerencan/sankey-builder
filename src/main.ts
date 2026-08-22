@@ -7,7 +7,6 @@ import type { NodeEditorActions } from "./node-editor";
 import { renderNodeEditor, setupNodeEditor } from "./node-editor";
 import { loadState, saveState } from "./persist";
 import { renderDiagram } from "./render";
-import { setupResizer } from "./resizer";
 import type { State } from "./state";
 import {
 	addLink,
@@ -211,7 +210,6 @@ function init(): void {
 	setupThemeControl(state, themeControlActions);
 	setupToolbar(state, toolbarActions);
 	setupIo(state, ioActions);
-	setupResizer();
 	refresh();
 	// setupToolbar/setupThemeControl wire listeners only (see their own docs) —
 	// sync the initial preview/dialog rows here, against the state
