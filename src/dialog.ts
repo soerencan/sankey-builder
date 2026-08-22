@@ -10,8 +10,8 @@ const FOCUSABLE_SELECTOR =
 
 /**
  * Markup-agnostic open/close/focus wiring for a native <dialog>, shared by
- * every dialog the app opens (the palette chooser now, more later — link
- * color, alignment, and the narrow Display surface all plan to reuse this).
+ * every dialog the app opens (the palette chooser, link color, theme,
+ * and the narrow Display surface all reuse this).
  */
 export function setupDialog(dialog: HTMLDialogElement): DialogController {
 	let trigger: HTMLElement | null = null;

@@ -5,6 +5,14 @@
    that already consume these names via var() need no changes. --border stays
    a color-mix() off --ink rather than its own OP step, since that formula
    already tracks whatever --ink resolves to. */
+/* Chromium's UA [hidden] { display: none } rule is scoped to the HTML
+   namespace and doesn't reach an SVG-namespace root, so index.html's icon
+   sprite (<svg hidden>) needs an explicit rule or it renders as an empty
+   300x150 inline block. */
+svg[hidden] {
+  display: none;
+}
+
 :root {
   color-scheme: light dark;
 
@@ -680,8 +688,9 @@ select {
 }
 
 /* ==========================================================================
-   Dialogs (native <dialog>, wired by src/dialog.ts). The palette chooser is
-   the first; future toolbar/Display surfaces reuse the same base styles.
+   Dialogs (native <dialog>, wired by src/dialog.ts). The palette chooser,
+   link color/theme dialogs, and the narrow Display surface all share
+   these base styles.
    ========================================================================== */
 
 dialog {

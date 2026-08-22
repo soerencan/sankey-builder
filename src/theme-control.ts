@@ -27,8 +27,10 @@ function isThemeKey(value: unknown): value is Theme {
  * match state — same full-rebuild-from-state approach as syncToolbar, just
  * scoped to the header button and dialog rather than .diagram-panel, since
  * those two live outside it (PLAN.md's "Theme"). Also called once at boot
- * (after setupThemeControl) and after an import, even though import leaves
- * theme untouched, so a stale sync can't linger if that ever changes.
+ * (after setupThemeControl). Import deliberately does not call this — theme
+ * is a per-browser preference, not diagram data, so it's untouched by import
+ * and there's nothing here that could go stale (see src/main.ts's
+ * ioActions.importDiagram).
  */
 export function syncThemeControl(state: State): void {
 	const theme = state.settings.theme;
