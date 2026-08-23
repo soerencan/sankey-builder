@@ -2,7 +2,7 @@
 
 import { Window } from "happy-dom";
 import { describe, expect, it } from "vitest";
-import { isElement, isHTMLDialogElement, isHTMLElement, isHTMLInputElement } from "./dom";
+import { isElement, isHTMLElement } from "./dom";
 
 describe("isElement", () => {
 	it("is true for an Element", () => {
@@ -44,33 +44,5 @@ describe("isHTMLElement", () => {
 
 	it("is false for null", () => {
 		expect(isHTMLElement(null)).toBe(false);
-	});
-});
-
-describe("isHTMLInputElement", () => {
-	it("is true for an <input>", () => {
-		expect(isHTMLInputElement(document.createElement("input"))).toBe(true);
-	});
-
-	it("is false for a <select> (a sibling HTMLElement, not an input)", () => {
-		expect(isHTMLInputElement(document.createElement("select"))).toBe(false);
-	});
-
-	it("is false for null", () => {
-		expect(isHTMLInputElement(null)).toBe(false);
-	});
-});
-
-describe("isHTMLDialogElement", () => {
-	it("is true for a <dialog>", () => {
-		expect(isHTMLDialogElement(document.createElement("dialog"))).toBe(true);
-	});
-
-	it("is false for a <div> (a plain HTMLElement, not a dialog)", () => {
-		expect(isHTMLDialogElement(document.createElement("div"))).toBe(false);
-	});
-
-	it("is false for null", () => {
-		expect(isHTMLDialogElement(null)).toBe(false);
 	});
 });

@@ -20,11 +20,3 @@ export function isElement(target: EventTarget | null): target is Element {
 export function isHTMLElement(target: EventTarget | null): target is HTMLElement {
 	return isElement(target) && "dataset" in target;
 }
-
-export function isHTMLInputElement(target: EventTarget | null): target is HTMLInputElement {
-	return isHTMLElement(target) && target.tagName === "INPUT";
-}
-
-export function isHTMLDialogElement(target: EventTarget | null): target is HTMLDialogElement {
-	return isHTMLElement(target) && target.tagName === "DIALOG";
-}

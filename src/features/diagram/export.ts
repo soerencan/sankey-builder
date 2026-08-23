@@ -1,10 +1,5 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-export interface SerializeSvgOptions {
-	labelColor: string;
-	background: string;
-}
-
 export function svgViewBoxSize(svg: SVGSVGElement): { width: number; height: number } {
 	const values = (svg.getAttribute("viewBox") ?? "")
 		.trim()
