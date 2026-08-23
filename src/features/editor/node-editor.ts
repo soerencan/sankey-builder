@@ -85,6 +85,37 @@ export function renderNodeEditor(
 }
 
 /**
+ * Restyles the existing `.node-swatch` elements in place from the current
+ * state + color resolver, without touching any other markup — used when only
+ * the palette changes (src/app/start-app.ts's setPalette), so the editor's
+ * rows/container and its Sortable instance survive untouched. Matches the
+ * `.node-swatch` styling renderNodeEditor applies on a full rebuild.
+ */
+export function updateNodeSwatches(
+	doc: Document,
+	state: State,
+	nodeColor: NodeColorResolver,
+): void {
+	const root = doc.getElementById("node-editor");
+	if (!root) return;
+	// Rows looked up once via a plain id map rather than interpolating each
+	// node's id into a `[data-id="..."]` selector (imported ids are arbitrary
+	// strings — one containing a quote or backslash would throw from
+	// querySelector) — and read from .drag-handle's dataset rather than
+	// assuming row order tracks state.nodes order, since Sortable can reorder
+	// rows in the DOM independently of a rebuild.
+	const rowsById = new Map<string, HTMLElement>();
+	for (const row of Array.from(root.querySelectorAll<HTMLElement>(".node-row"))) {
+		const id = row.querySelector<HTMLElement>(".drag-handle")?.dataset.id;
+		if (id !== undefined) rowsById.set(id, row);
+	}
+	for (const node of state.nodes) {
+		const swatch = rowsById.get(node.id)?.querySelector<HTMLElement>(".node-swatch");
+		if (swatch) swatch.style.backgroundColor = nodeColor(node);
+	}
+}
+
+/**
  * Delegated listeners on the editor root — one handler per event type
  * rather than per-row handlers, since rows get rebuilt wholesale. `signal`
  * is the owning app instance's AbortSignal — AppHandle.destroy() aborting it

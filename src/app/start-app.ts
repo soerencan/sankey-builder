@@ -6,7 +6,11 @@ import { renderDiagram } from "../features/diagram/render";
 import type { LinkEditorActions } from "../features/editor/link-editor";
 import { renderLinkEditor, setupLinkEditor } from "../features/editor/link-editor";
 import type { NodeEditorActions } from "../features/editor/node-editor";
-import { renderNodeEditor, setupNodeEditor } from "../features/editor/node-editor";
+import {
+	renderNodeEditor,
+	setupNodeEditor,
+	updateNodeSwatches,
+} from "../features/editor/node-editor";
 import { destroySortable } from "../features/editor/row-reorder";
 import type { IoActions } from "../features/files/controls";
 import { setupIo } from "../features/files/controls";
@@ -232,7 +236,16 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const toolbarActions: ToolbarActions = {
 		setPalette(value) {
 			state.settings.palette = value;
-			refresh();
+			// Node colors are palette-derived, but a palette change doesn't affect
+			// graph shape/validity or either editor's markup — skip both editor
+			// rebuilds (same as the diagram-only settings below) and instead patch
+			// the node editor's swatches directly. refresh() rebuilds its own
+			// resolver internally for the diagram but doesn't expose it, so the
+			// swatch patch rebuilds a second one here, off the now-updated
+			// state.settings.palette, rather than threading a return value through
+			// refresh()'s other callers.
+			refresh({ rebuildNodes: false, rebuildLinks: false });
+			updateNodeSwatches(doc, state, createNodeColorResolver(state));
 		},
 		setLinkColor(value) {
 			state.settings.linkColor = value;

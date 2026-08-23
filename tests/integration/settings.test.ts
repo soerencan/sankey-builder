@@ -2,6 +2,7 @@
 
 import Sortable from "sortablejs";
 import { describe, expect, it } from "vitest";
+import { paletteColors } from "../../src/features/diagram/colors";
 import {
 	ASPECT_RATIO_LABELS,
 	LINK_COLOR_OPTIONS,
@@ -518,6 +519,46 @@ describe("diagram-only settings leave both editors and both Sortables untouched"
 		expectEditorsUntouched(before);
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.aspectRatio).toBe("3:1");
+	});
+});
+
+// Phase 6: unlike the diagram-only settings above, palette changes DO affect
+// the node editor — its swatches must show the new colors — but that's a
+// style patch on the existing `.node-swatch` elements, not a rebuild: row/
+// container DOM identity and both Sortable instances must survive exactly
+// like the diagram-only settings do.
+describe("palette changes patch node-editor swatches without rebuilding either editor", () => {
+	it("choosing a palette from the dialog updates swatch colors, replaces the SVG, and preserves editor/Sortable identity", () => {
+		mountApp();
+
+		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
+		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
+		const nodeSortable = Sortable.get(nodeRows);
+		const linkSortable = Sortable.get(linkRows);
+		if (!nodeSortable || !linkSortable) throw new Error("unreachable");
+		const nodeRow = requireElement<HTMLElement>("#node-editor .node-row");
+		const linkRow = requireElement<HTMLElement>("#link-editor .link-row");
+		const svgBefore = document.querySelector("#diagram svg");
+
+		click(document.getElementById("palette-preview"));
+		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
+		click(dialog.querySelector('[data-value="tableau10"]'));
+
+		const swatches = Array.from(
+			document.querySelectorAll<HTMLElement>("#node-editor .node-swatch"),
+		);
+		const expectedColors = paletteColors("tableau10").slice(0, swatches.length);
+		expect(swatches.map((s) => s.style.backgroundColor)).toEqual(expectedColors);
+
+		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRows);
+		expect(requireElement<HTMLElement>("#link-editor .link-rows")).toBe(linkRows);
+		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(nodeRow);
+		expect(requireElement<HTMLElement>("#link-editor .link-row")).toBe(linkRow);
+		expect(Sortable.get(nodeRows)).toBe(nodeSortable);
+		expect(Sortable.get(linkRows)).toBe(linkSortable);
+
+		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
+		expect(getStoredState().settings.palette).toBe("tableau10");
 	});
 });
 
