@@ -28,36 +28,30 @@ describe("defaultState", () => {
 });
 
 describe("nextNodeId", () => {
-	it("returns n1 for an empty node list", () => {
-		const state: State = { nodes: [], links: [], settings: defaultState().settings };
-		expect(nextNodeId(state)).toBe("n1");
+	it.each<[string, Node[], string]>([
+		["returns n1 for an empty node list", [], "n1"],
+		[
+			"survives hydration with gappy ids",
+			[
+				{ id: "n1", name: "A" },
+				{ id: "n7", name: "B" },
+			],
+			"n8",
+		],
+		[
+			"ignores ids that don't match the n<number> pattern",
+			[{ id: "custom", name: "Custom" }],
+			"n1",
+		],
+	])("%s", (_label, nodes, expected) => {
+		const state: State = { nodes, links: [], settings: defaultState().settings };
+		expect(nextNodeId(state)).toBe(expected);
 	});
 
 	it("increments past the highest existing numeric suffix", () => {
 		const state = defaultState();
 		// Highest id among n1..n4 is n4.
 		expect(nextNodeId(state)).toBe("n5");
-	});
-
-	it("survives hydration with gappy ids", () => {
-		const state: State = {
-			nodes: [
-				{ id: "n1", name: "A" },
-				{ id: "n7", name: "B" },
-			],
-			links: [],
-			settings: defaultState().settings,
-		};
-		expect(nextNodeId(state)).toBe("n8");
-	});
-
-	it("ignores ids that don't match the n<number> pattern", () => {
-		const state: State = {
-			nodes: [{ id: "custom", name: "Custom" }],
-			links: [],
-			settings: defaultState().settings,
-		};
-		expect(nextNodeId(state)).toBe("n1");
 	});
 
 	it("assigns ids via addNode using the same suffix logic", () => {
@@ -140,40 +134,22 @@ describe("moveNode", () => {
 	}
 	const ids = (state: State) => state.nodes.map((n) => n.id);
 
-	it("moves a node forward", () => {
+	it.each<[string, number, number, string[]]>([
+		["moves a node forward", 0, 2, ["n2", "n3", "n1", "n4"]],
+		["moves a node backward", 3, 1, ["n1", "n4", "n2", "n3"]],
+		["clamps a too-high destination to the last index", 0, 99, ["n2", "n3", "n4", "n1"]],
+		["clamps a negative destination to the first index", 3, -5, ["n4", "n1", "n2", "n3"]],
+		["clamps a too-high source", 99, 0, ["n4", "n1", "n2", "n3"]],
+		[
+			"is a no-op when source and destination resolve to the same index",
+			1,
+			1,
+			["n1", "n2", "n3", "n4"],
+		],
+	])("%s", (_label, from, to, expected) => {
 		const state = fourNodes();
-		moveNode(state, 0, 2);
-		expect(ids(state)).toEqual(["n2", "n3", "n1", "n4"]);
-	});
-
-	it("moves a node backward", () => {
-		const state = fourNodes();
-		moveNode(state, 3, 1);
-		expect(ids(state)).toEqual(["n1", "n4", "n2", "n3"]);
-	});
-
-	it("clamps a too-high destination to the last index", () => {
-		const state = fourNodes();
-		moveNode(state, 0, 99);
-		expect(ids(state)).toEqual(["n2", "n3", "n4", "n1"]);
-	});
-
-	it("clamps a negative destination to the first index", () => {
-		const state = fourNodes();
-		moveNode(state, 3, -5);
-		expect(ids(state)).toEqual(["n4", "n1", "n2", "n3"]);
-	});
-
-	it("clamps a too-high source", () => {
-		const state = fourNodes();
-		moveNode(state, 99, 0);
-		expect(ids(state)).toEqual(["n4", "n1", "n2", "n3"]);
-	});
-
-	it("is a no-op when source and destination resolve to the same index", () => {
-		const state = fourNodes();
-		moveNode(state, 1, 1);
-		expect(ids(state)).toEqual(["n1", "n2", "n3", "n4"]);
+		moveNode(state, from, to);
+		expect(ids(state)).toEqual(expected);
 	});
 
 	it("is a no-op for a single-item array", () => {
@@ -213,19 +189,16 @@ describe("moveLink", () => {
 });
 
 describe("isComplete", () => {
-	it("is true only when both endpoints are assigned", () => {
-		expect(isComplete({ source: "n1", target: "n2", value: 1 })).toBe(true);
-	});
-
-	it("is false when the source is null", () => {
-		expect(isComplete({ source: null, target: "n2", value: 1 })).toBe(false);
-	});
-
-	it("is false when the target is null", () => {
-		expect(isComplete({ source: "n1", target: null, value: 1 })).toBe(false);
-	});
-
-	it("is false when both endpoints are null", () => {
-		expect(isComplete({ source: null, target: null, value: 1 })).toBe(false);
+	it.each<[string, Parameters<typeof isComplete>[0], boolean]>([
+		[
+			"is true only when both endpoints are assigned",
+			{ source: "n1", target: "n2", value: 1 },
+			true,
+		],
+		["is false when the source is null", { source: null, target: "n2", value: 1 }, false],
+		["is false when the target is null", { source: "n1", target: null, value: 1 }, false],
+		["is false when both endpoints are null", { source: null, target: null, value: 1 }, false],
+	])("%s", (_label, link, expected) => {
+		expect(isComplete(link)).toBe(expected);
 	});
 });

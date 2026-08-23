@@ -90,41 +90,15 @@ describe("parseImport round-trip", () => {
 });
 
 describe("parseImport hard rejections", () => {
-	it("rejects text that isn't valid JSON", () => {
-		const result = parseImport("not json at all");
-		expect(result).toEqual({ ok: false, error: expect.stringContaining("diagram export") });
-	});
-
-	it("rejects a top-level array", () => {
-		const result = parseImport("[]");
-		expect(result.ok).toBe(false);
-		if (result.ok) throw new Error("unreachable");
-		expect(result.error).toContain("diagram export");
-	});
-
-	it("rejects an object without nodes/links arrays", () => {
-		const result = parseImport("{}");
-		expect(result.ok).toBe(false);
-		if (result.ok) throw new Error("unreachable");
-		expect(result.error).toContain("diagram export");
-	});
-
-	it("rejects a non-array nodes field", () => {
-		const result = parseImport(JSON.stringify({ nodes: {}, links: [] }));
-		expect(result.ok).toBe(false);
-		if (result.ok) throw new Error("unreachable");
-		expect(result.error).toContain("diagram export");
-	});
-
-	it("rejects a top-level JSON null", () => {
-		const result = parseImport("null");
-		expect(result.ok).toBe(false);
-		if (result.ok) throw new Error("unreachable");
-		expect(result.error).toContain("diagram export");
-	});
-
-	it("rejects a top-level primitive", () => {
-		const result = parseImport("42");
+	it.each<[string, string]>([
+		["text that isn't valid JSON", "not json at all"],
+		["a top-level array", "[]"],
+		["an object without nodes/links arrays", "{}"],
+		["a non-array nodes field", JSON.stringify({ nodes: {}, links: [] })],
+		["a top-level JSON null", "null"],
+		["a top-level primitive", "42"],
+	])("rejects %s", (_label, input) => {
+		const result = parseImport(input);
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("unreachable");
 		expect(result.error).toContain("diagram export");

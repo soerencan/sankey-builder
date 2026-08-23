@@ -6,25 +6,21 @@ import { PALETTE_LABELS, PALETTE_ORDER, isPaletteKey } from "../src/palette";
 // depends on that.
 
 describe("isPaletteKey", () => {
-	it("accepts the five real palette keys", () => {
-		for (const key of ["observable10", "tableau10", "category10", "set2", "dark2"]) {
-			expect(isPaletteKey(key)).toBe(true);
-		}
-	});
-
-	it("rejects a prototype-chain hole (e.g. toString)", () => {
-		expect(isPaletteKey("toString")).toBe(false);
-	});
-
-	it("rejects an unrecognized string", () => {
-		expect(isPaletteKey("rainbow")).toBe(false);
-	});
-
-	it("rejects non-strings", () => {
-		expect(isPaletteKey(undefined)).toBe(false);
-		expect(isPaletteKey(null)).toBe(false);
-		expect(isPaletteKey(42)).toBe(false);
-		expect(isPaletteKey({})).toBe(false);
+	it.each<[unknown, boolean]>([
+		["observable10", true],
+		["tableau10", true],
+		["category10", true],
+		["set2", true],
+		["dark2", true],
+		// "toString" resolves via the Object.prototype chain on a naive `in`/property check.
+		["toString", false],
+		["rainbow", false],
+		[undefined, false],
+		[null, false],
+		[42, false],
+		[{}, false],
+	])("isPaletteKey(%j) is %s", (input, expected) => {
+		expect(isPaletteKey(input)).toBe(expected);
 	});
 });
 

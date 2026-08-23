@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STORAGE_KEY, loadState, saveState } from "../src/persist";
+import type { State } from "../src/state";
 import { defaultState } from "../src/state";
 
 // No import from colors.ts (or anything importing it) in this file — proves
@@ -159,36 +160,17 @@ describe("loadState", () => {
 			return loadState(storage).links;
 		}
 
-		it("keeps a plain finite value in range", () => {
-			expect(loadWithValue(12.5)).toEqual([{ source: "n1", target: "n2", value: 12.5 }]);
-		});
-
-		it("does not round a stored decimal below the 4-digit input cap", () => {
-			expect(loadWithValue(0.123456)[0].value).toBe(0.123456);
-		});
-
-		it("coerces a legacy null (blank mid-edit row) to 1 rather than dropping it", () => {
-			expect(loadWithValue(null)).toEqual([{ source: "n1", target: "n2", value: 1 }]);
-		});
-
-		it("coerces a negative value to 1", () => {
-			expect(loadWithValue(-3)[0].value).toBe(1);
-		});
-
-		it("coerces zero to 1", () => {
-			expect(loadWithValue(0)[0].value).toBe(1);
-		});
-
-		it("coerces an out-of-range value to 1", () => {
-			expect(loadWithValue(1e16)[0].value).toBe(1);
-		});
-
-		it("coerces a non-number value to 1", () => {
-			expect(loadWithValue("abc")[0].value).toBe(1);
-		});
-
-		it("coerces a numeric string to 1 (no lenient parsing)", () => {
-			expect(loadWithValue("5")[0].value).toBe(1);
+		it.each<[string, unknown, number]>([
+			["keeps a plain finite value in range", 12.5, 12.5],
+			["does not round a stored decimal below the 4-digit input cap", 0.123456, 0.123456],
+			["coerces a legacy null (blank mid-edit row) to 1", null, 1],
+			["coerces a negative value to 1", -3, 1],
+			["coerces zero to 1", 0, 1],
+			["coerces an out-of-range value to 1", 1e16, 1],
+			["coerces a non-number value to 1", "abc", 1],
+			["coerces a numeric string to 1 (no lenient parsing)", "5", 1],
+		])("%s", (_label, value, expected) => {
+			expect(loadWithValue(value)[0].value).toBe(expected);
 		});
 	});
 
@@ -199,58 +181,52 @@ describe("loadState", () => {
 			return loadState(storage).settings;
 		}
 
-		it("falls back to observable10 for a prototype-chain hole (e.g. toString)", () => {
-			expect(loadWithSettings({ palette: "toString" }).palette).toBe("observable10");
-		});
-
-		it("falls back to observable10 for an unknown palette", () => {
-			expect(loadWithSettings({ palette: "rainbow" }).palette).toBe("observable10");
-		});
-
-		it("keeps a recognized palette", () => {
-			expect(loadWithSettings({ palette: "dark2" }).palette).toBe("dark2");
+		it.each<[string, Record<string, unknown>, keyof State["settings"], unknown]>([
+			[
+				"falls back to observable10 for a prototype-chain hole (e.g. toString)",
+				{ palette: "toString" },
+				"palette",
+				"observable10",
+			],
+			[
+				"falls back to observable10 for an unknown palette",
+				{ palette: "rainbow" },
+				"palette",
+				"observable10",
+			],
+			["keeps a recognized palette", { palette: "dark2" }, "palette", "dark2"],
+			[
+				"falls back to source-target for an unknown linkColor",
+				{ linkColor: "bogus" },
+				"linkColor",
+				"source-target",
+			],
+			["keeps a recognized linkColor", { linkColor: "static" }, "linkColor", "static"],
+			[
+				"falls back to justify for an unknown alignment",
+				{ alignment: "bogus" },
+				"alignment",
+				"justify",
+			],
+			["keeps a recognized alignment", { alignment: "center" }, "alignment", "center"],
+			["defaults legacy diagrams without an aspect ratio to 2:1", {}, "aspectRatio", "2:1"],
+			["keeps a recognized aspect ratio", { aspectRatio: "16:9" }, "aspectRatio", "16:9"],
+			[
+				"falls back to 2:1 for an unknown aspect ratio",
+				{ aspectRatio: "portrait" },
+				"aspectRatio",
+				"2:1",
+			],
+			["falls back to auto for an unknown theme", { theme: "bogus" }, "theme", "auto"],
+			["keeps a recognized theme", { theme: "dark" }, "theme", "dark"],
+		])("%s", (_label, settings, field, expected) => {
+			expect(loadWithSettings(settings)[field]).toBe(expected);
 		});
 
 		it("loads a legacy manual colorMode silently, keeping the saved palette and dropping colorMode", () => {
 			const settings = loadWithSettings({ colorMode: "manual", palette: "set2" });
 			expect(settings.palette).toBe("set2");
 			expect("colorMode" in settings).toBe(false);
-		});
-
-		it("falls back to source-target for an unknown linkColor", () => {
-			expect(loadWithSettings({ linkColor: "bogus" }).linkColor).toBe("source-target");
-		});
-
-		it("keeps a recognized linkColor", () => {
-			expect(loadWithSettings({ linkColor: "static" }).linkColor).toBe("static");
-		});
-
-		it("falls back to justify for an unknown alignment", () => {
-			expect(loadWithSettings({ alignment: "bogus" }).alignment).toBe("justify");
-		});
-
-		it("keeps a recognized alignment", () => {
-			expect(loadWithSettings({ alignment: "center" }).alignment).toBe("center");
-		});
-
-		it("defaults legacy diagrams without an aspect ratio to 2:1", () => {
-			expect(loadWithSettings({}).aspectRatio).toBe("2:1");
-		});
-
-		it("keeps a recognized aspect ratio", () => {
-			expect(loadWithSettings({ aspectRatio: "16:9" }).aspectRatio).toBe("16:9");
-		});
-
-		it("falls back to 2:1 for an unknown aspect ratio", () => {
-			expect(loadWithSettings({ aspectRatio: "portrait" }).aspectRatio).toBe("2:1");
-		});
-
-		it("falls back to auto for an unknown theme", () => {
-			expect(loadWithSettings({ theme: "bogus" }).theme).toBe("auto");
-		});
-
-		it("keeps a recognized theme", () => {
-			expect(loadWithSettings({ theme: "dark" }).theme).toBe("dark");
 		});
 	});
 });
