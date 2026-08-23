@@ -30,11 +30,15 @@ afterEach(() => {
 
 /**
  * Boots a real AppHandle against fresh markup and storage for a single test.
- * Not for tests that boot the app more than once (a second call would wipe
- * the DOM installMarkup() just built) — those call startApp()/destroy()
- * directly instead.
+ * Not for tests that boot the app more than once — a second call throws;
+ * use installMarkup() + startApp() directly instead.
  */
 export function mountApp(): AppFixture {
+	if (mounted) {
+		throw new Error(
+			"mountApp() called while a previous app is still mounted; for multi-boot tests use installMarkup() and startApp() directly.",
+		);
+	}
 	installMarkup();
 	mounted = startApp(document);
 	return { app: mounted };
