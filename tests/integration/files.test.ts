@@ -85,6 +85,40 @@ describe("import & export", () => {
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 
+	it("import notice: not cleared by an invalid or empty link-value draft, only by the next committed action", async () => {
+		mountApp();
+
+		const payload = {
+			nodes: [
+				{ id: "n1", name: "X" },
+				{ id: "n2", name: "Y" },
+			],
+			links: [{ source: "n1", target: "n2", value: 3 }],
+			settings: {},
+		};
+		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		fireChange(input);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const notice = () => document.getElementById("io-notice")?.textContent;
+		expect(notice()).toBe("Imported 2 nodes, 1 links.");
+
+		// An invalid or empty draft never reaches actions.updateLinkValue (see
+		// commitLinkValue in link-editor.ts), so refresh() — and its
+		// unconditional #io-notice clear — never runs; the import notice must
+		// stand, unlike the committed rename in the test above.
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		valueInput.value = "abc";
+		fireInput(valueInput);
+		expect(notice()).toBe("Imported 2 nodes, 1 links.");
+
+		valueInput.value = "";
+		fireInput(valueInput);
+		expect(notice()).toBe("Imported 2 nodes, 1 links.");
+	});
+
 	it("rejects a non-diagram file, leaving state and storage untouched, and shows the error", async () => {
 		mountApp();
 

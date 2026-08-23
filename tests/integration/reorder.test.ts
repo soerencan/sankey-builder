@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import Sortable from "sortablejs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { click, fireInput, getStoredState, mountApp, requireElement } from "../helpers/mount-app";
 
 describe("row reordering", () => {
@@ -235,6 +235,27 @@ describe("row reordering", () => {
 
 		expect(Sortable.get(before)).toBeNull();
 		const after = requireElement<HTMLElement>("#node-editor .node-rows");
+		expect(after).not.toBe(before);
+		expect(Sortable.get(after)).toBeTruthy();
+	});
+
+	it("rebuilding the link editor destroys the previous Sortable instance exactly once rather than leaking it", () => {
+		mountApp();
+
+		const before = requireElement<HTMLElement>("#link-editor .link-rows");
+		const previousInstance = Sortable.get(before);
+		expect(previousInstance).toBeTruthy();
+		if (!previousInstance) throw new Error("unreachable");
+		const destroySpy = vi.spyOn(previousInstance, "destroy");
+
+		// add-link rebuilds the link editor (renderLinkEditor replaces
+		// .link-rows wholesale), the link-box counterpart to the add-node case
+		// above — same attachRowSortable's destroy(previous) guard.
+		click(document.querySelector('[data-action="add-link"]'));
+
+		expect(destroySpy).toHaveBeenCalledTimes(1);
+		expect(Sortable.get(before)).toBeNull();
+		const after = requireElement<HTMLElement>("#link-editor .link-rows");
 		expect(after).not.toBe(before);
 		expect(Sortable.get(after)).toBeTruthy();
 	});

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { STORAGE_KEY } from "../../src/platform/storage";
 import {
 	click,
@@ -259,6 +259,80 @@ describe("node & link editing", () => {
 		valueInput.value = "abc";
 		fireInput(valueInput);
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+	});
+
+	it("invalid committed state (link-endpoint cycle) persists to storage while the diagram keeps the last valid SVG", () => {
+		mountApp();
+
+		const svgBefore = document.querySelector("#diagram svg");
+		expect(svgBefore).not.toBeNull();
+		const svgHtmlBefore = svgBefore?.outerHTML;
+
+		// defaultState's links: n1->n3 (10), n2->n3 (6), n3->n4 (14). Retargeting
+		// the third link to n1 closes a 2-node cycle (n1->n3->n1) without
+		// touching node count/shape — isolates the cycle-invalid path from any
+		// other validation failure.
+		const target = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
+		target.value = "n1";
+		fireChange(target);
+
+		expect(document.getElementById("error")?.textContent).toContain("cycle");
+
+		// The invalid graph is still committed to storage — there is no
+		// "last-good state" in storage, only the last-good diagram.
+		const stored = getStoredState();
+		expect(stored.links[2].target).toBe("n1");
+
+		// But the on-screen diagram is untouched: same element, same markup.
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
+	});
+
+	it("invalid draft: no persist, no notice change, no redraw", async () => {
+		mountApp();
+
+		// Give #io-notice non-empty content first (an export success message,
+		// same as files.test.ts's export tests) so "the notice doesn't change"
+		// below is a real assertion rather than two empty strings.
+		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
+		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+		try {
+			click(document.getElementById("export-button"));
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		} finally {
+			createObjectURL.mockRestore();
+			revokeObjectURL.mockRestore();
+		}
+		expect(document.getElementById("io-notice")?.textContent).toBe("Exported sankey.json.");
+
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const storedBefore = localStorage.getItem(STORAGE_KEY);
+		const svgBefore = document.querySelector("#diagram svg");
+		const errorBefore = document.getElementById("error")?.textContent;
+		const noticeBefore = document.getElementById("io-notice")?.textContent;
+
+		// An invalid draft only ever updates the field's own error state — the
+		// rest of the app (storage, validation banner, I/O notice, diagram) must
+		// be byte-for-byte untouched, not just the one field this test used to
+		// check in isolation.
+		valueInput.value = "abc";
+		fireInput(valueInput);
+
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
+		expect(document.getElementById("error")?.textContent).toBe(errorBefore);
+		expect(document.getElementById("io-notice")?.textContent).toBe(noticeBefore);
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+
+		// Same guarantees for an empty draft.
+		valueInput.value = "";
+		fireInput(valueInput);
+
+		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
+		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
+		expect(document.getElementById("error")?.textContent).toBe(errorBefore);
+		expect(document.getElementById("io-notice")?.textContent).toBe(noticeBefore);
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 	});
 
 	it("Add link appends an unassigned row that stays inert until both endpoints are chosen", () => {

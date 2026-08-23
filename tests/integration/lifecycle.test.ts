@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 
+import Sortable from "sortablejs";
 import { describe, expect, it } from "vitest";
 import { startApp } from "../../src/app/start-app";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-resizer";
 import { STORAGE_KEY } from "../../src/platform/storage";
-import { click, installMarkup, mountApp } from "../helpers/mount-app";
+import { click, installMarkup, mountApp, requireElement } from "../helpers/mount-app";
 
 // Pinned verbatim from src/app/start-app.ts's STORAGE_NOTICE — app/start-app.ts doesn't export
 // it, so this hardcodes (and thereby pins) the user-visible copy.
@@ -106,6 +107,39 @@ describe("application lifecycle", () => {
 		} finally {
 			app.destroy();
 		}
+	});
+
+	it("destroy() tears down both current row Sortable instances, including an active-drag clone", () => {
+		const { app } = mountApp();
+
+		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
+		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
+		const nodeSortable = Sortable.get(nodeRows);
+		const linkSortable = Sortable.get(linkRows);
+		expect(nodeSortable).toBeTruthy();
+		expect(linkSortable).toBeTruthy();
+		if (!linkSortable) throw new Error("unreachable");
+
+		// Simulate destroy() landing mid-drag on the link box. Sortable's own
+		// destroy() calls its internal drop handler with no event, which skips
+		// the branch that would otherwise remove the floating fallback clone
+		// from <body> (see destroySortable's doc comment in row-reorder.ts) —
+		// this pins that destroySortable's own explicit ghost/clone removal
+		// still runs for the app's own destroy() path, not just in isolation.
+		const ghost = document.createElement("div");
+		const clone = document.createElement("div");
+		document.body.append(ghost, clone);
+		Sortable.active = linkSortable;
+		Sortable.ghost = ghost;
+		Sortable.clone = clone;
+
+		app.destroy();
+
+		expect(document.body.contains(ghost)).toBe(false);
+		expect(document.body.contains(clone)).toBe(false);
+		// Both instances are gone, not just the one mid-drag.
+		expect(Sortable.get(nodeRows)).toBeNull();
+		expect(Sortable.get(linkRows)).toBeNull();
 	});
 
 	it("surfaces a storage notice on save failure and clears it once saves recover", () => {
