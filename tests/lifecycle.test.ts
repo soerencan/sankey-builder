@@ -1,27 +1,10 @@
 // @vitest-environment happy-dom
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { AppHandle } from "../src/app";
+import { describe, expect, it } from "vitest";
 import { startApp } from "../src/app";
 import { STORAGE_KEY } from "../src/persist";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../src/preview-resizer";
-import { bodyMarkup } from "./helpers/fixture";
-
-let app: AppHandle | undefined;
-
-beforeEach(() => {
-	document.body.innerHTML = bodyMarkup();
-	localStorage.clear();
-});
-
-afterEach(() => {
-	app?.destroy();
-	app = undefined;
-});
-
-function click(target: Element | null): void {
-	target?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-}
+import { click, installMarkup, mountApp } from "./helpers/mount-app";
 
 /**
  * A minimal Storage backed by its own Map, tracking every setItem key. Used
@@ -51,13 +34,13 @@ function makeCountingStorage(): { storage: Storage; setItemCalls: string[] } {
 
 describe("application lifecycle", () => {
 	it("destroy() is idempotent — a second call does not throw", () => {
-		app = startApp(document);
+		const { app } = mountApp();
 		app.destroy();
-		expect(() => app?.destroy()).not.toThrow();
+		expect(() => app.destroy()).not.toThrow();
 	});
 
 	it("stops reacting to events after destroy: no DOM or storage mutation", () => {
-		app = startApp(document);
+		const { app } = mountApp();
 		app.destroy();
 
 		const nodeRowsBefore = document.querySelectorAll("#node-editor .node-row").length;
@@ -75,38 +58,46 @@ describe("application lifecycle", () => {
 	});
 
 	it("a second boot on the same document replaces the first without duplicating its callbacks", () => {
+		// Boots more than once against the same DOM — installMarkup()/startApp()
+		// by hand rather than mountApp(), which would reinstall the markup (and
+		// so trivially avoid any leaked-listener bug) between boots.
+		installMarkup();
 		const first = startApp(document);
 		first.destroy();
 
-		app = startApp(document);
-		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(4);
-
-		// One click should mutate state exactly once — both an intact instance
-		// and a leaked listener from `first` converge on 5 rows, so the real
-		// detectors are the setItem call count and the resizer step value below.
-		const realLocalStorage = localStorage;
-		const { storage: countingStorage, setItemCalls } = makeCountingStorage();
-		Object.defineProperty(globalThis, "localStorage", {
-			value: countingStorage,
-			configurable: true,
-			writable: true,
-		});
+		const app = startApp(document);
 		try {
-			click(document.querySelector('[data-action="add-node"]'));
-		} finally {
+			expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(4);
+
+			// One click should mutate state exactly once — both an intact instance
+			// and a leaked listener from `first` converge on 5 rows, so the real
+			// detectors are the setItem call count and the resizer step value below.
+			const realLocalStorage = localStorage;
+			const { storage: countingStorage, setItemCalls } = makeCountingStorage();
 			Object.defineProperty(globalThis, "localStorage", {
-				value: realLocalStorage,
+				value: countingStorage,
 				configurable: true,
 				writable: true,
 			});
+			try {
+				click(document.querySelector('[data-action="add-node"]'));
+			} finally {
+				Object.defineProperty(globalThis, "localStorage", {
+					value: realLocalStorage,
+					configurable: true,
+					writable: true,
+				});
+			}
+
+			expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(5);
+			expect(setItemCalls.filter((key) => key === STORAGE_KEY)).toHaveLength(1);
+
+			// Same proof for the preview resizer's own listeners: one click applies
+			// its step exactly once (360 default + 40 step = 400, not 440).
+			click(document.querySelector('[data-action="preview-larger"]'));
+			expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("400");
+		} finally {
+			app.destroy();
 		}
-
-		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(5);
-		expect(setItemCalls.filter((key) => key === STORAGE_KEY)).toHaveLength(1);
-
-		// Same proof for the preview resizer's own listeners: one click applies
-		// its step exactly once (360 default + 40 step = 400, not 440).
-		click(document.querySelector('[data-action="preview-larger"]'));
-		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("400");
 	});
 });

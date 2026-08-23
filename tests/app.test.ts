@@ -1,16 +1,22 @@
 // @vitest-environment happy-dom
 
 import Sortable from "sortablejs";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppHandle } from "../src/app";
-import { startApp } from "../src/app";
+import { describe, expect, it, vi } from "vitest";
 import { serializeState } from "../src/io";
 import { PALETTE_LABELS } from "../src/palette";
 import { STORAGE_KEY } from "../src/persist";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../src/preview-resizer";
 import { defaultState } from "../src/state";
 import { ASPECT_RATIO_OPTIONS, LINK_COLOR_OPTIONS } from "../src/toolbar";
-import { bodyMarkup } from "./helpers/fixture";
+import {
+	click,
+	fireChange,
+	fireInput,
+	getStoredState,
+	installMarkup,
+	mountApp,
+	requireElement,
+} from "./helpers/mount-app";
 
 // Pinned verbatim from src/app.ts's STORAGE_NOTICE — app.ts doesn't export
 // it, so this hardcodes (and thereby pins) the user-visible copy.
@@ -19,30 +25,20 @@ const STORAGE_NOTICE =
 	"The diagram keeps working, but edits won't survive closing or reloading this tab — " +
 	"try freeing up space or leaving private/incognito mode.";
 
-let app: AppHandle | undefined;
-
-beforeEach(() => {
-	document.body.innerHTML = bodyMarkup();
-	localStorage.clear();
-});
-
-afterEach(() => {
-	app?.destroy();
-	app = undefined;
-});
-
 function removeAllNodes(): void {
 	// Query fresh each time: deleting a node rebuilds the editor rows wholesale,
 	// detaching any earlier button reference from the document.
 	let deleteButton = document.querySelector<HTMLButtonElement>('[data-action="delete-node"]');
 	while (deleteButton) {
-		deleteButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(deleteButton);
 		deleteButton = document.querySelector<HTMLButtonElement>('[data-action="delete-node"]');
 	}
 }
 
 describe("application integration", () => {
 	it("places the diagram before the data editor and has no obsolete resize control", () => {
+		installMarkup();
+
 		const diagramPanel = document.querySelector(".diagram-panel");
 		const dataCard = document.querySelector(".data-card");
 		expect(diagramPanel).not.toBeNull();
@@ -56,23 +52,21 @@ describe("application integration", () => {
 	});
 
 	it("resizes only the preview through the splitter controls", () => {
-		app = startApp(document);
+		mountApp();
 
 		const diagram = document.getElementById("diagram");
 		const viewBoxBefore = diagram?.querySelector("svg")?.getAttribute("viewBox");
-		document
-			.querySelector<HTMLElement>('[data-action="preview-larger"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(document.querySelector('[data-action="preview-larger"]'));
 
 		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
 		expect(diagram?.querySelector("svg")?.getAttribute("viewBox")).toBe(viewBoxBefore);
 		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("400");
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").settings.aspectRatio).toBe("2:1");
+		expect(getStoredState().settings.aspectRatio).toBe("2:1");
 	});
 
 	it("boots without throwing and renders the default diagram", () => {
 		expect(() => {
-			app = startApp(document);
+			mountApp();
 		}).not.toThrow();
 
 		const diagram = document.getElementById("diagram");
@@ -86,47 +80,41 @@ describe("application integration", () => {
 	});
 
 	it("palette-next advances the carousel: state, preview label, and rendered colors all follow", () => {
-		app = startApp(document);
+		mountApp();
 
 		const fills = () =>
 			Array.from(document.querySelectorAll("#diagram svg rect")).map((r) => r.getAttribute("fill"));
 		const before = fills();
 
-		document
-			.querySelector<HTMLButtonElement>('[data-action="palette-next"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(document.querySelector('[data-action="palette-next"]'));
 
 		const preview = document.getElementById("palette-preview");
 		expect(preview?.getAttribute("aria-label")).toBe("Palette: Tableau 10");
 		expect(fills()).not.toEqual(before);
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.palette).toBe("tableau10");
 	});
 
 	it("palette-prev wraps from the first palette (observable10) to the last (dark2)", () => {
-		app = startApp(document);
+		mountApp();
 
-		document
-			.querySelector<HTMLButtonElement>('[data-action="palette-prev"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(document.querySelector('[data-action="palette-prev"]'));
 
 		const preview = document.getElementById("palette-preview");
 		expect(preview?.getAttribute("aria-label")).toBe("Palette: Dark 2");
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.palette).toBe("dark2");
 	});
 
 	it("clicking the palette preview opens the palette dialog", () => {
-		app = startApp(document);
+		mountApp();
 
 		const dialog = document.getElementById("palette-dialog");
 		expect(dialog).toBeInstanceOf(HTMLDialogElement);
 		expect((dialog as HTMLDialogElement).open).toBe(false);
 
-		document
-			.getElementById("palette-preview")
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(document.getElementById("palette-preview"));
 
 		expect((dialog as HTMLDialogElement).open).toBe(true);
 
@@ -144,16 +132,16 @@ describe("application integration", () => {
 	});
 
 	it("choosing a palette in the dialog sets state, updates aria-pressed, and closes with focus back on the preview", () => {
-		app = startApp(document);
+		mountApp();
 
 		const preview = document.getElementById("palette-preview");
-		preview?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(preview);
 
 		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
 		const set2Option = dialog.querySelector<HTMLButtonElement>('[data-value="set2"]');
-		set2Option?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(set2Option);
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.palette).toBe("set2");
 		expect(set2Option?.getAttribute("aria-pressed")).toBe("true");
 		expect(dialog.querySelector('[data-value="observable10"]')?.getAttribute("aria-pressed")).toBe(
@@ -164,15 +152,13 @@ describe("application integration", () => {
 	});
 
 	it("clicking the links button opens the links dialog", () => {
-		app = startApp(document);
+		mountApp();
 
 		const dialog = document.getElementById("links-dialog");
 		expect(dialog).toBeInstanceOf(HTMLDialogElement);
 		expect((dialog as HTMLDialogElement).open).toBe(false);
 
-		document
-			.getElementById("links-button")
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(document.getElementById("links-button"));
 
 		expect((dialog as HTMLDialogElement).open).toBe(true);
 
@@ -190,16 +176,16 @@ describe("application integration", () => {
 	});
 
 	it("choosing Neutral in the links dialog sets state, re-renders static links, and closes with focus back on the links button", () => {
-		app = startApp(document);
+		mountApp();
 
 		const linksButton = document.getElementById("links-button");
-		linksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(linksButton);
 
 		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
 		const staticOption = dialog.querySelector<HTMLButtonElement>('[data-value="static"]');
-		staticOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(staticOption);
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.linkColor).toBe("static");
 
 		// Only the chosen option is pressed.
@@ -223,7 +209,7 @@ describe("application integration", () => {
 	});
 
 	it("choosing the gradient option in the links dialog re-renders links with per-link gradient strokes", () => {
-		app = startApp(document);
+		mountApp();
 
 		const linksButton = document.getElementById("links-button");
 		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
@@ -232,22 +218,22 @@ describe("application integration", () => {
 		// Start from "static" (defaultState().linkColor is already
 		// "source-target", so asserting the post-click state alone wouldn't
 		// prove the click handler ran) — this leg proves the click landed.
-		linksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(linksButton);
 		const staticOption = dialog.querySelector<HTMLButtonElement>('[data-value="static"]');
-		staticOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(staticOption);
 
-		const storedAfterStatic = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const storedAfterStatic = getStoredState();
 		expect(storedAfterStatic.settings.linkColor).toBe("static");
 		for (const path of Array.from(document.querySelectorAll("#diagram svg path"))) {
 			expect(path.getAttribute("stroke")).toBe("#aaa");
 		}
 
 		// Now transition to the gradient option and assert the change actually took.
-		linksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(linksButton);
 		const gradientOption = dialog.querySelector<HTMLButtonElement>('[data-value="source-target"]');
-		gradientOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(gradientOption);
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.linkColor).toBe("source-target");
 
 		const gradients = diagram?.querySelectorAll("linearGradient");
@@ -256,7 +242,7 @@ describe("application integration", () => {
 	});
 
 	it("boots with exactly one alignment value pressed, matching the default alignment, on both the wide and narrow copies", () => {
-		app = startApp(document);
+		mountApp();
 
 		// Two DOM copies of each alignment button exist (the wide toolbar's
 		// .align-group and the narrow Diagram dialog) — syncToolbar keeps both
@@ -272,7 +258,7 @@ describe("application integration", () => {
 	});
 
 	it("clicking Left in the alignment group sets state, updates aria-pressed on both copies, and re-renders the diagram", () => {
-		app = startApp(document);
+		mountApp();
 
 		const svgBefore = document.querySelector("#diagram svg");
 		const options = Array.from(
@@ -281,9 +267,9 @@ describe("application integration", () => {
 		const leftOption = options.find(
 			(option) => option.closest(".align-group") && option.dataset.value === "left",
 		);
-		leftOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(leftOption);
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.alignment).toBe("left");
 
 		// Only options with the chosen value are pressed, across both copies.
@@ -301,7 +287,7 @@ describe("application integration", () => {
 	});
 
 	it("every alignment button has a non-empty accessible name", () => {
-		app = startApp(document);
+		mountApp();
 
 		const options = document.querySelectorAll<HTMLButtonElement>(".align-group button");
 		expect(options.length).toBeGreaterThan(0);
@@ -311,20 +297,18 @@ describe("application integration", () => {
 	});
 
 	it("changes the intrinsic diagram and both selectors when an aspect ratio is chosen", () => {
-		app = startApp(document);
+		mountApp();
 
 		const trigger = document.getElementById("aspect-ratio-button");
-		trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(trigger);
 		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
 		expect(dialog.open).toBe(true);
 
-		dialog
-			.querySelector<HTMLButtonElement>('[data-action="set-aspect-ratio"][data-value="3:1"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(dialog.querySelector('[data-action="set-aspect-ratio"][data-value="3:1"]'));
 
 		expect(document.querySelector("#diagram svg")?.getAttribute("viewBox")).toBe("0 0 1440 480");
 		expect(trigger?.textContent).toContain("Aspect 3:1");
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.aspectRatio).toBe("3:1");
 		for (const option of Array.from(
 			document.querySelectorAll<HTMLButtonElement>('[data-action="set-aspect-ratio"]'),
@@ -338,7 +322,7 @@ describe("application integration", () => {
 	});
 
 	it("offers every labelled aspect-ratio preset in the wide picker and narrow Diagram sheet", () => {
-		app = startApp(document);
+		mountApp();
 
 		for (const preset of ASPECT_RATIO_OPTIONS) {
 			const copies = document.querySelectorAll<HTMLElement>(
@@ -353,24 +337,22 @@ describe("application integration", () => {
 	});
 
 	it("clicking the Diagram button opens the diagram-options dialog", () => {
-		app = startApp(document);
+		mountApp();
 
 		const dialog = document.getElementById("display-dialog");
 		expect(dialog).toBeInstanceOf(HTMLDialogElement);
 		expect((dialog as HTMLDialogElement).open).toBe(false);
 
-		document
-			.getElementById("display-button")
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(document.getElementById("display-button"));
 
 		expect((dialog as HTMLDialogElement).open).toBe(true);
 	});
 
 	it("choosing Gradient in the display dialog re-renders links, syncs both link-color copies, and stays open", () => {
-		app = startApp(document);
+		mountApp();
 
 		const displayButton = document.getElementById("display-button");
-		displayButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(displayButton);
 
 		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		const linksDialog = document.getElementById("links-dialog") as HTMLDialogElement;
@@ -379,20 +361,18 @@ describe("application integration", () => {
 		// "source-target") so the later transition back to source-target
 		// actually proves the click handler ran, same rationale as the wide
 		// links-dialog gradient test above.
-		displayDialog
-			.querySelector<HTMLButtonElement>('[data-action="set-link-color"][data-value="static"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(displayDialog.querySelector('[data-action="set-link-color"][data-value="static"]'));
 
-		const storedAfterStatic = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const storedAfterStatic = getStoredState();
 		expect(storedAfterStatic.settings.linkColor).toBe("static");
 		expect(displayDialog.open).toBe(true);
 
 		const gradientOption = displayDialog.querySelector<HTMLButtonElement>(
 			'[data-action="set-link-color"][data-value="source-target"]',
 		);
-		gradientOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(gradientOption);
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.linkColor).toBe("source-target");
 
 		const gradients = document.getElementById("diagram")?.querySelectorAll("linearGradient");
@@ -418,19 +398,17 @@ describe("application integration", () => {
 	});
 
 	it("choosing Left in the display dialog's alignment group persists and stays open", () => {
-		app = startApp(document);
+		mountApp();
 
-		document
-			.getElementById("display-button")
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(document.getElementById("display-button"));
 
 		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		const leftOption = displayDialog.querySelector<HTMLButtonElement>(
 			'[data-action="set-alignment"][data-value="left"]',
 		);
-		leftOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(leftOption);
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.alignment).toBe("left");
 		expect(leftOption?.getAttribute("aria-pressed")).toBe("true");
 
@@ -444,43 +422,39 @@ describe("application integration", () => {
 	});
 
 	it("closing the diagram-options dialog via its Close button returns focus to the Diagram button", () => {
-		app = startApp(document);
+		mountApp();
 
 		const displayButton = document.getElementById("display-button");
-		displayButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(displayButton);
 
 		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		expect(displayDialog.open).toBe(true);
 
-		displayDialog
-			.querySelector<HTMLButtonElement>('[data-action="close-dialog"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(displayDialog.querySelector('[data-action="close-dialog"]'));
 
 		expect(displayDialog.open).toBe(false);
 		expect(document.activeElement).toBe(displayButton);
 	});
 
 	it("regression: choosing a link color via the links dialog (wide toolbar) still closes it", () => {
-		app = startApp(document);
+		mountApp();
 
 		const linksButton = document.getElementById("links-button");
-		linksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(linksButton);
 
 		const linksDialog = document.getElementById("links-dialog") as HTMLDialogElement;
 		expect(linksDialog.open).toBe(true);
 
-		linksDialog
-			.querySelector<HTMLButtonElement>('[data-value="target"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(linksDialog.querySelector('[data-value="target"]'));
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.linkColor).toBe("target");
 		expect(linksDialog.open).toBe(false);
 		expect(document.activeElement).toBe(linksButton);
 	});
 
 	it("boots with exactly one theme option pressed, matching the default (System)", () => {
-		app = startApp(document);
+		mountApp();
 
 		const pressed = Array.from(
 			document.querySelectorAll<HTMLButtonElement>('[data-action="set-theme"]'),
@@ -494,18 +468,18 @@ describe("application integration", () => {
 	});
 
 	it("choosing Light in the theme dialog sets data-theme, persists it, updates the button, and closes with focus back on it", () => {
-		app = startApp(document);
+		mountApp();
 
 		const themeButton = document.getElementById("theme-button");
-		themeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(themeButton);
 
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
 		expect(dialog.open).toBe(true);
 		const lightOption = dialog.querySelector<HTMLButtonElement>('[data-value="light"]');
-		lightOption?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(lightOption);
 
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.theme).toBe("light");
 		expect(themeButton?.getAttribute("aria-label")).toBe("Theme: Light");
 		expect(lightOption?.getAttribute("aria-pressed")).toBe("true");
@@ -515,36 +489,32 @@ describe("application integration", () => {
 	});
 
 	it("choosing System in the theme dialog removes data-theme entirely", () => {
-		app = startApp(document);
+		mountApp();
 
 		const themeButton = document.getElementById("theme-button");
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
 
 		// Start from Light so the System transition actually removes the attribute
 		// rather than it never having been set.
-		themeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-		dialog
-			.querySelector<HTMLButtonElement>('[data-value="light"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(themeButton);
+		click(dialog.querySelector('[data-value="light"]'));
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 
-		themeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-		dialog
-			.querySelector<HTMLButtonElement>('[data-value="auto"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(themeButton);
+		click(dialog.querySelector('[data-value="auto"]'));
 
 		expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.settings.theme).toBe("auto");
 		expect(themeButton?.getAttribute("aria-label")).toBe("Theme: System");
 	});
 
 	it("round-trips a basic mutation: add node updates editor, diagram, and storage", () => {
-		app = startApp(document);
+		mountApp();
 
 		const addNodeButton = document.querySelector<HTMLButtonElement>('[data-action="add-node"]');
 		expect(addNodeButton).not.toBeNull();
-		addNodeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(addNodeButton);
 
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(5);
 		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(5);
@@ -556,7 +526,7 @@ describe("application integration", () => {
 	});
 
 	it("leaves state untouched on empty/invalid value edits and restores the text on blur", () => {
-		app = startApp(document);
+		mountApp();
 
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
@@ -569,54 +539,53 @@ describe("application integration", () => {
 		// Emptying the field never reaches state: no error, no re-render, and
 		// the stored value stays at defaultState's 10.
 		valueInput.value = "";
-		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(valueInput);
 
 		expect(document.getElementById("error")?.textContent).toBe("");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.contains(valueInput)).toBe(true);
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(10);
+		expect(getStoredState().links[0].value).toBe(10);
 
 		// An invalid string marks the field but still leaves state/storage alone.
 		valueInput.value = "abc";
-		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(valueInput);
 
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(document.getElementById("error")?.textContent).toBe("");
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(10);
+		expect(getStoredState().links[0].value).toBe(10);
 
 		// Blur restores the last committed value and clears the marker.
-		valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+		fireChange(valueInput);
 		expect(valueInput.value).toBe("10");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 
 		// After a *valid* edit, blur must not rewrite the text — "5." parses to
 		// 5 but the trailing dot is preserved so the user can keep typing.
 		valueInput.value = "5.";
-		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(5);
-		valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+		fireInput(valueInput);
+		expect(getStoredState().links[0].value).toBe(5);
+		fireChange(valueInput);
 		expect(valueInput.value).toBe("5.");
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(5);
+		expect(getStoredState().links[0].value).toBe(5);
 
 		// A valid edit flows through to state, storage, and a fresh diagram.
 		valueInput.value = "20";
-		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(valueInput);
 
 		expect(document.getElementById("error")?.textContent).toBe("");
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
 		expect(svgAfter).not.toBe(svgBefore);
 		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(4);
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(20);
+		expect(getStoredState().links[0].value).toBe(20);
 	});
 
 	it("shows an inline, accessible error message for an invalid link value and clears it once valid", () => {
-		app = startApp(document);
+		mountApp();
 
-		const valueInput = document.querySelector<HTMLInputElement>('.link-value[data-index="0"]');
-		if (!valueInput) throw new Error("unreachable");
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
 
 		const describedbyId = valueInput.getAttribute("aria-describedby");
 		expect(describedbyId).toBeTruthy();
@@ -629,7 +598,7 @@ describe("application integration", () => {
 		expect(errorEl.textContent).toBe("");
 
 		valueInput.value = "abc";
-		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(valueInput);
 
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
@@ -637,42 +606,41 @@ describe("application integration", () => {
 		// Further invalid keystrokes keep the message (not cleared on every
 		// keypress, only when the value actually becomes valid or blank).
 		valueInput.value = "abcd";
-		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(valueInput);
 
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
 		// Becoming valid clears both the marker and the message.
 		valueInput.value = "20";
-		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(valueInput);
 
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(errorEl.textContent).toBe("");
 
 		// Above the 1e15 cap gets its own message.
 		valueInput.value = "9999999999999999";
-		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(valueInput);
 		expect(errorEl.textContent).toBe("Enter a number no greater than 1000000000000000.");
 
 		// Over 4 fractional digits, set directly (bypassing beforeinput's
 		// keystroke/paste interception), still reaches the message branch.
 		valueInput.value = "0.00001";
-		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(valueInput);
 		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
 
 		// Blur on an invalid value reverts the text to the last committed
 		// value and clears both the marker and the message.
-		valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+		fireChange(valueInput);
 		expect(valueInput.value).toBe("20");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(errorEl.textContent).toBe("");
 	});
 
 	it("intercepts the 4-decimal cap at beforeinput (block keystroke, truncate paste)", () => {
-		app = startApp(document);
+		mountApp();
 
-		const valueInput = document.querySelector<HTMLInputElement>('.link-value[data-index="0"]');
-		if (!valueInput) throw new Error("unreachable");
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
 
 		// happy-dom does not run the native editing pipeline for beforeinput, so
 		// these assert defaultPrevented (+ programmatic effects the handler
@@ -713,7 +681,7 @@ describe("application integration", () => {
 		// Caret lands at the end of the inserted region, clamped to the clip point.
 		expect(valueInput.selectionStart).toBe(6);
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(1.2345);
+		expect(getStoredState().links[0].value).toBe(1.2345);
 
 		// A paste replacing a mid-string selection exercises the
 		// slice+data+slice splice non-degenerately, then truncates the
@@ -725,7 +693,7 @@ describe("application integration", () => {
 		);
 		expect(valueInput.value).toBe("12.3456");
 		expect(valueInput.selectionStart).toBe(7);
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(12.3456);
+		expect(getStoredState().links[0].value).toBe(12.3456);
 
 		// A truncated paste that still lands invalid is highlighted, not silently
 		// dropped: the field shows the truncated text but state/storage stay put.
@@ -736,7 +704,7 @@ describe("application integration", () => {
 		);
 		expect(valueInput.value).toBe("0.0000");
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[0].value).toBe(12.3456);
+		expect(getStoredState().links[0].value).toBe(12.3456);
 
 		// A garbage paste is not intercepted — it falls through to the input
 		// handler's highlight path.
@@ -744,19 +712,19 @@ describe("application integration", () => {
 		valueInput.setSelectionRange(0, 0);
 		expect(beforeinput({ inputType: "insertFromPaste", data: "abc" }).defaultPrevented).toBe(false);
 		valueInput.value = "abc";
-		valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(valueInput);
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 	});
 
 	it("Add link appends an unassigned row that stays inert until both endpoints are chosen", () => {
-		app = startApp(document);
+		mountApp();
 
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
 
 		const addLinkButton = document.querySelector<HTMLButtonElement>('[data-action="add-link"]');
 		expect(addLinkButton).not.toBeNull();
-		addLinkButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(addLinkButton);
 
 		// New row appended with both endpoints on the placeholder; the diagram is
 		// unchanged because the row is incomplete.
@@ -769,7 +737,7 @@ describe("application integration", () => {
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
 
 		// The incomplete row is persisted end-to-end straight after the click.
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[3]).toEqual({
+		expect(getStoredState().links[3]).toEqual({
 			source: null,
 			target: null,
 			value: 1,
@@ -779,17 +747,17 @@ describe("application integration", () => {
 		const chosenSource = source();
 		if (!chosenSource) throw new Error("unreachable");
 		chosenSource.value = "n1";
-		chosenSource.dispatchEvent(new Event("change", { bubbles: true }));
+		fireChange(chosenSource);
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
 
 		// Choosing the target completes the link — the flow appears and persists.
 		const chosenTarget = target();
 		if (!chosenTarget) throw new Error("unreachable");
 		chosenTarget.value = "n2";
-		chosenTarget.dispatchEvent(new Event("change", { bubbles: true }));
+		fireChange(chosenTarget);
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(4);
 
-		const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const parsed = getStoredState();
 		expect(parsed.links[3]).toEqual({ source: "n1", target: "n2", value: 1 });
 
 		// Un-assigning the source ("" → null) makes the row incomplete again —
@@ -797,21 +765,17 @@ describe("application integration", () => {
 		const clearedSource = source();
 		if (!clearedSource) throw new Error("unreachable");
 		clearedSource.value = "";
-		clearedSource.dispatchEvent(new Event("change", { bubbles: true }));
+		fireChange(clearedSource);
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").links[3].source).toBeNull();
+		expect(getStoredState().links[3].source).toBeNull();
 	});
 
 	it("imports a constructed file: replaces state, rebuilds editors and diagram, preserves theme", async () => {
-		app = startApp(document);
+		mountApp();
 
 		// Set a distinct current theme so import-preserves-theme is unambiguous.
-		document
-			.getElementById("theme-button")
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-		document
-			.querySelector('[data-action="set-theme"][data-value="light"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(document.getElementById("theme-button"));
+		click(document.querySelector('[data-action="set-theme"][data-value="light"]'));
 
 		const payload = {
 			nodes: [
@@ -834,7 +798,7 @@ describe("application integration", () => {
 		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
-		input.dispatchEvent(new Event("change", { bubbles: true }));
+		fireChange(input);
 		// Flush the async file.text() + parseImport chain.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -843,7 +807,7 @@ describe("application integration", () => {
 		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(3);
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(2);
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n1", "n2", "n3"]);
 		expect(stored.settings.palette).toBe("set2");
 		expect(stored.settings.linkColor).toBe("static");
@@ -861,15 +825,14 @@ describe("application integration", () => {
 
 		// The import notice is one-shot: the next user action (here, a rename)
 		// runs refresh(), which retires it.
-		const nameInput = document.querySelector<HTMLInputElement>('.node-name[data-id="n1"]');
-		if (!nameInput) throw new Error("unreachable");
+		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
 		nameInput.value = "Renamed";
-		nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(nameInput);
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 
 	it("rejects a non-diagram file, leaving state and storage untouched, and shows the error", async () => {
-		app = startApp(document);
+		mountApp();
 
 		const storedBefore = localStorage.getItem(STORAGE_KEY);
 		const rectsBefore = document.querySelectorAll("#diagram svg rect").length;
@@ -877,7 +840,7 @@ describe("application integration", () => {
 		const file = new File(['{"totally":"unrelated"}'], "notes.json", { type: "application/json" });
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
-		input.dispatchEvent(new Event("change", { bubbles: true }));
+		fireChange(input);
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(document.getElementById("io-notice")?.textContent).toContain("diagram export");
@@ -888,7 +851,7 @@ describe("application integration", () => {
 	});
 
 	it("reports import repairs in the notice with the exact counts + adjustments format", async () => {
-		app = startApp(document);
+		mountApp();
 
 		const payload = {
 			nodes: [
@@ -902,7 +865,7 @@ describe("application integration", () => {
 		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
-		input.dispatchEvent(new Event("change", { bubbles: true }));
+		fireChange(input);
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
@@ -911,7 +874,7 @@ describe("application integration", () => {
 	});
 
 	it("exports the current diagram as a pretty-printed JSON blob download", async () => {
-		app = startApp(document);
+		mountApp();
 
 		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
 		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
@@ -923,9 +886,7 @@ describe("application integration", () => {
 		let revokedUrl: string | undefined;
 		let downloadName: string | undefined;
 		try {
-			document
-				.getElementById("export-button")
-				?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+			click(document.getElementById("export-button"));
 			// revoke is deferred via setTimeout(0) — let it fire before capturing.
 			await new Promise((resolve) => setTimeout(resolve, 0));
 		} finally {
@@ -952,14 +913,12 @@ describe("application integration", () => {
 	});
 
 	it("announces a successful export via #io-notice", async () => {
-		app = startApp(document);
+		mountApp();
 
 		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
 		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
 		try {
-			document
-				.getElementById("export-button")
-				?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+			click(document.getElementById("export-button"));
 			await new Promise((resolve) => setTimeout(resolve, 0));
 		} finally {
 			createObjectURL.mockRestore();
@@ -970,7 +929,7 @@ describe("application integration", () => {
 	});
 
 	it("opens the diagram export dialog and moves focus into its format choices", () => {
-		app = startApp(document);
+		mountApp();
 
 		const trigger = document.getElementById("diagram-export-button");
 		const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
@@ -978,24 +937,22 @@ describe("application integration", () => {
 		expect(dialog).toBeInstanceOf(HTMLDialogElement);
 		expect(dialog.open).toBe(false);
 
-		trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(trigger);
 
 		expect(dialog.open).toBe(true);
 		expect(document.activeElement).toBe(dialog.querySelector('[data-action="export-svg"]'));
 	});
 
 	it("reports 'nothing to export' for SVG and closes the export dialog with focus restored", () => {
-		app = startApp(document);
+		mountApp();
 
 		removeAllNodes();
 		expect(document.querySelector("#diagram svg")).toBeNull();
 
 		const trigger = document.getElementById("diagram-export-button");
 		const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
-		trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-		dialog
-			.querySelector<HTMLElement>('[data-action="export-svg"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(trigger);
+		click(dialog.querySelector('[data-action="export-svg"]'));
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Nothing to export — the diagram is empty.",
@@ -1008,7 +965,7 @@ describe("application integration", () => {
 		// Rasterization itself (Image/canvas) isn't exercisable under happy-dom —
 		// this only proves the empty-diagram guard fires before any of that runs,
 		// same as the SVG export's guard.
-		app = startApp(document);
+		mountApp();
 
 		expect(document.querySelectorAll('[data-action="export-svg"]')).toHaveLength(2);
 		expect(document.querySelectorAll('[data-action="export-png"]')).toHaveLength(2);
@@ -1018,10 +975,8 @@ describe("application integration", () => {
 
 		const displayButton = document.getElementById("display-button");
 		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
-		displayButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-		displayDialog
-			.querySelector<HTMLElement>('[data-action="export-png"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(displayButton);
+		click(displayDialog.querySelector('[data-action="export-png"]'));
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Nothing to export — the diagram is empty.",
@@ -1031,7 +986,7 @@ describe("application integration", () => {
 	});
 
 	it("keyboard-reorders a node row: order, dropdowns, storage, and focus all follow", () => {
-		app = startApp(document);
+		mountApp();
 
 		const nodeNames = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
@@ -1039,17 +994,14 @@ describe("application integration", () => {
 			);
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 
-		const handle = document.querySelector<HTMLButtonElement>(
-			'#node-editor .drag-handle[data-id="n1"]',
-		);
-		if (!handle) throw new Error("unreachable");
+		const handle = requireElement<HTMLButtonElement>('#node-editor .drag-handle[data-id="n1"]');
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
 		// Coal (n1) moved down one position.
 		expect(nodeNames()).toEqual(["Gas", "Coal", "Electricity", "Homes"]);
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n1", "n3", "n4"]);
 
 		// Link dropdown option order follows the new node order.
@@ -1068,7 +1020,7 @@ describe("application integration", () => {
 	});
 
 	it("keyboard-reorders a link row: order, storage, and focus all follow", () => {
-		app = startApp(document);
+		mountApp();
 
 		const linkValues = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#link-editor .link-value")).map(
@@ -1077,16 +1029,13 @@ describe("application integration", () => {
 		// Default links: n1->n3 (10), n2->n3 (6), n3->n4 (14).
 		expect(linkValues()).toEqual(["10", "6", "14"]);
 
-		const handle = document.querySelector<HTMLButtonElement>(
-			'#link-editor .drag-handle[data-index="0"]',
-		);
-		if (!handle) throw new Error("unreachable");
+		const handle = requireElement<HTMLButtonElement>('#link-editor .drag-handle[data-index="0"]');
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
 		expect(linkValues()).toEqual(["6", "10", "14"]);
 
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([6, 10, 14]);
 
 		// Focus lands on the moved link's handle, now at index 1.
@@ -1114,11 +1063,10 @@ describe("application integration", () => {
 	): Sortable.SortableEvent => event as unknown as Sortable.SortableEvent;
 
 	it("wires a SortableJS instance onto each rows container with the shared drag options", () => {
-		app = startApp(document);
+		mountApp();
 
-		const nodeRows = document.querySelector<HTMLElement>("#node-editor .node-rows");
-		const linkRows = document.querySelector<HTMLElement>("#link-editor .link-rows");
-		if (!nodeRows || !linkRows) throw new Error("unreachable");
+		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
+		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
 
 		const nodeSortable = Sortable.get(nodeRows);
 		const linkSortable = Sortable.get(linkRows);
@@ -1153,7 +1101,7 @@ describe("application integration", () => {
 	});
 
 	it("committing a node row's Sortable onEnd reorders it: order, dropdowns, and storage all follow", () => {
-		app = startApp(document);
+		mountApp();
 
 		const nodeNames = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
@@ -1161,8 +1109,7 @@ describe("application integration", () => {
 			);
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 
-		const nodeRows = document.querySelector<HTMLElement>("#node-editor .node-rows");
-		if (!nodeRows) throw new Error("unreachable");
+		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
 		const onEnd = Sortable.get(nodeRows)?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
@@ -1172,7 +1119,7 @@ describe("application integration", () => {
 		onEnd(fakeSortableEvent({ oldIndex: 0, newIndex: 2 }));
 
 		expect(nodeNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n3", "n1", "n4"]);
 
 		// The rebuild the move triggers replaces .node-rows wholesale, so the
@@ -1182,7 +1129,7 @@ describe("application integration", () => {
 	});
 
 	it("committing a link row's Sortable onEnd reorders it: order and storage follow", () => {
-		app = startApp(document);
+		mountApp();
 
 		const linkValues = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#link-editor .link-value")).map(
@@ -1190,31 +1137,28 @@ describe("application integration", () => {
 			);
 		expect(linkValues()).toEqual(["10", "6", "14"]);
 
-		const linkRows = document.querySelector<HTMLElement>("#link-editor .link-rows");
-		if (!linkRows) throw new Error("unreachable");
+		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
 		const onEnd = Sortable.get(linkRows)?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
 		onEnd(fakeSortableEvent({ oldIndex: 0, newIndex: 1 }));
 
 		expect(linkValues()).toEqual(["6", "10", "14"]);
-		const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+		const stored = getStoredState();
 		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([6, 10, 14]);
 	});
 
 	it("a cloned row keeps its select/input values (Sortable's drag ghost is a cloneNode)", () => {
-		app = startApp(document);
+		mountApp();
 
 		// Sortable builds the floating drag ghost via cloneNode, which copies
 		// attributes but not live properties — selection/value state must
 		// therefore live in attributes or the ghost degrades to placeholders.
-		const linkRow = document.querySelector<HTMLElement>("#link-editor .link-row");
-		const nodeRow = document.querySelector<HTMLElement>("#node-editor .node-row");
-		if (!linkRow || !nodeRow) throw new Error("unreachable");
-		const source = linkRow.querySelector<HTMLSelectElement>(".link-source");
-		const target = linkRow.querySelector<HTMLSelectElement>(".link-target");
-		const value = linkRow.querySelector<HTMLInputElement>(".link-value");
-		if (!source || !target || !value) throw new Error("unreachable");
+		const linkRow = requireElement<HTMLElement>("#link-editor .link-row");
+		const nodeRow = requireElement<HTMLElement>("#node-editor .node-row");
+		const source = requireElement<HTMLSelectElement>(".link-source", linkRow);
+		const target = requireElement<HTMLSelectElement>(".link-target", linkRow);
+		const value = requireElement<HTMLInputElement>(".link-value", linkRow);
 		expect(source.value).not.toBe("");
 
 		const linkClone = linkRow.cloneNode(true) as HTMLElement;
@@ -1230,20 +1174,19 @@ describe("application integration", () => {
 		// Value edits skip the row rebuild (focus preservation), so the attribute
 		// mirror in commitLinkValue must keep later clones truthful too.
 		value.value = "42";
-		value.dispatchEvent(new Event("input", { bubbles: true }));
+		fireInput(value);
 		const cloneAfterEdit = linkRow.cloneNode(true) as HTMLElement;
 		expect(cloneAfterEdit.querySelector<HTMLInputElement>(".link-value")?.value).toBe("42");
 	});
 
 	it("the onEnd no-op guard: a same-index or indexless event moves nothing", () => {
-		app = startApp(document);
+		mountApp();
 
 		const nodeNames = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
 				(i) => i.value,
 			);
-		const nodeRows = document.querySelector<HTMLElement>("#node-editor .node-rows");
-		if (!nodeRows) throw new Error("unreachable");
+		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
 		const instance = Sortable.get(nodeRows);
 		const onEnd = instance?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
@@ -1260,28 +1203,24 @@ describe("application integration", () => {
 	});
 
 	it("rebuilding the node editor destroys the previous Sortable instance rather than leaking it", () => {
-		app = startApp(document);
+		mountApp();
 
-		const before = document.querySelector<HTMLElement>("#node-editor .node-rows");
-		if (!before) throw new Error("unreachable");
+		const before = requireElement<HTMLElement>("#node-editor .node-rows");
 		expect(Sortable.get(before)).toBeTruthy();
 
 		// add-node rebuilds the node editor (renderNodeEditor replaces
 		// .node-rows wholesale), which is the case attachRowSortable's
 		// destroy(previous) exists to handle.
-		document
-			.querySelector<HTMLButtonElement>('[data-action="add-node"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(document.querySelector('[data-action="add-node"]'));
 
 		expect(Sortable.get(before)).toBeNull();
-		const after = document.querySelector<HTMLElement>("#node-editor .node-rows");
-		if (!after) throw new Error("unreachable");
+		const after = requireElement<HTMLElement>("#node-editor .node-rows");
 		expect(after).not.toBe(before);
 		expect(Sortable.get(after)).toBeTruthy();
 	});
 
 	it("boundary keyboard move is a no-op (ArrowUp on the first node row)", () => {
-		app = startApp(document);
+		mountApp();
 
 		const nodeNames = () =>
 			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
@@ -1289,10 +1228,7 @@ describe("application integration", () => {
 			);
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 
-		const handle = document.querySelector<HTMLButtonElement>(
-			'#node-editor .drag-handle[data-id="n1"]',
-		);
-		if (!handle) throw new Error("unreachable");
+		const handle = requireElement<HTMLButtonElement>('#node-editor .drag-handle[data-id="n1"]');
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
 
@@ -1302,7 +1238,7 @@ describe("application integration", () => {
 	});
 
 	it("surfaces a storage notice on save failure and clears it once saves recover", () => {
-		app = startApp(document);
+		mountApp();
 
 		const notice = () => document.getElementById("storage-notice")?.textContent;
 		expect(notice()).toBe("");
@@ -1328,7 +1264,7 @@ describe("application integration", () => {
 			writable: true,
 		});
 		try {
-			addNodeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+			click(addNodeButton);
 			expect(notice()).toBe(STORAGE_NOTICE);
 		} finally {
 			Object.defineProperty(globalThis, "localStorage", {
@@ -1344,7 +1280,7 @@ describe("application integration", () => {
 		const addNodeButtonAfterFailure = document.querySelector<HTMLButtonElement>(
 			'[data-action="add-node"]',
 		);
-		addNodeButtonAfterFailure?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		click(addNodeButtonAfterFailure);
 		expect(notice()).toBe("");
 	});
 });
