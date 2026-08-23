@@ -59,9 +59,8 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	// need their own null checks.
 	const win: Window = view;
 
-	// The single Preact root (PLAN.md's Phase 6) — resolved once, up front, so
-	// a markup regression fails loudly at boot rather than silently no-op-ing
-	// on every render below.
+	// The single Preact root — resolved once, up front, so a markup regression
+	// fails loudly at boot rather than silently no-op-ing on every render below.
 	const appRoot = requireRoot(doc, "app");
 
 	// win.AbortController, not the bare global: `doc` may belong to a window
@@ -79,14 +78,14 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	// keys — see createLinkProjector's own doc comment.
 	const projectLinks = createLinkProjector();
 
-	// The last-valid diagram render request (PLAN.md's "Last-valid diagram
-	// snapshot"). Reassigned wholesale, never mutated in place, so SankeyCanvas
-	// can key its redraw off reference identity — see its own doc comment.
+	// The last-valid diagram render request. Reassigned wholesale, never
+	// mutated in place, so SankeyCanvas can key its redraw off reference
+	// identity — see its own doc comment.
 	let lastValidRequest: DiagramRenderRequest | null = null;
 
-	// At most one Notice per kind (PLAN.md's Notice policy) — plain local
-	// state, not Preact state, since this controller (not any component) owns
-	// every committed action and is the sole source renderApp() below reads.
+	// At most one Notice per kind — plain local state, not Preact state, since
+	// this controller (not any component) owns every committed action and is
+	// the sole source renderApp() below reads.
 	let graphNotice: Notice | null = null;
 	let storageNotice: Notice | null = null;
 	let ioNotice: Notice | null = null;
@@ -94,14 +93,13 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	applyTheme(doc, state.settings.theme);
 
 	/**
-	 * The one controller render function (PLAN.md's Phase 6, step 8):
-	 * projects the current domain state and notices into a fresh view
-	 * snapshot and hands it to `App`. Every action path below calls this
-	 * exactly once, at its own end — after every mutation and notice-state
-	 * assignment (showGraphNotice/showStorageNotice/showIoNotice, which only
-	 * assign) it cares about have already landed, so `App` never sees an
-	 * intermediate mix of a stale `lastValidRequest` with already-updated
-	 * notices or vice versa.
+	 * The one controller render function: projects the current domain state
+	 * and notices into a fresh view snapshot and hands it to `App`. Every
+	 * action path below calls this exactly once, at its own end — after every
+	 * mutation and notice-state assignment (showGraphNotice/showStorageNotice/
+	 * showIoNotice, which only assign) it cares about have already landed, so
+	 * `App` never sees an intermediate mix of a stale `lastValidRequest` with
+	 * already-updated notices or vice versa.
 	 */
 	function renderApp(): void {
 		render(
@@ -275,7 +273,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			replaceDiagram(state, imported);
 			refresh();
 			// No notice when nothing needed adjusting — the changed data is
-			// sufficient feedback (PLAN.md's Notice policy).
+			// sufficient feedback.
 			if (repairs.length === 0) return;
 			// Set AFTER refresh() (which clears the io notice and already
 			// rendered once) so this message survives the import's own refresh

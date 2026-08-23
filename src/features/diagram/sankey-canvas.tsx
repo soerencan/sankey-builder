@@ -7,12 +7,12 @@ export interface SankeyCanvasProps {
 }
 
 /**
- * The sole D3-owned subtree (PLAN.md's "one DOM owner per subtree"): Preact
- * renders only this empty host div — renderDiagram exclusively creates,
- * replaces, and clears its descendants. The effect is keyed on `request`
- * identity, not on unrelated application rerenders, so a redraw happens only
- * when the controller has actually replaced the last-valid diagram snapshot
- * (see render.ts's DiagramRenderRequest doc comment).
+ * The sole D3-owned subtree: Preact renders only this empty host div —
+ * renderDiagram exclusively creates, replaces, and clears its descendants.
+ * The effect is keyed on `request` identity, not on unrelated application
+ * rerenders, so a redraw happens only when the controller has actually
+ * replaced the last-valid diagram snapshot (see render.ts's
+ * DiagramRenderRequest doc comment).
  */
 export function SankeyCanvas({ request }: SankeyCanvasProps) {
 	const hostRef = useRef<HTMLDivElement>(null);

@@ -64,12 +64,11 @@ function rasterizeAbortError(): DOMException {
  * URL — not the ambient global — since `doc`/`win` may belong to a window
  * other than this module's own ambient one.
  *
- * `signal` is the owning application instance's AbortSignal (see
- * PLAN.md's "Async operation ownership"). Already aborted, it settles
- * without creating anything; aborted while the image is loading, it detaches
- * the img's handlers, clears its `src` to stop the pending load, and revokes
- * the object URL — so a browser completion that arrives after destroy can
- * neither call back into this promise nor double-revoke its URL.
+ * `signal` is the owning application instance's AbortSignal. Already aborted,
+ * it settles without creating anything; aborted while the image is loading,
+ * it detaches the img's handlers, clears its `src` to stop the pending load,
+ * and revokes the object URL — so a browser completion that arrives after
+ * destroy can neither call back into this promise nor double-revoke its URL.
  */
 export function rasterizeSvg(
 	doc: Document,

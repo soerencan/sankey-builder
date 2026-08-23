@@ -2,7 +2,7 @@ import { createNodeColorResolver } from "../features/diagram/colors";
 import type { Link, State } from "../model/graph";
 import type { Alignment, AspectRatio, LinkColorMode, Palette } from "../model/settings";
 
-/** Immutable per-node DTO handed to NodeEditor — see PLAN.md's view-snapshot rationale. */
+/** Immutable per-node DTO handed to NodeEditor. */
 export interface NodeView {
 	readonly id: string;
 	readonly name: string;

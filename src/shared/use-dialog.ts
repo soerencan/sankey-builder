@@ -15,13 +15,11 @@ const FOCUSABLE_SELECTOR =
 	'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /**
- * Preact-owned open/close/focus wiring for a JSX-rendered <dialog>, replacing
- * the now-deleted shared/dialog.ts (its imperative equivalent) once
- * theme-control.tsx became this hook's last remaining non-caller. Keeps no
+ * Preact-owned open/close/focus wiring for a JSX-rendered <dialog>. Keeps no
  * open state in Preact — showModal()/close() run imperatively on the ref so
- * callers (and tests) stay synchronous. Every caller in this migration still
- * mounts one <dialog> per hook call, so a single mount-once effect can own
- * its listeners for the component's lifetime.
+ * callers (and tests) stay synchronous. Every caller mounts one <dialog> per
+ * hook call, so a single mount-once effect can own its listeners for the
+ * component's lifetime.
  */
 export function useDialog(): DialogHandle {
 	const dialogRef = useRef<HTMLDialogElement>(null);

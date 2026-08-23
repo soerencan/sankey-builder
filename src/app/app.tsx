@@ -38,13 +38,13 @@ export interface AppProps {
 }
 
 /**
- * The single Preact application root (PLAN.md's Phase 6). Composes the
- * header/theme control, the consolidated notice region, the diagram panel
- * (toolbar, D3-owned canvas, and preview resizer), and the data panel — one
- * DOM owner per subtree, D3 confined to SankeyCanvas's own host div.
- * `diagramRef` is owned here (not by any single child) because DiagramPanel,
- * SankeyCanvas's host, and PreviewResizer are siblings in this same tree that
- * all read or write the #diagram element.
+ * The single Preact application root. Composes the header/theme control, the
+ * consolidated notice region, the diagram panel (toolbar, D3-owned canvas,
+ * and preview resizer), and the data panel — one DOM owner per subtree, D3
+ * confined to SankeyCanvas's own host div. `diagramRef` is owned here (not by
+ * any single child) because DiagramPanel, SankeyCanvas's host, and
+ * PreviewResizer are siblings in this same tree that all read or write the
+ * #diagram element.
  */
 export function App({
 	doc,

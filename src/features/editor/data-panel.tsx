@@ -11,7 +11,7 @@ import { NodeEditor } from "./node-editor";
 const EXPORT_JSON_FILENAME = "sankey.json";
 
 export interface DataPanelActions {
-	/** Starting a new import or export attempt clears any notice left by a previous one (PLAN.md's Notice policy). */
+	/** Starting a new import or export attempt clears any notice left by a previous one. */
 	clearIoNotice(): void;
 	importDiagram(imported: ImportState, repairs: string[]): void;
 	reportImportError(message: string): void;
@@ -37,9 +37,8 @@ export interface DataPanelProps {
 
 /**
  * The Data-panel's header (import/JSON-export controls) plus the node and
- * link editors, all under one root — see PLAN.md's Phase 5. The file input
- * is owned via ref rather than a DOM id lookup, matching how DiagramPanel
- * owns its own dialogs/refs.
+ * link editors, all under one root. The file input is owned via ref rather
+ * than a DOM id lookup, matching how DiagramPanel owns its own dialogs/refs.
  */
 export function DataPanel({
 	doc,
@@ -80,9 +79,9 @@ export function DataPanel({
 			return;
 		}
 		// File.text() isn't cancellable — a stale completion from a destroyed
-		// app instance must do nothing user-visible (PLAN.md's "Async operation
-		// ownership"). Checked again just below, right before the dispatch, in
-		// case destroy() lands between this check and the synchronous parse.
+		// app instance must do nothing user-visible. Checked again just below,
+		// right before the dispatch, in case destroy() lands between this check
+		// and the synchronous parse.
 		if (signal.aborted) return;
 
 		const result = parseImport(text);

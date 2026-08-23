@@ -30,7 +30,7 @@ function removeAllNodes(): void {
  * A File whose text() resolves only when the returned resolver is called —
  * `File.text()` isn't natively cancellable/controllable, so this shadows the
  * instance method to drive destroy/reboot races against the pending read by
- * hand (see PLAN.md's "Async operation ownership").
+ * hand.
  */
 function deferredFile(): { file: File; resolveText: (text: string) => void } {
 	let resolveText: (text: string) => void = () => {};
@@ -99,7 +99,7 @@ describe("import & export", () => {
 		);
 
 		// Import without repairs is no longer announced — the changed data is
-		// sufficient feedback (PLAN.md's Notice policy).
+		// sufficient feedback.
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 
@@ -127,7 +127,7 @@ describe("import & export", () => {
 		const repairMessage =
 			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.";
 		expect(notice()).toBe(repairMessage);
-		// A repair warning's tone is always "warning" (PLAN.md's Notice policy).
+		// A repair warning's tone is always "warning".
 		expect(document.getElementById("io-notice")?.className).toBe("notice-warning");
 
 		// An invalid or empty draft never reaches actions.updateLinkValue (see
@@ -191,7 +191,7 @@ describe("import & export", () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(document.getElementById("io-notice")?.textContent).toContain("diagram export");
-		// An import/export failure's tone is always "error" (PLAN.md's Notice policy).
+		// An import/export failure's tone is always "error".
 		expect(document.getElementById("io-notice")?.className).toBe("notice-error");
 		// Nothing changed: same storage payload, same diagram, same editor rows.
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);

@@ -39,7 +39,7 @@ export interface DiagramPanelActions {
 	setLinkColor(value: LinkColorMode): void;
 	setAlignment(value: Alignment): void;
 	setAspectRatio(value: AspectRatio): void;
-	/** Starting a new export attempt clears any notice left by a previous one (PLAN.md's Notice policy). */
+	/** Starting a new export attempt clears any notice left by a previous one. */
 	clearIoNotice(): void;
 	reportExportError(message: string): void;
 }
@@ -184,9 +184,9 @@ export function DiagramPanel({
 			rasterizeSvg(doc, win, svg, width, height, PNG_EXPORT_SCALE, signal)
 				.then((blob) => {
 					// A stale completion (this app instance destroyed while rasterizing)
-					// must do nothing user-visible — see PLAN.md's "Async operation
-					// ownership". rasterizeSvg itself already rejects on abort, so this
-					// only guards a resolve that raced destroy() in the same tick.
+					// must do nothing user-visible. rasterizeSvg itself already rejects
+					// on abort, so this only guards a resolve that raced destroy() in
+					// the same tick.
 					if (signal.aborted) return;
 					download(doc, win, blob, EXPORT_PNG_FILENAME);
 				})

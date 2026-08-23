@@ -61,13 +61,13 @@ describe("characterization: pre-Preact-migration behavior", () => {
 
 			expect(errorText()).toContain("cycle");
 			expect(storageText()).toBe(STORAGE_NOTICE);
-			// Tone classes (PLAN.md's Notice policy: graph is always "error",
-			// storage-unavailable is always "warning") on the two active slots.
+			// Tone classes on the two active slots: graph is always "error",
+			// storage-unavailable is always "warning".
 			expect(document.getElementById("error")?.className).toBe("notice-error");
 			expect(document.getElementById("storage-notice")?.className).toBe("notice-warning");
-			// Display order — graph, storage, then I/O (PLAN.md's Notice
-			// policy) — is the fixed slot order NoticeRegion renders, not
-			// something either notice's presence can reorder.
+			// Display order — graph, storage, then I/O — is the fixed slot order
+			// NoticeRegion renders, not something either notice's presence can
+			// reorder.
 			expect(
 				Array.from(document.querySelectorAll<HTMLElement>(".notice-region > div")).map(
 					(slot) => slot.id,
@@ -159,8 +159,8 @@ describe("characterization: pre-Preact-migration behavior", () => {
 		expect((svgText.match(/<rect/g) ?? []).length).toBe(rectsBefore + 1);
 		expect(svgText).toContain(oldName);
 		expect(svgText).not.toContain("Renamed For Export Test");
-		// Deliberate pin change (PLAN.md's Notice policy): a successful export no
-		// longer installs a visible notice — the download itself is the feedback.
+		// A successful export installs no visible notice — the download itself
+		// is the feedback.
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 

@@ -15,10 +15,21 @@ which browsers block from `file://` origins for security reasons.
 
 ## Dependencies
 
-d3 7.9.0, d3-sankey 0.12.3, and SortableJS 1.15.7 are real npm dependencies,
-bundled by `bun build`. `style.css` also defines a handful of design-token
-custom properties whose values are copied from Open Props 1.7.14; the
-package itself isn't vendored or shipped.
+d3 7.9.0, d3-sankey 0.12.3, Preact 10.29.8, and SortableJS 1.15.7 are real
+npm dependencies, bundled by `bun build`. `style.css` also defines a handful
+of design-token custom properties whose values are copied from Open Props
+1.7.14; the package itself isn't vendored or shipped.
+
+## Architecture
+
+Preact owns the whole application UI: composition, controls, dialogs, and
+editor markup all render as components under one root (`src/app/app.tsx`,
+mounted by `src/app/start-app.tsx`). The one exception is the rendered Sankey
+`<svg>`: `SankeyCanvas` (`src/features/diagram/sankey-canvas.tsx`) renders
+only an empty host `<div>`, and D3 (`renderDiagram`,
+`src/features/diagram/render.ts`) exclusively creates, replaces, and clears
+that host's descendants. Preact never renders children inside it, and D3
+never touches anything outside it — keeping one DOM owner per subtree.
 
 ## Verification
 
@@ -55,7 +66,7 @@ Available `make` targets:
 
 Most tests in `tests/` import `src/` directly. The `tests/integration/`
 suites are broader: they boot the application through
-`startApp()` (`src/app/start-app.ts`) against the real `index.html` markup with the
+`startApp()` (`src/app/start-app.tsx`) against the real `index.html` markup with the
 real d3/SortableJS. `tests/build/dist.test.ts` goes one step further: it runs the
 build script (`bun run build`) itself, then boots the actual emitted `dist/`
 bundle, asserting its asset URLs are relative (so the site works from any
@@ -90,7 +101,7 @@ under the [MIT License](LICENSE).
 
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) is the authoritative
 notice list: it attributes the full production dependency closure of the
-bundled site (D3 and its `d3-*` modules, d3-sankey, and SortableJS), plus
-Open Props, whose license is retained because `style.css` derives a handful
-of design-token values from it. None of these are relicensed under the MIT
-License above.
+bundled site (D3 and its `d3-*` modules, d3-sankey, Preact, and SortableJS),
+plus Open Props, whose license is retained because `style.css` derives a
+handful of design-token values from it. None of these are relicensed under
+the MIT License above.
