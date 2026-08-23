@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import Sortable from "sortablejs";
 import { describe, expect, it } from "vitest";
 import {
 	ASPECT_RATIO_LABELS,
@@ -9,7 +10,7 @@ import {
 } from "../../src/features/settings/options";
 import { defaultState } from "../../src/model/graph";
 import { ALIGNMENTS, ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../src/model/settings";
-import { click, getStoredState, mountApp } from "../helpers/mount-app";
+import { click, getStoredState, mountApp, requireElement } from "../helpers/mount-app";
 
 describe("toolbar & settings", () => {
 	it("palette-next advances the carousel: state, preview label, and rendered colors all follow", () => {
@@ -440,6 +441,83 @@ describe("toolbar & settings", () => {
 		const stored = getStoredState();
 		expect(stored.settings.theme).toBe("auto");
 		expect(themeButton?.getAttribute("aria-label")).toBe("Theme: System");
+	});
+});
+
+// Phase 6 render-scope corrections: link color, alignment, and aspect ratio
+// are diagram-only settings — per the plan's action/effect matrix they redraw
+// the diagram but must not rebuild either editor or destroy/recreate either
+// Sortable instance.
+describe("diagram-only settings leave both editors and both Sortables untouched", () => {
+	function captureEditorState() {
+		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
+		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
+		const nodeSortable = Sortable.get(nodeRows);
+		const linkSortable = Sortable.get(linkRows);
+		if (!nodeSortable || !linkSortable) throw new Error("unreachable");
+		return {
+			nodeRows,
+			linkRows,
+			nodeSortable,
+			linkSortable,
+			nodeRow: requireElement<HTMLElement>("#node-editor .node-row"),
+			linkRow: requireElement<HTMLElement>("#link-editor .link-row"),
+		};
+	}
+
+	function expectEditorsUntouched(before: ReturnType<typeof captureEditorState>): void {
+		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(before.nodeRows);
+		expect(requireElement<HTMLElement>("#link-editor .link-rows")).toBe(before.linkRows);
+		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(before.nodeRow);
+		expect(requireElement<HTMLElement>("#link-editor .link-row")).toBe(before.linkRow);
+		expect(Sortable.get(before.nodeRows)).toBe(before.nodeSortable);
+		expect(Sortable.get(before.linkRows)).toBe(before.linkSortable);
+	}
+
+	it("changing link color redraws the diagram and persists without rebuilding either editor or Sortable", () => {
+		mountApp();
+
+		const before = captureEditorState();
+		const svgBefore = document.querySelector("#diagram svg");
+
+		click(document.getElementById("links-button"));
+		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
+		click(dialog.querySelector('[data-value="static"]'));
+
+		expectEditorsUntouched(before);
+		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
+		expect(getStoredState().settings.linkColor).toBe("static");
+	});
+
+	it("changing alignment redraws the diagram and persists without rebuilding either editor or Sortable", () => {
+		mountApp();
+
+		const before = captureEditorState();
+		const svgBefore = document.querySelector("#diagram svg");
+
+		const leftOption = Array.from(
+			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
+		).find((option) => option.closest(".align-group") && option.dataset.value === "left");
+		click(leftOption);
+
+		expectEditorsUntouched(before);
+		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
+		expect(getStoredState().settings.alignment).toBe("left");
+	});
+
+	it("changing aspect ratio redraws the diagram and persists without rebuilding either editor or Sortable", () => {
+		mountApp();
+
+		const before = captureEditorState();
+		const svgBefore = document.querySelector("#diagram svg");
+
+		click(document.getElementById("aspect-ratio-button"));
+		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
+		click(dialog.querySelector('[data-action="set-aspect-ratio"][data-value="3:1"]'));
+
+		expectEditorsUntouched(before);
+		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
+		expect(getStoredState().settings.aspectRatio).toBe("3:1");
 	});
 });
 

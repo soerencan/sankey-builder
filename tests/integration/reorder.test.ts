@@ -2,7 +2,14 @@
 
 import Sortable from "sortablejs";
 import { describe, expect, it, vi } from "vitest";
-import { click, fireInput, getStoredState, mountApp, requireElement } from "../helpers/mount-app";
+import {
+	click,
+	fireChange,
+	fireInput,
+	getStoredState,
+	mountApp,
+	requireElement,
+} from "../helpers/mount-app";
 
 describe("row reordering", () => {
 	it("keyboard-reorders a node row: order, dropdowns, storage, and focus all follow", () => {
@@ -276,5 +283,85 @@ describe("row reordering", () => {
 		// Already at the top: order unchanged and focus stays put.
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 		expect(document.activeElement).toBe(handle);
+	});
+});
+
+// Phase 6 render-scope corrections: link add/delete/endpoint-change/reorder
+// invalidate only the link editor, per the plan's action/effect matrix — none
+// of them touch the node editor's rows or its Sortable instance.
+describe("link actions leave the node editor untouched", () => {
+	function nodeSortableOrThrow(): Sortable {
+		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
+		const instance = Sortable.get(nodeRows);
+		if (!instance) throw new Error("unreachable");
+		return instance;
+	}
+
+	it("add link does not destroy/recreate the node Sortable or its row DOM", () => {
+		mountApp();
+
+		const nodeRowsBefore = requireElement<HTMLElement>("#node-editor .node-rows");
+		const nodeRowBefore = requireElement<HTMLElement>("#node-editor .node-row");
+		const nodeSortableBefore = nodeSortableOrThrow();
+		const destroySpy = vi.spyOn(nodeSortableBefore, "destroy");
+
+		click(document.querySelector('[data-action="add-link"]'));
+
+		expect(destroySpy).not.toHaveBeenCalled();
+		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRowsBefore);
+		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(nodeRowBefore);
+		expect(Sortable.get(nodeRowsBefore)).toBe(nodeSortableBefore);
+	});
+
+	it("delete link does not destroy/recreate the node Sortable or its row DOM", () => {
+		mountApp();
+
+		const nodeRowsBefore = requireElement<HTMLElement>("#node-editor .node-rows");
+		const nodeRowBefore = requireElement<HTMLElement>("#node-editor .node-row");
+		const nodeSortableBefore = nodeSortableOrThrow();
+		const destroySpy = vi.spyOn(nodeSortableBefore, "destroy");
+
+		click(document.querySelector('.link-delete[data-index="0"]'));
+
+		expect(destroySpy).not.toHaveBeenCalled();
+		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRowsBefore);
+		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(nodeRowBefore);
+		expect(Sortable.get(nodeRowsBefore)).toBe(nodeSortableBefore);
+	});
+
+	it("changing a link's source endpoint does not destroy/recreate the node Sortable or its row DOM", () => {
+		mountApp();
+
+		const nodeRowsBefore = requireElement<HTMLElement>("#node-editor .node-rows");
+		const nodeRowBefore = requireElement<HTMLElement>("#node-editor .node-row");
+		const nodeSortableBefore = nodeSortableOrThrow();
+		const destroySpy = vi.spyOn(nodeSortableBefore, "destroy");
+
+		const source = requireElement<HTMLSelectElement>('.link-source[data-index="0"]');
+		source.value = "n2";
+		fireChange(source);
+
+		expect(destroySpy).not.toHaveBeenCalled();
+		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRowsBefore);
+		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(nodeRowBefore);
+		expect(Sortable.get(nodeRowsBefore)).toBe(nodeSortableBefore);
+	});
+
+	it("changing a link's target endpoint does not destroy/recreate the node Sortable or its row DOM", () => {
+		mountApp();
+
+		const nodeRowsBefore = requireElement<HTMLElement>("#node-editor .node-rows");
+		const nodeRowBefore = requireElement<HTMLElement>("#node-editor .node-row");
+		const nodeSortableBefore = nodeSortableOrThrow();
+		const destroySpy = vi.spyOn(nodeSortableBefore, "destroy");
+
+		const target = requireElement<HTMLSelectElement>('.link-target[data-index="0"]');
+		target.value = "n4";
+		fireChange(target);
+
+		expect(destroySpy).not.toHaveBeenCalled();
+		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRowsBefore);
+		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(nodeRowBefore);
+		expect(Sortable.get(nodeRowsBefore)).toBe(nodeSortableBefore);
 	});
 });

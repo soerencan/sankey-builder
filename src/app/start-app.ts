@@ -162,19 +162,20 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const linkEditorActions: LinkEditorActions = {
 		addLink() {
 			addLink(state);
-			refresh();
+			// The node editor is unaffected by link changes — rebuild only the links.
+			refresh({ rebuildNodes: false });
 		},
 		deleteLink(index) {
 			deleteLink(state, index);
-			refresh();
+			refresh({ rebuildNodes: false });
 		},
 		updateLinkSource(index, id) {
 			updateLink(state, index, { source: id });
-			refresh();
+			refresh({ rebuildNodes: false });
 		},
 		updateLinkTarget(index, id) {
 			updateLink(state, index, { target: id });
-			refresh();
+			refresh({ rebuildNodes: false });
 		},
 		updateLinkValue(index, value) {
 			updateLink(state, index, { value });
@@ -235,15 +236,16 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		},
 		setLinkColor(value) {
 			state.settings.linkColor = value;
-			refresh();
+			// Diagram-only setting — skip both editor rebuilds, same as theme above.
+			refresh({ rebuildNodes: false, rebuildLinks: false });
 		},
 		setAlignment(value) {
 			state.settings.alignment = value;
-			refresh();
+			refresh({ rebuildNodes: false, rebuildLinks: false });
 		},
 		setAspectRatio(value) {
 			state.settings.aspectRatio = value;
-			refresh();
+			refresh({ rebuildNodes: false, rebuildLinks: false });
 		},
 	};
 
