@@ -140,6 +140,48 @@ describe("node & link editing", () => {
 		expect(errorEl.textContent).toBe("");
 	});
 
+	it("pins the exact error message for other ambiguous link-value inputs, ahead of a parser refactor", () => {
+		mountApp();
+
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const describedbyId = valueInput.getAttribute("aria-describedby");
+		const errorEl = describedbyId ? document.getElementById(describedbyId) : null;
+		expect(errorEl).not.toBeNull();
+		if (!errorEl) throw new Error("unreachable");
+
+		// Exponent notation isn't the plain-decimal format parseLinkValue
+		// requires, so it falls to the generic catch-all message rather than
+		// the maximum-value one, even though 1e20 is itself above MAX_LINK_VALUE.
+		valueInput.value = "1e20";
+		fireInput(valueInput);
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
+
+		// A zero value with excess fractional precision hits the precision
+		// message first — exceedsFractionDigits is checked ahead of the
+		// non-positive rule in linkValueErrorMessage, so this is NOT the
+		// "greater than 0" message despite the parsed value being 0.
+		valueInput.value = "0.00000";
+		fireInput(valueInput);
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
+
+		// Above the maximum AND over-precise: the precision message still
+		// wins, same ordering as above.
+		valueInput.value = "1000000000000001.00001";
+		fireInput(valueInput);
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
+
+		// Whitespace-only trims to empty, same as a fully empty field: no
+		// error, no aria-invalid, and the committed value stays untouched.
+		valueInput.value = "   ";
+		fireInput(valueInput);
+		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
+		expect(errorEl.textContent).toBe("");
+		expect(getStoredState().links[0].value).toBe(10);
+	});
+
 	it("intercepts the 4-decimal cap at beforeinput (block keystroke, truncate paste)", () => {
 		mountApp();
 
