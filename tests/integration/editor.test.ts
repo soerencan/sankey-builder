@@ -35,13 +35,10 @@ describe("node & link editing", () => {
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
 
-		// First link (n1 "Coal" -> n3 "Electricity", value 10 in defaultState).
 		const valueInput = document.querySelector<HTMLInputElement>('.link-value[data-index="0"]');
 		expect(valueInput).not.toBeNull();
 		if (!valueInput) throw new Error("unreachable");
 
-		// Emptying the field never reaches state: no error, no re-render, and
-		// the stored value stays at defaultState's 10.
 		valueInput.value = "";
 		fireInput(valueInput);
 
@@ -51,7 +48,6 @@ describe("node & link editing", () => {
 		expect(document.contains(valueInput)).toBe(true);
 		expect(getStoredState().links[0].value).toBe(10);
 
-		// An invalid string marks the field but still leaves state/storage alone.
 		valueInput.value = "abc";
 		fireInput(valueInput);
 
@@ -60,7 +56,6 @@ describe("node & link editing", () => {
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(getStoredState().links[0].value).toBe(10);
 
-		// Blur restores the last committed value and clears the marker.
 		fireChange(valueInput);
 		expect(valueInput.value).toBe("10");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
@@ -74,7 +69,6 @@ describe("node & link editing", () => {
 		expect(valueInput.value).toBe("5.");
 		expect(getStoredState().links[0].value).toBe(5);
 
-		// A valid edit flows through to state, storage, and a fresh diagram.
 		valueInput.value = "20";
 		fireInput(valueInput);
 
@@ -97,8 +91,6 @@ describe("node & link editing", () => {
 		expect(errorEl).not.toBeNull();
 		if (!errorEl) throw new Error("unreachable");
 
-		// aria-describedby is wired up before any error occurs, and the paired
-		// element starts empty.
 		expect(errorEl.textContent).toBe("");
 
 		valueInput.value = "abc";
@@ -115,14 +107,12 @@ describe("node & link editing", () => {
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
-		// Becoming valid clears both the marker and the message.
 		valueInput.value = "20";
 		fireInput(valueInput);
 
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(errorEl.textContent).toBe("");
 
-		// Above the 1e15 cap gets its own message.
 		valueInput.value = "9999999999999999";
 		fireInput(valueInput);
 		expect(errorEl.textContent).toBe("Enter a number no greater than 1000000000000000.");
@@ -133,8 +123,6 @@ describe("node & link editing", () => {
 		fireInput(valueInput);
 		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
 
-		// Blur on an invalid value reverts the text to the last committed
-		// value and clears both the marker and the message.
 		fireChange(valueInput);
 		expect(valueInput.value).toBe("20");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
@@ -174,8 +162,6 @@ describe("node & link editing", () => {
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
 
-		// Whitespace-only trims to empty, same as a fully empty field: no
-		// error, no aria-invalid, and the committed value stays untouched.
 		valueInput.value = "   ";
 		fireInput(valueInput);
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
@@ -197,27 +183,23 @@ describe("node & link editing", () => {
 			return ev;
 		};
 
-		// Typing a 5th fractional digit onto an at-cap value is blocked.
 		valueInput.value = "1.2345";
 		valueInput.setSelectionRange(6, 6);
 		expect(beforeinput({ inputType: "insertText", data: "6" }).defaultPrevented).toBe(true);
 		expect(valueInput.value).toBe("1.2345");
 
-		// Typing the 4th fractional digit stays under the cap and is allowed.
 		valueInput.value = "1.234";
 		valueInput.setSelectionRange(5, 5);
 		expect(beforeinput({ inputType: "insertText", data: "5" }).defaultPrevented).toBe(false);
 
-		// Deletions carry no data and are never intercepted, even from an
-		// over-precise legacy value.
+		// Deletions carry no data, so they're never intercepted — even from an
+		// already over-precise value.
 		valueInput.value = "1.23456";
 		valueInput.setSelectionRange(7, 7);
 		expect(beforeinput({ inputType: "deleteContentBackward", data: null }).defaultPrevented).toBe(
 			false,
 		);
 
-		// An over-precise paste is truncated (not rounded) to 4 fractional digits
-		// and committed straight to state/storage.
 		valueInput.value = "";
 		valueInput.setSelectionRange(0, 0);
 		expect(beforeinput({ inputType: "insertFromPaste", data: "1.23456789" }).defaultPrevented).toBe(
@@ -229,9 +211,8 @@ describe("node & link editing", () => {
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(getStoredState().links[0].value).toBe(1.2345);
 
-		// A paste replacing a mid-string selection exercises the
-		// slice+data+slice splice non-degenerately, then truncates the
-		// over-precise spliced result.
+		// A mid-string selection (not just a caret) exercises the
+		// slice+data+slice splice non-degenerately.
 		valueInput.value = "12.3400";
 		valueInput.setSelectionRange(5, 7);
 		expect(beforeinput({ inputType: "insertFromPaste", data: "56789" }).defaultPrevented).toBe(
@@ -241,8 +222,6 @@ describe("node & link editing", () => {
 		expect(valueInput.selectionStart).toBe(7);
 		expect(getStoredState().links[0].value).toBe(12.3456);
 
-		// A truncated paste that still lands invalid is highlighted, not silently
-		// dropped: the field shows the truncated text but state/storage stay put.
 		valueInput.value = "";
 		valueInput.setSelectionRange(0, 0);
 		expect(beforeinput({ inputType: "insertFromPaste", data: "0.00001" }).defaultPrevented).toBe(
@@ -269,8 +248,7 @@ describe("node & link editing", () => {
 		expect(svgBefore).not.toBeNull();
 		const svgHtmlBefore = svgBefore?.outerHTML;
 
-		// defaultState's links: n1->n3 (10), n2->n3 (6), n3->n4 (14). Retargeting
-		// the third link to n1 closes a 2-node cycle (n1->n3->n1) without
+		// Retargeting the third link to n1 closes a 2-node cycle without
 		// touching node count/shape — isolates the cycle-invalid path from any
 		// other validation failure.
 		const target = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
@@ -284,7 +262,6 @@ describe("node & link editing", () => {
 		const stored = getStoredState();
 		expect(stored.links[2].target).toBe("n1");
 
-		// But the on-screen diagram is untouched: same element, same markup.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 	});
@@ -314,8 +291,7 @@ describe("node & link editing", () => {
 
 		// An invalid draft only ever updates the field's own error state — the
 		// rest of the app (storage, validation banner, I/O notice, diagram) must
-		// be byte-for-byte untouched, not just the one field this test used to
-		// check in isolation.
+		// be byte-for-byte untouched.
 		valueInput.value = "abc";
 		fireInput(valueInput);
 
@@ -325,7 +301,6 @@ describe("node & link editing", () => {
 		expect(document.getElementById("io-notice")?.textContent).toBe(noticeBefore);
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 
-		// Same guarantees for an empty draft.
 		valueInput.value = "";
 		fireInput(valueInput);
 
@@ -346,8 +321,6 @@ describe("node & link editing", () => {
 		expect(addLinkButton).not.toBeNull();
 		click(addLinkButton);
 
-		// New row appended with both endpoints on the placeholder; the diagram is
-		// unchanged because the row is incomplete.
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(4);
 		const source = () => document.querySelector<HTMLSelectElement>('.link-source[data-index="3"]');
 		const target = () => document.querySelector<HTMLSelectElement>('.link-target[data-index="3"]');
@@ -356,21 +329,18 @@ describe("node & link editing", () => {
 		expect(source()?.querySelector('option[value=""]')?.textContent).toBe("— select —");
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
 
-		// The incomplete row is persisted end-to-end straight after the click.
 		expect(getStoredState().links[3]).toEqual({
 			source: null,
 			target: null,
 			value: 1,
 		});
 
-		// Choosing a source alone leaves the link incomplete — still no new flow.
 		const chosenSource = source();
 		if (!chosenSource) throw new Error("unreachable");
 		chosenSource.value = "n1";
 		fireChange(chosenSource);
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
 
-		// Choosing the target completes the link — the flow appears and persists.
 		const chosenTarget = target();
 		if (!chosenTarget) throw new Error("unreachable");
 		chosenTarget.value = "n2";
@@ -380,8 +350,6 @@ describe("node & link editing", () => {
 		const parsed = getStoredState();
 		expect(parsed.links[3]).toEqual({ source: "n1", target: "n2", value: 1 });
 
-		// Un-assigning the source ("" → null) makes the row incomplete again —
-		// the flow disappears and the null endpoint round-trips to storage.
 		const clearedSource = source();
 		if (!clearedSource) throw new Error("unreachable");
 		clearedSource.value = "";
@@ -413,8 +381,7 @@ describe("node & link editing", () => {
 			disabled: option.getAttribute("disabled"),
 		}));
 
-		// n1 "Coal" is the source of link 0 (n1 -> n3) in defaultState, and
-		// appears as an option (selected or not) in every source/target select.
+		// n1 appears as an option (selected or not) in every source/target select.
 		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
 		nameInput.focus();
 		expect(document.activeElement).toBe(nameInput);

@@ -445,10 +445,9 @@ describe("toolbar & settings", () => {
 	});
 });
 
-// Phase 6 render-scope corrections: link color, alignment, and aspect ratio
-// are diagram-only settings — per the plan's action/effect matrix they redraw
-// the diagram but must not rebuild either editor or destroy/recreate either
-// Sortable instance.
+// Link color, alignment, and aspect ratio are diagram-only settings — they
+// redraw the diagram but must not rebuild either editor or destroy/recreate
+// either Sortable instance.
 describe("diagram-only settings leave both editors and both Sortables untouched", () => {
 	function captureEditorState() {
 		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
@@ -522,11 +521,11 @@ describe("diagram-only settings leave both editors and both Sortables untouched"
 	});
 });
 
-// Phase 6: unlike the diagram-only settings above, palette changes DO affect
-// the node editor — its swatches must show the new colors — but that's a
-// style patch on the existing `.node-swatch` elements, not a rebuild: row/
-// container DOM identity and both Sortable instances must survive exactly
-// like the diagram-only settings do.
+// Unlike the diagram-only settings above, palette changes DO affect the node
+// editor — its swatches must show the new colors — but that's a style patch
+// on the existing `.node-swatch` elements, not a rebuild: row/container DOM
+// identity and both Sortable instances must survive exactly like the
+// diagram-only settings do.
 describe("palette changes patch node-editor swatches without rebuilding either editor", () => {
 	it("choosing a palette from the dialog updates swatch colors, replaces the SVG, and preserves editor/Sortable identity", () => {
 		mountApp();
@@ -562,10 +561,10 @@ describe("palette changes patch node-editor swatches without rebuilding either e
 	});
 });
 
-// Phase 6: unlike the diagram-only settings above, theme is not diagram data
-// per the plan's action/effect matrix — changing it must skip validation and
-// the redraw entirely (only palette/link-color/alignment/aspect-ratio redraw),
-// just apply the theme, persist, and clear the one-shot I/O notice.
+// Unlike the diagram-only settings above, theme is not diagram data —
+// changing it must skip validation and the redraw entirely (only
+// palette/link-color/alignment/aspect-ratio redraw), just apply the theme,
+// persist, and clear the one-shot I/O notice.
 describe("theme changes skip validation and the redraw", () => {
 	it("on a valid graph: persists, clears a seeded I/O notice, applies data-theme, and leaves the rendered SVG untouched", async () => {
 		mountApp();
@@ -607,8 +606,7 @@ describe("theme changes skip validation and the redraw", () => {
 	it("on an invalid graph (cycle): leaves the error banner and the last valid diagram untouched", () => {
 		mountApp();
 
-		// defaultState's links: n1->n3 (10), n2->n3 (6), n3->n4 (14). Retargeting
-		// the third link to n1 closes a 2-node cycle (n1->n3->n1), same setup as
+		// Retargeting the third link to n1 closes a 2-node cycle, same setup as
 		// editor.test.ts's cycle test.
 		const target = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
 		target.value = "n1";

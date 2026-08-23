@@ -53,7 +53,6 @@ describe("row reordering", () => {
 			Array.from(document.querySelectorAll<HTMLInputElement>("#link-editor .link-value")).map(
 				(i) => i.value,
 			);
-		// Default links: n1->n3 (10), n2->n3 (6), n3->n4 (14).
 		expect(linkValues()).toEqual(["10", "6", "14"]);
 
 		const handle = requireElement<HTMLButtonElement>('#link-editor .drag-handle[data-index="0"]');
@@ -286,9 +285,8 @@ describe("row reordering", () => {
 	});
 });
 
-// Phase 6 render-scope corrections: link add/delete/endpoint-change/reorder
-// invalidate only the link editor, per the plan's action/effect matrix — none
-// of them touch the node editor's rows or its Sortable instance.
+// Link add/delete/endpoint-change/reorder invalidate only the link editor —
+// none of them touch the node editor's rows or its Sortable instance.
 describe("link actions leave the node editor untouched", () => {
 	function nodeSortableOrThrow(): Sortable {
 		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");

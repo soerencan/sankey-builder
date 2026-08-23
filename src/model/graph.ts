@@ -56,7 +56,7 @@ export function defaultState(): State {
 /**
  * Next stable node id, derived from the current max numeric suffix rather
  * than a persisted counter — so ids stay correct after localStorage
- * hydration (Step 6) without any extra bookkeeping.
+ * hydration without any extra bookkeeping.
  */
 export function nextNodeId(state: State): string {
 	const maxSuffix = state.nodes.reduce((max, n) => {

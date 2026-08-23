@@ -36,10 +36,10 @@ type SankeyGraphLink = SankeyLink<Node, LinkExtra>;
 
 // @types/d3-sankey marks every layout-computed field optional, since it
 // doesn't know layout() has already run by the time render code touches
-// them. The pre-migration bundle leaned on x0/x1/y0/y1/width/index/source/
-// target being present unconditionally (no `??` fallbacks) — these aliases
-// intersect in the non-optional shape so downstream code reads the same way,
-// without runtime fallbacks that would change behavior.
+// them. Render code relies on x0/x1/y0/y1/width/index/source/target being
+// present unconditionally — these aliases intersect in the non-optional
+// shape so downstream code reads that way directly, without `??` fallbacks
+// that would silently paper over a real layout bug.
 type LayoutNode = SankeyGraphNode & {
 	x0: number;
 	x1: number;
@@ -53,8 +53,7 @@ type LayoutLink = Omit<SankeyGraphLink, "source" | "target"> & {
 	index: number;
 };
 
-// Mirrors the pre-migration bundle's alignFn: a name-keyed lookup falling
-// back to justify.
+// A name-keyed lookup falling back to justify.
 const ALIGN_FNS: Partial<Record<Alignment, typeof sankeyJustify>> = {
 	left: sankeyLeft,
 	right: sankeyRight,

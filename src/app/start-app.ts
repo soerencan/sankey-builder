@@ -127,21 +127,19 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	}
 
 	/**
-	 * The current validateAndRender flow, ported from the pre-migration
-	 * bundle and the subtlest behavior in the app. Order matters and is
-	 * preserved exactly:
+	 * The validate-then-render flow — the subtlest sequencing in the app.
+	 * Order matters and is preserved exactly:
 	 *
-	 * 1. Rebuild the color resolver fresh from state (replaces the
-	 *    pre-migration bundle's module-level currentColorScale singleton).
-	 * 2. Validate and update the error notice.
-	 * 3. Persist and update the I/O/storage notices — see
-	 *    persistAndClearNotices()'s own doc comment.
-	 * 4. Rebuild the requested editors — regardless of validity — so the user
+	 * 1. Rebuild the color resolver fresh from state (see
+	 *    createNodeColorResolver's own doc comment for why it's rebuilt here
+	 *    rather than cached).
+	 * 2. Validate, then persist + update notices — see persistAndClearNotices's
+	 *    own doc comment for why persistence runs regardless of validity.
+	 * 3. Rebuild the requested editors regardless of validity, so the user
 	 *    can see and fix the offending row. The flags exist to preserve input
 	 *    focus/caret: rebuilding the editor being typed in would drop it.
-	 * 5. Bail before the diagram rebuild so the last good render stays on
-	 *    screen when invalid.
-	 * 6. Otherwise render the diagram — full SVG rebuild.
+	 * 4. Bail before the diagram rebuild on an invalid graph (see the inline
+	 *    comment below) — otherwise render.
 	 */
 	function refresh({ rebuildNodes = true, rebuildLinks = true }: RefreshOptions = {}): void {
 		const nodeColor = createNodeColorResolver(state);

@@ -17,8 +17,7 @@ const PALETTE_KEYS: ReadonlySet<string> = new Set(PALETTE_ORDER);
 /**
  * Own-property guard against the prototype chain (e.g. a palette key of
  * "toString" resolving to `Object.prototype.toString` instead of failing
- * the lookup) — mirrors the pre-migration bundle's `Object.hasOwn(PALETTES,
- * ...)` checks. Backed by a set derived from PALETTE_ORDER, not a labels
+ * the lookup). Backed by a set derived from PALETTE_ORDER, not a labels
  * map — presentation metadata lives in the settings feature's options module,
  * which this module must not depend on.
  */

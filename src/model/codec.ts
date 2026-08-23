@@ -125,9 +125,10 @@ export function normalizeLinks(
 }
 
 /**
- * Shape-validates a hydrated localStorage payload, dropping/coercing individual
- * malformed rows rather than failing the whole hydration. Silent — the import
- * path (features/files/diagram-file.ts) reuses these same normalizers with a repair collector.
+ * Shape-validates an unknown parsed payload into a State, dropping/coercing
+ * individual malformed rows rather than failing the whole thing. Silent — the
+ * import path (features/files/diagram-file.ts) reuses these same normalizers
+ * with a repair collector.
  */
 export function normalizeState(parsed: unknown): State {
 	if (!isRawState(parsed)) return defaultState();
