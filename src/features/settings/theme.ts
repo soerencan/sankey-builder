@@ -1,4 +1,4 @@
-import type { Theme } from "../../model/graph";
+import type { Theme } from "../../model/settings";
 
 /**
  * Reflects the theme setting onto <html> for style.css to key off. "auto"

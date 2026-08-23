@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
-import { ASPECT_RATIO_OPTIONS, LINK_COLOR_OPTIONS } from "../../src/features/settings/toolbar";
+import { LINK_COLOR_OPTIONS } from "../../src/features/settings/toolbar";
 import { defaultState } from "../../src/model/graph";
-import { PALETTE_LABELS } from "../../src/model/palette";
+import { ASPECT_RATIO_OPTIONS, PALETTE_LABELS } from "../../src/model/settings";
 import { click, getStoredState, mountApp } from "../helpers/mount-app";
 
 describe("toolbar & settings", () => {
@@ -46,7 +46,7 @@ describe("toolbar & settings", () => {
 
 		expect((dialog as HTMLDialogElement).open).toBe(true);
 
-		// Pin index.html's hardcoded option labels to PALETTE_LABELS (src/model/palette.ts)
+		// Pin index.html's hardcoded option labels to PALETTE_LABELS (src/model/settings.ts)
 		// so the two can't drift apart.
 		for (const option of Array.from(
 			dialog?.querySelectorAll<HTMLElement>(".palette-option") ?? [],

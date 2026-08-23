@@ -7,12 +7,12 @@ import {
 	schemeTableau10,
 } from "d3";
 import type { Node, State } from "../../model/graph";
-import { isPaletteKey } from "../../model/palette";
-import type { Palette } from "../../model/palette";
+import { isPaletteKey } from "../../model/settings";
+import type { Palette } from "../../model/settings";
 
 // Values are thunks, not the scheme arrays themselves, so a lookup by an
 // unresolved palette key never evaluates the wrong scheme. Palette metadata
-// (isPaletteKey, PALETTE_ORDER, PALETTE_LABELS) lives in ./palette instead,
+// (isPaletteKey, PALETTE_ORDER, PALETTE_LABELS) lives in ../../model/settings instead,
 // so platform/storage.ts's pure-node palette validation never pulls this module — or
 // the `d3` it imports — into its module graph.
 const PALETTES: Record<Palette, () => readonly string[]> = {

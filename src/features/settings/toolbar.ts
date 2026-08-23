@@ -1,11 +1,18 @@
+import type { State } from "../../model/graph";
 import {
 	ASPECT_RATIO_OPTIONS,
+	type Alignment,
 	type AspectRatio,
+	type LinkColorMode,
+	PALETTE_LABELS,
+	PALETTE_ORDER,
+	type Palette,
 	aspectRatioOption,
+	isAlignment,
 	isAspectRatio,
-} from "../../model/aspect-ratio";
-import type { Alignment, LinkColorMode, Palette, State } from "../../model/graph";
-import { PALETTE_LABELS, PALETTE_ORDER, isPaletteKey } from "../../model/palette";
+	isLinkColorMode,
+	isPaletteKey,
+} from "../../model/settings";
 import type { DialogController } from "../../shared/dialog";
 import { setupDialog } from "../../shared/dialog";
 import { paletteColors } from "../diagram/colors";
@@ -34,27 +41,6 @@ export const LINK_COLOR_OPTIONS: Record<LinkColorMode, { label: string; iconId: 
 	target: { label: "Target", iconId: "icon-link-target" },
 	static: { label: "Neutral", iconId: "icon-link-neutral" },
 };
-
-function isLinkColorKey(value: unknown): value is LinkColorMode {
-	return typeof value === "string" && Object.hasOwn(LINK_COLOR_OPTIONS, value);
-}
-
-/**
- * Own-property guard, same rationale as isLinkColorKey above. index.html's
- * align-group buttons carry their own static label/icon (unlike the Links
- * button, which reflects the current mode), so this doesn't need a
- * label/icon lookup table alongside it.
- */
-const ALIGNMENT_VALUES: Record<Alignment, true> = {
-	left: true,
-	center: true,
-	right: true,
-	justify: true,
-};
-
-function isAlignmentKey(value: unknown): value is Alignment {
-	return typeof value === "string" && Object.hasOwn(ALIGNMENT_VALUES, value);
-}
 
 function buildSwatchStrip(doc: Document, strip: HTMLElement, palette: Palette): void {
 	strip.replaceChildren();
@@ -216,13 +202,13 @@ export function setupToolbar(
 				aspectDialog?.open(trigger);
 			} else if (action === "open-display-dialog") {
 				displayDialog?.open(trigger);
-			} else if (action === "set-link-color" && isLinkColorKey(value)) {
+			} else if (action === "set-link-color" && isLinkColorMode(value)) {
 				actions.setLinkColor(value);
 				syncToolbar(doc, state);
 				// Only the links dialog's own copy closes on choice — the Diagram
 				// dialog's copy (same data-action/data-value) stays open.
 				if (trigger.closest("dialog") === linksDialogEl) linksDialog?.close();
-			} else if (action === "set-alignment" && isAlignmentKey(value)) {
+			} else if (action === "set-alignment" && isAlignment(value)) {
 				actions.setAlignment(value);
 				syncToolbar(doc, state);
 			} else if (action === "set-aspect-ratio" && isAspectRatio(value)) {
@@ -234,7 +220,3 @@ export function setupToolbar(
 		{ signal },
 	);
 }
-
-// Exported so markup tests can ensure every hand-authored option stays in
-// lockstep with the single source of truth used by rendering and persistence.
-export { ASPECT_RATIO_OPTIONS };

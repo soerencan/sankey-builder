@@ -1,4 +1,5 @@
-import type { State, Theme } from "../../model/graph";
+import type { State } from "../../model/graph";
+import { type Theme, isTheme } from "../../model/settings";
 import type { DialogController } from "../../shared/dialog";
 import { setupDialog } from "../../shared/dialog";
 
@@ -16,10 +17,6 @@ const THEME_OPTIONS: Record<Theme, { label: string; iconId: string }> = {
 	light: { label: "Light", iconId: "icon-theme-light" },
 	dark: { label: "Dark", iconId: "icon-theme-dark" },
 };
-
-function isThemeKey(value: unknown): value is Theme {
-	return typeof value === "string" && Object.hasOwn(THEME_OPTIONS, value);
-}
 
 /**
  * Swaps #theme-button's icon/label and the dialog options' aria-pressed to
@@ -77,7 +74,7 @@ export function setupThemeControl(
 
 		if (action === "open-theme-dialog") {
 			dialog.open(trigger);
-		} else if (action === "set-theme" && isThemeKey(value)) {
+		} else if (action === "set-theme" && isTheme(value)) {
 			actions.setTheme(value);
 			syncThemeControl(doc, state);
 			dialog.close();

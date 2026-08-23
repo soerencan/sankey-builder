@@ -8,9 +8,10 @@ import {
 	sankeyRight,
 } from "d3-sankey";
 import type { SankeyLink, SankeyNode } from "d3-sankey";
-import { aspectRatioOption } from "../../model/aspect-ratio";
-import type { Alignment, Link, LinkColorMode, Node, State } from "../../model/graph";
+import type { Link, Node, State } from "../../model/graph";
 import { isComplete } from "../../model/graph";
+import type { Alignment, LinkColorMode } from "../../model/settings";
+import { aspectRatioOption } from "../../model/settings";
 import type { NodeColorResolver } from "./colors";
 
 // A link with both endpoints assigned — the only kind d3-sankey ever lays out.

@@ -4,7 +4,7 @@ import { defaultState } from "../model/graph";
 import { STORAGE_KEY, loadState, saveState } from "./storage";
 
 // No import from features/diagram/colors.ts (or anything importing it) in this file — proves
-// storage.ts (and its model/palette.ts dependency, isPaletteKey) stay d3-free at
+// storage.ts (and its model/settings.ts dependency, isPaletteKey) stay d3-free at
 // both module-eval and call time.
 
 /** Minimal in-memory stand-in for the `Storage` interface. */

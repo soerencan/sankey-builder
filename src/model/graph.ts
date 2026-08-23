@@ -1,3 +1,6 @@
+import type { Alignment, AspectRatio, LinkColorMode, Palette, Theme } from "./settings";
+import { DEFAULT_SETTINGS } from "./settings";
+
 export interface Node {
 	id: string;
 	name: string;
@@ -18,16 +21,6 @@ export interface Link {
 export function isComplete(link: Link): link is Link & { source: string; target: string } {
 	return link.source !== null && link.target !== null;
 }
-
-// Closed value sets straight from the pre-migration bundle's PALETTES' keys,
-// LINK_COLOR_MODES, ALIGNMENTS, and THEMES. Palette itself lives in palette.ts
-// (a d3-free boundary platform/storage.ts depends on) and is re-exported here so
-// existing `from "./state"` imports keep working.
-import type { Palette } from "./palette";
-export type { Palette } from "./palette";
-export type LinkColorMode = "source" | "target" | "source-target" | "static";
-export type Alignment = "left" | "right" | "center" | "justify";
-export type Theme = "auto" | "light" | "dark";
 
 export interface Settings {
 	palette: Palette;
@@ -56,13 +49,7 @@ export function defaultState(): State {
 			{ source: "n2", target: "n3", value: 6 },
 			{ source: "n3", target: "n4", value: 14 },
 		],
-		settings: {
-			palette: "observable10",
-			linkColor: "source-target",
-			alignment: "justify",
-			aspectRatio: "2:1",
-			theme: "auto",
-		},
+		settings: { ...DEFAULT_SETTINGS },
 	};
 }
 
@@ -138,4 +125,3 @@ export function moveNode(state: State, from: number, to: number): void {
 export function moveLink(state: State, from: number, to: number): void {
 	moveWithin(state.links, from, to);
 }
-import type { AspectRatio } from "./aspect-ratio";

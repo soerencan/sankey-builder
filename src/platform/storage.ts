@@ -1,45 +1,17 @@
-import { isAspectRatio } from "../model/aspect-ratio";
-import type {
-	Alignment,
-	Link,
-	LinkColorMode,
-	Node,
-	Palette,
-	Settings,
-	State,
-	Theme,
-} from "../model/graph";
+import type { Link, Node, Settings, State } from "../model/graph";
 import { defaultState } from "../model/graph";
-import { isPaletteKey } from "../model/palette";
+import type { Alignment, LinkColorMode, Palette, Theme } from "../model/settings";
+import {
+	DEFAULT_SETTINGS,
+	isAlignment,
+	isAspectRatio,
+	isLinkColorMode,
+	isPaletteKey,
+	isTheme,
+} from "../model/settings";
 import { MAX_LINK_VALUE } from "../model/validation";
 
 export const STORAGE_KEY = "sankey-builder";
-
-// Sole consumers of these four are normalizeSettings/normalizeState below —
-// kept private rather than exported (unlike the pre-migration bundle's
-// globals). Typed as a set of the state union itself (not
-// ReadonlySet<string>) so a typo'd member fails to compile instead of
-// silently narrowing the set of accepted values.
-const LINK_COLOR_MODES: ReadonlySet<LinkColorMode> = new Set([
-	"source",
-	"target",
-	"source-target",
-	"static",
-]);
-const ALIGNMENTS: ReadonlySet<Alignment> = new Set(["left", "right", "center", "justify"]);
-const THEMES: ReadonlySet<Theme> = new Set(["auto", "light", "dark"]);
-
-function isLinkColorMode(value: unknown): value is LinkColorMode {
-	return typeof value === "string" && (LINK_COLOR_MODES as ReadonlySet<string>).has(value);
-}
-
-function isAlignment(value: unknown): value is Alignment {
-	return typeof value === "string" && (ALIGNMENTS as ReadonlySet<string>).has(value);
-}
-
-function isTheme(value: unknown): value is Theme {
-	return typeof value === "string" && (THEMES as ReadonlySet<string>).has(value);
-}
 
 /**
  * Normalizes settings, optionally collecting human-readable repair strings for
@@ -50,7 +22,7 @@ function isTheme(value: unknown): value is Theme {
 export function normalizeSettings(settings: unknown, repairs?: string[]): Settings {
 	const s = settings && typeof settings === "object" ? (settings as Record<string, unknown>) : {};
 
-	let palette: Palette = "observable10";
+	let palette: Palette = DEFAULT_SETTINGS.palette;
 	if (isPaletteKey(s.palette)) palette = s.palette;
 	else if (s.palette !== undefined) repairs?.push("settings: unknown palette — using default");
 
@@ -65,21 +37,21 @@ export function normalizeSettings(settings: unknown, repairs?: string[]): Settin
 	// An unrecognized linkColor would otherwise render as url() references to
 	// gradients that don't exist — invisible links — so it falls back rather
 	// than passing through like alignment/palette do downstream.
-	let linkColor: LinkColorMode = "source-target";
+	let linkColor: LinkColorMode = DEFAULT_SETTINGS.linkColor;
 	if (isLinkColorMode(s.linkColor)) linkColor = s.linkColor;
 	else if (s.linkColor !== undefined) repairs?.push("settings: unknown link color — using default");
 
-	let alignment: Alignment = "justify";
+	let alignment: Alignment = DEFAULT_SETTINGS.alignment;
 	if (isAlignment(s.alignment)) alignment = s.alignment;
 	else if (s.alignment !== undefined) repairs?.push("settings: unknown alignment — using default");
 
-	let aspectRatio: Settings["aspectRatio"] = "2:1";
+	let aspectRatio: Settings["aspectRatio"] = DEFAULT_SETTINGS.aspectRatio;
 	if (isAspectRatio(s.aspectRatio)) aspectRatio = s.aspectRatio;
 	else if (s.aspectRatio !== undefined) {
 		repairs?.push("settings: unknown aspect ratio — using 2:1");
 	}
 
-	const theme: Theme = isTheme(s.theme) ? s.theme : "auto";
+	const theme: Theme = isTheme(s.theme) ? s.theme : DEFAULT_SETTINGS.theme;
 
 	return { palette, linkColor, alignment, aspectRatio, theme };
 }
