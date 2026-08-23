@@ -29,7 +29,7 @@ jobs:
       - run: make lint
       - run: make typecheck
       - run: make test-unit
-      # Builds dist/ from scratch and boots it (tests/dist.test.ts), asserting
+      # Builds dist/ from scratch and boots it (tests/build/dist.test.ts), asserting
       # every emitted asset resolves under a simulated /sankey-builder/ base
       # path — the same subpath GitHub Pages project sites serve from. dist/
       # is left in place afterward (the build runs in beforeAll, nothing

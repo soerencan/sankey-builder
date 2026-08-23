@@ -53,10 +53,10 @@ Available `make` targets:
 | `test-unit` | Run tests except the dist smoke test — fast local loop |
 | `test-dist` | Run only the dist smoke test (builds `dist/` from scratch, then boots it) |
 
-Most tests in `tests/` import `src/` directly. `tests/app.test.ts` and
-`tests/lifecycle.test.ts` are broader: they boot the application through
-`startApp()` (`src/app.ts`) against the real `index.html` markup with the
-real d3/SortableJS. `tests/dist.test.ts` goes one step further: it runs the
+Most tests in `tests/` import `src/` directly. The `tests/integration/`
+suites are broader: they boot the application through
+`startApp()` (`src/app/start-app.ts`) against the real `index.html` markup with the
+real d3/SortableJS. `tests/build/dist.test.ts` goes one step further: it runs the
 build script (`bun run build`) itself, then boots the actual emitted `dist/`
 bundle, asserting its asset URLs are relative (so the site works from any
 subpath) and the default diagram renders.

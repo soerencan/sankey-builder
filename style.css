@@ -410,7 +410,7 @@ select {
 /* Row reordering: a grab handle plus drag/keyboard affordances. SortableJS
    (forceFallback mode) drives the drag itself; the classes below are the
    ones it toggles via the matching ghostClass/chosenClass/fallbackClass
-   options (src/row-reorder.ts). */
+   options (src/features/editor/row-reorder.ts). */
 .drag-handle {
   border: none;
   border-radius: var(--radius-1);
@@ -505,7 +505,7 @@ select {
   );
   aspect-ratio: var(--diagram-aspect-ratio, 2 / 1);
   align-self: center;
-  /* Read directly by io-controls.ts (getComputedStyle of the svg's
+  /* Read directly by features/files/controls.ts (getComputedStyle of the svg's
      parentElement) as the SVG/PNG export background, so it stays opaque. */
   background: var(--surface);
 }
@@ -719,7 +719,7 @@ select {
 }
 
 /* ==========================================================================
-   Dialogs (native <dialog>, wired by src/dialog.ts). The palette chooser,
+   Dialogs (native <dialog>, wired by src/shared/dialog.ts). The palette chooser,
    link color/theme dialogs, and the narrow Diagram surface all share
    these base styles.
    ========================================================================== */

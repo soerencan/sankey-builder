@@ -12,8 +12,8 @@
 		"dev": "bun ./index.html",
 		"build": "rm -rf dist && bun build ./index.html --minify --outdir=dist && cp THIRD_PARTY_LICENSES.md dist/",
 		"test": "vitest run",
-		"test:dist": "vitest run tests/dist.test.ts",
-		"test:unit": "vitest run --exclude tests/dist.test.ts"
+		"test:dist": "vitest run tests/build/dist.test.ts",
+		"test:unit": "vitest run --exclude tests/build/dist.test.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.0",

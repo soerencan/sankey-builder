@@ -65,7 +65,7 @@ describe("row reordering", () => {
 		expect(document.activeElement).toBe(moved);
 	});
 
-	// Pointer/touch dragging is now delegated to SortableJS (src/row-reorder.ts),
+	// Pointer/touch dragging is now delegated to SortableJS (src/features/editor/row-reorder.ts),
 	// which happy-dom can construct but can't be driven through a realistic
 	// pointer/touch gesture (no real layout, no native drag/touch pipeline) —
 	// see VERIFICATION.md for what still needs a real browser. These tests
@@ -75,7 +75,7 @@ describe("row reordering", () => {
 	// would once a real drag completes) commits the same state/DOM/storage
 	// change the old pointer-drag tests asserted.
 	//
-	// row-reorder.ts's onEnd handler only reads oldIndex/newIndex off the
+	// features/editor/row-reorder.ts's onEnd handler only reads oldIndex/newIndex off the
 	// event, so these synthetic events omit every other SortableEvent field —
 	// fakeSortableEvent casts past that rather than constructing a full Event.
 	const fakeSortableEvent = (

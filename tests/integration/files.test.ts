@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it, vi } from "vitest";
-import { serializeState } from "../../src/io";
-import { STORAGE_KEY } from "../../src/persist";
-import { defaultState } from "../../src/state";
+import { serializeState } from "../../src/features/files/diagram-file";
+import { defaultState } from "../../src/model/graph";
+import { STORAGE_KEY } from "../../src/platform/storage";
 import {
 	click,
 	fireChange,

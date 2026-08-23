@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
-import { STORAGE_KEY } from "../../src/persist";
+import { STORAGE_KEY } from "../../src/platform/storage";
 import {
 	click,
 	fireChange,

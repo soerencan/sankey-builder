@@ -6,7 +6,7 @@ build` output (`dist/`) — the app loads as an ES module, which requires an
 HTTP(S) origin; `file://` is not supported.
 
 GitHub Pages serves this project from a `/sankey-builder/` subpath, so it's
-worth spot-checking `dist/` under one too (`tests/dist.test.ts` already
+worth spot-checking `dist/` under one too (`tests/build/dist.test.ts` already
 asserts asset URLs are relative, but a real browser catches anything that
 test misses):
 

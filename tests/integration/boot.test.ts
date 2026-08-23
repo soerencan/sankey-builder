@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
-import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/preview-resizer";
+import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-resizer";
 import { click, getStoredState, installMarkup, mountApp } from "../helpers/mount-app";
 
 describe("application boot", () => {
@@ -41,7 +41,7 @@ describe("application boot", () => {
 		const diagram = document.getElementById("diagram");
 		expect(diagram?.querySelector("svg")).not.toBeNull();
 
-		// defaultState (src/state.ts) has 4 nodes / 3 links.
+		// defaultState (src/model/graph.ts) has 4 nodes / 3 links.
 		expect(diagram?.querySelectorAll("svg rect")).toHaveLength(4);
 		expect(diagram?.querySelectorAll("svg path")).toHaveLength(3);
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(4);

@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
-import { startApp } from "../../src/app";
-import { STORAGE_KEY } from "../../src/persist";
-import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/preview-resizer";
+import { startApp } from "../../src/app/start-app";
+import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-resizer";
+import { STORAGE_KEY } from "../../src/platform/storage";
 import { click, installMarkup, mountApp } from "../helpers/mount-app";
 
-// Pinned verbatim from src/app.ts's STORAGE_NOTICE — app.ts doesn't export
+// Pinned verbatim from src/app/start-app.ts's STORAGE_NOTICE — app/start-app.ts doesn't export
 // it, so this hardcodes (and thereby pins) the user-visible copy.
 const STORAGE_NOTICE =
 	"Changes can't be saved in this browser right now (storage may be full or unavailable). " +

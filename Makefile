@@ -6,7 +6,7 @@ dev:
 
 # Canonical clean production build: emits dist/ (hashed JS/CSS bundle plus
 # THIRD_PARTY_LICENSES.md) via `bun build`. This is what CI's artifact job
-# and tests/dist.test.ts exercise — always run this rather than the bare
+# and tests/build/dist.test.ts exercise — always run this rather than the bare
 # `bun build` invocation to get the licenses file and a clean dist/ dir.
 build:
 	bun run build

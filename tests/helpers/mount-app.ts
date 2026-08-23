@@ -1,7 +1,7 @@
 import { afterEach } from "vitest";
-import type { AppHandle } from "../../src/app";
-import { startApp } from "../../src/app";
-import { STORAGE_KEY } from "../../src/persist";
+import type { AppHandle } from "../../src/app/start-app";
+import { startApp } from "../../src/app/start-app";
+import { STORAGE_KEY } from "../../src/platform/storage";
 import { bodyMarkup } from "./fixture";
 
 export interface AppFixture {

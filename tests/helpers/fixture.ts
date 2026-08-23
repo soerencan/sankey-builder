@@ -10,7 +10,7 @@ let cached: string | undefined;
 
 /**
  * Extracts an HTML document's <body> contents with <script> tags stripped —
- * shared by bodyMarkup() below and tests/dist.test.ts, both of which boot
+ * shared by bodyMarkup() below and tests/build/dist.test.ts, both of which boot
  * startApp() themselves rather than relying on a document's own script tags.
  */
 export function stripToBodyMarkup(html: string): string {
