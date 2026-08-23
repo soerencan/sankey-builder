@@ -10,6 +10,8 @@
 		"isolatedModules": true,
 		"resolveJsonModule": true,
 		"forceConsistentCasingInFileNames": true,
+		"jsx": "react-jsx",
+		"jsxImportSource": "preact",
 		"lib": ["ESNext", "DOM"]
 	},
 	"include": ["src", "tests", "vitest.config.ts"]
