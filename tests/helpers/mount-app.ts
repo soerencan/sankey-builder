@@ -6,7 +6,6 @@ import { bodyMarkup } from "./fixture";
 
 export interface AppFixture {
 	app: AppHandle;
-	doc: Document;
 }
 
 /**
@@ -14,8 +13,8 @@ export interface AppFixture {
  * booting the app — for tests that assert on static layout, or that manage
  * their own startApp()/destroy() lifecycle (e.g. booting more than once).
  */
-export function installMarkup(doc: Document = document): void {
-	doc.body.innerHTML = bodyMarkup();
+export function installMarkup(): void {
+	document.body.innerHTML = bodyMarkup();
 	localStorage.clear();
 }
 
@@ -35,10 +34,10 @@ afterEach(() => {
  * the DOM installMarkup() just built) — those call startApp()/destroy()
  * directly instead.
  */
-export function mountApp(doc: Document = document): AppFixture {
-	installMarkup(doc);
-	mounted = startApp(doc);
-	return { app: mounted, doc };
+export function mountApp(): AppFixture {
+	installMarkup();
+	mounted = startApp(document);
+	return { app: mounted };
 }
 
 export function click(target: Element | null | undefined): void {
