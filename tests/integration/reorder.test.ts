@@ -410,6 +410,46 @@ describe("row reordering", () => {
 		expect(Sortable.get(linkRows)).toBeNull();
 	});
 
+	it("both editors' Sortables are created exactly once under the consolidated DataPanel root, survive its rerenders with current onMove callbacks, and are each destroyed exactly once on destroy", () => {
+		const { app } = mountApp();
+
+		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
+		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
+		const nodeSortable = Sortable.get(nodeRows);
+		const linkSortable = Sortable.get(linkRows);
+		expect(nodeSortable).toBeTruthy();
+		expect(linkSortable).toBeTruthy();
+		if (!nodeSortable || !linkSortable) throw new Error("unreachable");
+		const nodeDestroySpy = vi.spyOn(nodeSortable, "destroy");
+		const linkDestroySpy = vi.spyOn(linkSortable, "destroy");
+
+		// DataPanel's single root re-renders both editors together on every
+		// committed action; neither editor's Sortable instance is recreated by
+		// that (use-row-sortable.ts's effect is mount-once per rows container).
+		click(document.querySelector('[data-action="add-node"]'));
+		click(document.querySelector('[data-action="add-link"]'));
+		expect(Sortable.get(nodeRows)).toBe(nodeSortable);
+		expect(Sortable.get(linkRows)).toBe(linkSortable);
+
+		// A reorder after those rerenders still lands correctly, proving
+		// useRowSortable's onMoveRef reads the current closure rather than one
+		// captured from an earlier render of the consolidated root.
+		const handle = requireElement<HTMLButtonElement>('#node-editor .drag-handle[data-id="n1"]');
+		handle.focus();
+		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+		const nodeNames = Array.from(
+			document.querySelectorAll<HTMLInputElement>("#node-editor .node-name"),
+		).map((i) => i.value);
+		expect(nodeNames[1]).toBe("Coal");
+
+		app.destroy();
+
+		expect(nodeDestroySpy).toHaveBeenCalledTimes(1);
+		expect(linkDestroySpy).toHaveBeenCalledTimes(1);
+		expect(Sortable.get(nodeRows)).toBeNull();
+		expect(Sortable.get(linkRows)).toBeNull();
+	});
+
 	it("adding a link re-renders the link editor in place: the rows container and its Sortable instance survive", () => {
 		mountApp();
 

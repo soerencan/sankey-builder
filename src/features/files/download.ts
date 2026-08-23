@@ -1,5 +1,5 @@
 /**
- * Shared by every export path (JSON in setupIo, SVG/PNG in DiagramPanel):
+ * Shared by every export path (JSON in DataPanel, SVG/PNG in DiagramPanel):
  * the browser's Blob + object-URL download mechanism, no dependencies.
  * `win`'s own URL/setTimeout, not the ambient global — doc/win may belong to
  * a window other than this module's own ambient one.

@@ -215,44 +215,9 @@
       <div id="preview-resizer" class="preview-resizer" aria-label="Diagram preview size controls"></div>
     </section>
 
-    <section class="data-card" aria-labelledby="data-heading">
-      <header class="data-card-header">
-        <h2 id="data-heading">Data</h2>
-        <div class="data-actions" role="group" aria-label="Data file actions">
-          <button
-            type="button"
-            id="import-button"
-            class="data-action"
-            data-action="import"
-            aria-label="Import data"
-            title="Import data"
-          >
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-import"></use></svg>
-          </button>
-          <button
-            type="button"
-            id="export-button"
-            class="data-action"
-            data-action="export"
-            aria-label="Export data as JSON"
-            title="Export data as JSON"
-          >
-            <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-export"></use></svg>
-          </button>
-          <input type="file" id="import-file" accept=".json,application/json" hidden />
-        </div>
-      </header>
-
-      <div class="data-sections">
-        <section id="node-editor" class="data-section" aria-labelledby="node-editor-heading">
-          <h3 id="node-editor-heading">Nodes</h3>
-        </section>
-
-        <section id="link-editor" class="data-section" aria-labelledby="link-editor-heading">
-          <h3 id="link-editor-heading">Links</h3>
-        </section>
-      </div>
-    </section>
+    <!-- Data panel: DataPanel (src/features/editor/data-panel.tsx) mounts its
+         header, import/export controls, and both editors here. -->
+    <section id="data-panel" class="data-card" aria-labelledby="data-heading"></section>
   </main>
 
   <script type="module" src="./src/main.ts"></script>

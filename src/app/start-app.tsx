@@ -4,13 +4,11 @@ import { DiagramPanel } from "../features/diagram/diagram-panel";
 import { PreviewResizer } from "../features/diagram/preview-resizer";
 import type { DiagramRenderRequest } from "../features/diagram/render";
 import { SankeyCanvas } from "../features/diagram/sankey-canvas";
+import type { DataPanelActions } from "../features/editor/data-panel";
+import { DataPanel } from "../features/editor/data-panel";
 import type { LinkEditorActions } from "../features/editor/link-editor";
-import { LinkEditor } from "../features/editor/link-editor";
 import type { NodeEditorActions } from "../features/editor/node-editor";
-import { NodeEditor } from "../features/editor/node-editor";
 import { removeActiveDragClone } from "../features/editor/row-reorder";
-import type { IoActions } from "../features/files/controls";
-import { setupIo } from "../features/files/controls";
 import { applyTheme } from "../features/settings/theme";
 import type { ThemeControlActions } from "../features/settings/theme-control";
 import { setupThemeControl, syncThemeControl } from "../features/settings/theme-control";
@@ -70,8 +68,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const errorRoot = requireRoot(doc, "error");
 	const ioNoticeRoot = requireRoot(doc, "io-notice");
 	const storageNoticeRoot = requireRoot(doc, "storage-notice");
-	const nodeEditorRoot = requireRoot(doc, "node-editor");
-	const linkEditorRoot = requireRoot(doc, "link-editor");
+	const dataPanelRoot = requireRoot(doc, "data-panel");
 	const diagramRoot = requireRoot(doc, "diagram");
 	const previewResizerRoot = requireRoot(doc, "preview-resizer");
 	const diagramControlsRoot = requireRoot(doc, "diagram-controls");
@@ -162,10 +159,19 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		persistAndClearNotices();
 
 		const nodes = projectNodes(state);
-		render(<NodeEditor nodes={nodes} actions={nodeEditorActions} />, nodeEditorRoot);
 		render(
-			<LinkEditor links={projectLinks(state)} nodes={nodes} actions={linkEditorActions} />,
-			linkEditorRoot,
+			<DataPanel
+				doc={doc}
+				win={win}
+				state={state}
+				nodes={nodes}
+				links={projectLinks(state)}
+				nodeActions={nodeEditorActions}
+				linkActions={linkEditorActions}
+				actions={dataPanelActions}
+				signal={signal}
+			/>,
+			dataPanelRoot,
 		);
 		render(
 			<DiagramPanel
@@ -230,10 +236,10 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		},
 	};
 
-	// Shared by both setupIo (import/JSON export) and diagramPanelActions
+	// Shared by both DataPanel (import/JSON export) and diagramPanelActions
 	// below (SVG/PNG export), so every #io-notice message goes through one
 	// implementation regardless of which control produced it.
-	const ioActions: IoActions = {
+	const dataPanelActions: DataPanelActions = {
 		importDiagram(imported, repairs) {
 			// theme is deliberately untouched — a per-browser preference, not
 			// diagram data, so it survives an import. No syncThemeControl call
@@ -294,12 +300,11 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			state.settings.aspectRatio = value;
 			refresh();
 		},
-		reportExportSuccess: ioActions.reportExportSuccess,
-		reportExportError: ioActions.reportExportError,
+		reportExportSuccess: dataPanelActions.reportExportSuccess,
+		reportExportError: dataPanelActions.reportExportError,
 	};
 
 	setupThemeControl(doc, state, themeControlActions, signal);
-	setupIo(doc, win, state, ioActions, signal);
 
 	// Mounted once, not by refresh(): the preview height is independent of
 	// diagram State (see PreviewResizer's own doc comment) and never gets a
@@ -317,15 +322,14 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		if (destroyed) return;
 		destroyed = true;
 		controller.abort();
-		// Must run before unmounting either editor below — see
+		// Must run before unmounting DataPanel below — see
 		// removeActiveDragClone's own doc comment for why destroying one
 		// editor's Sortable instance first would otherwise poison the other's
 		// own mid-drag cleanup.
 		removeActiveDragClone();
-		// Unmounting runs each editor's use-row-sortable.ts cleanup
+		// Unmounts DataPanel; each editor's use-row-sortable.ts cleanup runs
 		// synchronously, tearing down its own Sortable instance.
-		render(null, nodeEditorRoot);
-		render(null, linkEditorRoot);
+		render(null, dataPanelRoot);
 		// Unmounts DiagramPanel; each of its useDialog() hooks tears down its
 		// own listeners as an effect cleanup, not via the AbortSignal above.
 		render(null, diagramControlsRoot);

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it, vi } from "vitest";
+import { startApp } from "../../src/app/start-app";
 import { serializeState } from "../../src/features/files/diagram-file";
 import { defaultState } from "../../src/model/graph";
 import { STORAGE_KEY } from "../../src/platform/storage";
@@ -9,6 +10,7 @@ import {
 	fireChange,
 	fireInput,
 	getStoredState,
+	installMarkup,
 	mountApp,
 	requireElement,
 	tick,
@@ -22,6 +24,26 @@ function removeAllNodes(): void {
 		click(deleteButton);
 		deleteButton = document.querySelector<HTMLButtonElement>('[data-action="delete-node"]');
 	}
+}
+
+/**
+ * A File whose text() resolves only when the returned resolver is called —
+ * `File.text()` isn't natively cancellable/controllable, so this shadows the
+ * instance method to drive destroy/reboot races against the pending read by
+ * hand (see PLAN.md's "Async operation ownership").
+ */
+function deferredFile(): { file: File; resolveText: (text: string) => void } {
+	let resolveText: (text: string) => void = () => {};
+	const textPromise = new Promise<string>((resolve) => {
+		resolveText = resolve;
+	});
+	const file = new File([""], "sankey.json", { type: "application/json" });
+	Object.defineProperty(file, "text", { value: () => textPromise });
+	return { file, resolveText };
+}
+
+function selectFile(input: HTMLInputElement, file: File): void {
+	Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 }
 
 describe("import & export", () => {
@@ -300,5 +322,63 @@ describe("import & export", () => {
 		);
 		expect(displayDialog.open).toBe(false);
 		expect(document.activeElement).toBe(displayButton);
+	});
+
+	it("destroy mid-file-read: the eventual completion publishes no notice and mutates nothing", async () => {
+		const { app } = mountApp();
+		const storedBefore = localStorage.getItem(STORAGE_KEY);
+		const noticeBefore = document.getElementById("io-notice")?.textContent;
+
+		const { file, resolveText } = deferredFile();
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		selectFile(input, file);
+		fireChange(input);
+
+		app.destroy();
+		resolveText(
+			JSON.stringify({
+				nodes: [{ id: "n1", name: "Stale" }],
+				links: [],
+				settings: {},
+			}),
+		);
+		// Flush the guarded file.text()-then-parseImport chain (same wait files.test.ts's
+		// other import tests use) before asserting on its absent effects.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(document.getElementById("io-notice")?.textContent).toBe(noticeBefore);
+		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
+	});
+
+	it("destroy then reboot: a file read pending at destroy cannot publish into the new instance", async () => {
+		installMarkup();
+		const first = startApp(document);
+
+		const { file, resolveText } = deferredFile();
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		selectFile(input, file);
+		fireChange(input);
+
+		first.destroy();
+		const second = startApp(document);
+		try {
+			const rowsBefore = document.querySelectorAll("#node-editor .node-row").length;
+			const storedBefore = localStorage.getItem(STORAGE_KEY);
+
+			resolveText(
+				JSON.stringify({
+					nodes: [{ id: "n1", name: "Stale" }],
+					links: [],
+					settings: {},
+				}),
+			);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(rowsBefore);
+			expect(document.getElementById("io-notice")?.textContent).toBe("");
+			expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
+		} finally {
+			second.destroy();
+		}
 	});
 });
