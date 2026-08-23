@@ -81,6 +81,33 @@ describe("cross-realm DOM contract", () => {
 		);
 	});
 
+	it("renders a notice into the other window's own document", () => {
+		otherWindow = createOtherWindow();
+
+		// Swaps otherWindow's own localStorage — not the ambient global this
+		// file's realm resolves — for a throwing stub, so the resulting storage
+		// notice can only have come from otherWindow.document's own NoticeRegion.
+		const throwingStorage: Partial<Storage> = {
+			setItem: () => {
+				throw new Error("QuotaExceededError");
+			},
+		};
+		Object.defineProperty(otherWindow, "localStorage", {
+			value: throwingStorage,
+			configurable: true,
+			writable: true,
+		});
+
+		const app = startApp(otherWindow.document as unknown as Document);
+		try {
+			clickIn(otherWindow, queryIn(otherWindow, '[data-action="add-node"]'));
+
+			expect(elementByIdIn(otherWindow, "storage-notice")?.textContent).not.toBe("");
+		} finally {
+			app.destroy();
+		}
+	});
+
 	it("creates its AbortController from the document's own window, not the ambient global", () => {
 		otherWindow = createOtherWindow();
 

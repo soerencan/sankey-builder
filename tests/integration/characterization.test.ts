@@ -61,6 +61,18 @@ describe("characterization: pre-Preact-migration behavior", () => {
 
 			expect(errorText()).toContain("cycle");
 			expect(storageText()).toBe(STORAGE_NOTICE);
+			// Tone classes (PLAN.md's Notice policy: graph is always "error",
+			// storage-unavailable is always "warning") on the two active slots.
+			expect(document.getElementById("error")?.className).toBe("notice-error");
+			expect(document.getElementById("storage-notice")?.className).toBe("notice-warning");
+			// Display order — graph, storage, then I/O (PLAN.md's Notice
+			// policy) — is the fixed slot order NoticeRegion renders, not
+			// something either notice's presence can reorder.
+			expect(
+				Array.from(document.querySelectorAll<HTMLElement>(".notice-region > div")).map(
+					(slot) => slot.id,
+				),
+			).toEqual(["error", "storage-notice", "io-notice"]);
 		} finally {
 			Object.defineProperty(globalThis, "localStorage", {
 				value: originalLocalStorage,

@@ -127,6 +127,8 @@ describe("import & export", () => {
 		const repairMessage =
 			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.";
 		expect(notice()).toBe(repairMessage);
+		// A repair warning's tone is always "warning" (PLAN.md's Notice policy).
+		expect(document.getElementById("io-notice")?.className).toBe("notice-warning");
 
 		// An invalid or empty draft never reaches actions.updateLinkValue (see
 		// link-row.tsx's commitDraft), so refresh() — and its unconditional
@@ -189,6 +191,8 @@ describe("import & export", () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(document.getElementById("io-notice")?.textContent).toContain("diagram export");
+		// An import/export failure's tone is always "error" (PLAN.md's Notice policy).
+		expect(document.getElementById("io-notice")?.className).toBe("notice-error");
 		// Nothing changed: same storage payload, same diagram, same editor rows.
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
 		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(rectsBefore);
