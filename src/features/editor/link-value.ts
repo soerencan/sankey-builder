@@ -1,9 +1,11 @@
 import { MAX_LINK_VALUE } from "../../model/validation";
 
+export type LinkValueInvalidReason = "format" | "precision" | "non-positive" | "above-maximum";
+
 export type LinkValueParse =
 	| { kind: "empty" }
 	| { kind: "valid"; value: number }
-	| { kind: "invalid" };
+	| { kind: "invalid"; reason: LinkValueInvalidReason };
 
 // Plain decimal only: no sign, exponent, comma, or inner whitespace. "5." and
 // ".5" are deliberately allowed (Number() reads them as 5 and 0.5).
@@ -15,19 +17,27 @@ const MAX_FRACTION_DIGITS = 4;
  * entirely. The fractional-digit cap is counted from the raw string, not the
  * parsed float, so trailing-zero precision ("0.00001") is rejected before it
  * rounds away — it's an input-format rule, not a value-magnitude one.
+ *
+ * Invalid reasons are checked in a fixed precedence — format, then
+ * precision, then non-positive, then above-maximum — so an ambiguous input
+ * always resolves to a single reason: "1e20" is a format error (not
+ * above-maximum, even though it exceeds MAX_LINK_VALUE), and
+ * "1000000000000001.00001" is a precision error (not above-maximum, despite
+ * being both).
  */
 export function parseLinkValue(raw: string): LinkValueParse {
 	const trimmed = raw.trim();
 	if (trimmed === "") return { kind: "empty" };
-	if (!LINK_VALUE_RE.test(trimmed)) return { kind: "invalid" };
+	if (!LINK_VALUE_RE.test(trimmed)) return { kind: "invalid", reason: "format" };
 
-	const dot = trimmed.indexOf(".");
-	if (dot !== -1 && trimmed.length - dot - 1 > MAX_FRACTION_DIGITS) {
-		return { kind: "invalid" };
-	}
+	// Still reachable at commit time even though the editor's beforeinput
+	// handler blocks a 5th typed digit: whitespace-padded pastes, composition
+	// input, and insertReplacementText all bypass that interception.
+	if (exceedsFractionDigits(trimmed)) return { kind: "invalid", reason: "precision" };
 
 	const value = Number(trimmed);
-	if (!(value > 0) || value > MAX_LINK_VALUE) return { kind: "invalid" };
+	if (!(value > 0)) return { kind: "invalid", reason: "non-positive" };
+	if (value > MAX_LINK_VALUE) return { kind: "invalid", reason: "above-maximum" };
 	return { kind: "valid", value };
 }
 
@@ -47,14 +57,4 @@ export function exceedsFractionDigits(raw: string): boolean {
 export function truncateFractionDigits(raw: string): string {
 	const dot = raw.indexOf(".");
 	return dot === -1 ? raw : raw.slice(0, dot + 1 + MAX_FRACTION_DIGITS);
-}
-
-/**
- * True when `trimmed` matches the same plain-decimal format parseLinkValue
- * requires (no sign, exponent, comma, or inner whitespace). Exposed so
- * callers can tell "not a plain number at all" (e.g. "1e5", "+5") apart from
- * "a plain number, just out of range" without duplicating the regex.
- */
-export function isPlainDecimalFormat(trimmed: string): boolean {
-	return LINK_VALUE_RE.test(trimmed);
 }

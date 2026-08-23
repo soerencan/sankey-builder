@@ -3,8 +3,8 @@ import type Sortable from "sortablejs";
 import type { Link, Node, State } from "../../model/graph";
 import { MAX_LINK_VALUE } from "../../model/validation";
 import {
+	type LinkValueInvalidReason,
 	exceedsFractionDigits,
-	isPlainDecimalFormat,
 	parseLinkValue,
 	truncateFractionDigits,
 } from "./link-value";
@@ -24,23 +24,22 @@ function linkValueErrorId(index: number): string {
 }
 
 /**
- * Message for the "invalid" parseLinkValue branch, mirroring its actual
- * rules (src/model/validation.ts) rather than a generic catch-all. The over-precision
- * branch is reachable even though beforeinput blocks a 5th typed digit and
- * truncates an over-precise paste: a whitespace-padded paste ("  0.00001")
- * or an inputType beforeinput doesn't intercept (composition,
- * insertReplacementText) can still land an over-precise value here. The
- * max-value branch is gated on the plain-decimal format so "1e20" — rejected
- * for its format, not its magnitude — doesn't get a message implying
- * exponent notation would otherwise be accepted.
+ * Message for the "invalid" parseLinkValue branch, keyed on its `reason`
+ * rather than re-deriving it here — parseLinkValue owns the precedence
+ * (format, then precision, then non-positive, then above-maximum), so this
+ * is a pure lookup. "format" and "non-positive" share a message: from the
+ * user's perspective both mean "that's not an accepted positive number".
  */
-function linkValueErrorMessage(raw: string): string {
-	const trimmed = raw.trim();
-	if (exceedsFractionDigits(trimmed)) return "Enter a number with up to 4 decimal places.";
-	if (isPlainDecimalFormat(trimmed) && Number(trimmed) > MAX_LINK_VALUE) {
-		return `Enter a number no greater than ${MAX_LINK_VALUE}.`;
+function linkValueErrorMessage(reason: LinkValueInvalidReason): string {
+	switch (reason) {
+		case "precision":
+			return "Enter a number with up to 4 decimal places.";
+		case "above-maximum":
+			return `Enter a number no greater than ${MAX_LINK_VALUE}.`;
+		case "format":
+		case "non-positive":
+			return "Enter a plain number greater than 0.";
 	}
-	return "Enter a plain number greater than 0.";
 }
 
 /**
@@ -212,7 +211,7 @@ function commitLinkValue(
 		setLinkValueError(doc, index, "");
 	} else {
 		target.setAttribute("aria-invalid", "true");
-		setLinkValueError(doc, index, linkValueErrorMessage(target.value));
+		setLinkValueError(doc, index, linkValueErrorMessage(parsed.reason));
 	}
 }
 
