@@ -50,6 +50,10 @@ describe("Preact toolchain smoke test", () => {
 		render(<Greeting name="World" />, container);
 		const paragraph = container.querySelector("p.greeting");
 		expect(paragraph?.textContent).toBe("Hello, World!");
+		// Preact's own DOM creation reaches for the ambient global `document`,
+		// not the container's ownerDocument — this pins that node insertion
+		// still lands the element in otherDocument's realm regardless.
+		expect(paragraph?.ownerDocument).toBe(otherDocument);
 
 		render(<Greeting name="Preact" />, container);
 		expect(container.querySelector("p.greeting")?.textContent).toBe("Hello, Preact!");

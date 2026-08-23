@@ -1,3 +1,4 @@
+import { render } from "preact";
 import type Sortable from "sortablejs";
 import { createNodeColorResolver } from "../features/diagram/colors";
 import { setupPreviewResizer } from "../features/diagram/preview-resizer";
@@ -9,11 +10,7 @@ import {
 	updateNodeOptionLabels,
 } from "../features/editor/link-editor";
 import type { NodeEditorActions } from "../features/editor/node-editor";
-import {
-	renderNodeEditor,
-	setupNodeEditor,
-	updateNodeSwatches,
-} from "../features/editor/node-editor";
+import { NodeEditor } from "../features/editor/node-editor";
 import { destroySortable } from "../features/editor/row-reorder";
 import type { IoActions } from "../features/files/controls";
 import { setupIo } from "../features/files/controls";
@@ -36,6 +33,7 @@ import {
 } from "../model/graph";
 import { validate } from "../model/validation";
 import { loadState, saveState } from "../platform/storage";
+import { projectNodes } from "./view";
 
 export interface AppHandle {
 	/** Idempotent — safe to call more than once. */
@@ -48,7 +46,6 @@ const STORAGE_NOTICE =
 	"try freeing up space or leaving private/incognito mode.";
 
 interface RefreshOptions {
-	rebuildNodes?: boolean;
 	rebuildLinks?: boolean;
 }
 
@@ -82,6 +79,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const errorRoot = requireRoot(doc, "error");
 	const ioNoticeRoot = requireRoot(doc, "io-notice");
 	const storageNoticeRoot = requireRoot(doc, "storage-notice");
+	const nodeEditorRoot = requireRoot(doc, "node-editor");
 
 	// win.AbortController, not the bare global: `doc` may belong to a window
 	// other than this module's own ambient one (e.g. a second startApp()
@@ -93,11 +91,12 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	let destroyed = false;
 
 	const state: State = loadState(win.localStorage);
-	// Recreated on every renderNodeEditor/renderLinkEditor call (their row
-	// containers are torn down and rebuilt each time) — owned here, per
-	// instance, rather than as a module-level singleton in the editor
-	// modules, so destroy() can tear down exactly this instance's Sortables.
-	let nodeRowSortable: Sortable | null = null;
+	// Recreated on every renderLinkEditor call (its row container is torn down
+	// and rebuilt each time) — owned here, per instance, rather than as a
+	// module-level singleton in link-editor.ts, so destroy() can tear down
+	// exactly this instance's Sortable. The node editor's Sortable instance is
+	// owned by use-row-sortable.ts's hook instead — it survives renders — and
+	// torn down when render(null, nodeEditorRoot) unmounts NodeEditor below.
 	let linkRowSortable: Sortable | null = null;
 
 	applyTheme(doc, state.settings.theme);
@@ -135,35 +134,28 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 *    rather than cached).
 	 * 2. Validate, then persist + update notices — see persistAndClearNotices's
 	 *    own doc comment for why persistence runs regardless of validity.
-	 * 3. Rebuild the requested editors regardless of validity, so the user
-	 *    can see and fix the offending row. The flags exist to preserve input
-	 *    focus/caret (rebuilding the editor being typed in would drop it) and
-	 *    to skip needless editor/Sortable teardown when a change doesn't
-	 *    touch that editor's markup.
+	 * 3. Render the node editor unconditionally: its rows are keyed by node
+	 *    id, so a Preact re-render patches names/swatches/order in place
+	 *    (preserving focus, caret, and the row-sortable hook's Sortable
+	 *    instance) instead of rebuilding — there's no rebuild-flag/focus
+	 *    trade-off left to make for it, unlike the still-imperative link
+	 *    editor's `rebuildLinks`.
 	 * 4. Bail before the diagram rebuild on an invalid graph (see the inline
 	 *    comment below) — otherwise render.
 	 */
-	function refresh({ rebuildNodes = true, rebuildLinks = true }: RefreshOptions = {}): void {
+	function refresh({ rebuildLinks = true }: RefreshOptions = {}): void {
 		const nodeColor = createNodeColorResolver(state);
 		const result = validate(state);
 		errorRoot.textContent = result.ok ? "" : (result.error ?? "");
 
 		persistAndClearNotices();
 
-		if (rebuildNodes) {
-			nodeRowSortable = renderNodeEditor(
-				doc,
-				state,
-				nodeColor,
-				nodeEditorActions.moveNode,
-				nodeRowSortable,
-			);
-		}
+		render(<NodeEditor nodes={projectNodes(state)} actions={nodeEditorActions} />, nodeEditorRoot);
 		if (rebuildLinks) {
 			linkRowSortable = renderLinkEditor(doc, state, linkEditorActions.moveLink, linkRowSortable);
 		}
 		// Bail before the diagram rebuild so the last good render stays on
-		// screen; the editors above still rebuild (when requested) so the user
+		// screen; the editors above still update (when requested) so the user
 		// can see and fix the offending row.
 		if (!result.ok) return;
 		renderDiagram(doc, state, nodeColor);
@@ -180,19 +172,19 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		},
 		renameNode(id, name) {
 			renameNode(state, id, name);
-			// Skip both editors' own rebuilds: rebuilding the node editor would
-			// reset this input's focus/caret mid-keystroke, and rebuilding the
-			// link editor would tear down its rows/Sortable instance for a change
-			// that's purely cosmetic there. Its source/target <select> options
-			// show node names and would otherwise go stale, so patch just their
-			// text directly instead.
-			refresh({ rebuildNodes: false, rebuildLinks: false });
+			// Skip the link editor's own rebuild: it would tear down its
+			// rows/Sortable instance for a change that's purely cosmetic there.
+			// Its source/target <select> options show node names and would
+			// otherwise go stale, so patch just their text directly instead. The
+			// node editor still re-renders (see refresh()'s own doc comment for
+			// why that no longer risks this input's focus/caret).
+			refresh({ rebuildLinks: false });
 			updateNodeOptionLabels(doc, state);
 		},
 		moveNode(from, to) {
 			moveNode(state, from, to);
-			// Node order drives the link dropdowns' option order, so rebuild both
-			// editors (same reason renameNode rebuilds the link editor).
+			// Node order drives the link dropdowns' option order, so rebuild the
+			// link editor too (same reason renameNode patches its option labels).
 			refresh();
 		},
 	};
@@ -200,31 +192,29 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const linkEditorActions: LinkEditorActions = {
 		addLink() {
 			addLink(state);
-			// The node editor is unaffected by link changes — rebuild only the links.
-			refresh({ rebuildNodes: false });
+			refresh();
 		},
 		deleteLink(index) {
 			deleteLink(state, index);
-			refresh({ rebuildNodes: false });
+			refresh();
 		},
 		updateLinkSource(index, id) {
 			updateLink(state, index, { source: id });
-			refresh({ rebuildNodes: false });
+			refresh();
 		},
 		updateLinkTarget(index, id) {
 			updateLink(state, index, { target: id });
-			refresh({ rebuildNodes: false });
+			refresh();
 		},
 		updateLinkValue(index, value) {
 			updateLink(state, index, { value });
-			// Skip both editor rebuilds: the node editor is unaffected, and
-			// rebuilding the link editor here would steal focus mid-keystroke.
-			refresh({ rebuildNodes: false, rebuildLinks: false });
+			// Skip the link editor's own rebuild: it would steal focus
+			// mid-keystroke. The node editor is unaffected by link values either way.
+			refresh({ rebuildLinks: false });
 		},
 		moveLink(from, to) {
 			moveLink(state, from, to);
-			// The node editor is unaffected by link order — rebuild only the links.
-			refresh({ rebuildNodes: false });
+			refresh();
 		},
 	};
 
@@ -272,34 +262,29 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const toolbarActions: ToolbarActions = {
 		setPalette(value) {
 			state.settings.palette = value;
-			// Node colors are palette-derived, but a palette change doesn't affect
-			// graph shape/validity or either editor's markup — skip both editor
-			// rebuilds (same as the diagram-only settings below) and instead patch
-			// the node editor's swatches directly. refresh() rebuilds its own
-			// resolver internally for the diagram but doesn't expose it, so the
-			// swatch patch rebuilds a second one here, off the now-updated
-			// state.settings.palette, rather than threading a return value through
-			// refresh()'s other callers.
-			refresh({ rebuildNodes: false, rebuildLinks: false });
-			updateNodeSwatches(doc, state, createNodeColorResolver(state));
+			// Node colors are palette-derived but a palette change doesn't affect
+			// graph shape/validity or the link editor's markup — skip its rebuild
+			// (same as the diagram-only settings below). The node editor's
+			// swatches follow along for free: refresh()'s unconditional render
+			// re-projects them from the now-updated state.settings.palette.
+			refresh({ rebuildLinks: false });
 		},
 		setLinkColor(value) {
 			state.settings.linkColor = value;
 			// Diagram-only setting — it invalidates neither editor's DOM, so skip
-			// both editor rebuilds.
-			refresh({ rebuildNodes: false, rebuildLinks: false });
+			// the link editor's rebuild (the node editor always re-renders).
+			refresh({ rebuildLinks: false });
 		},
 		setAlignment(value) {
 			state.settings.alignment = value;
-			refresh({ rebuildNodes: false, rebuildLinks: false });
+			refresh({ rebuildLinks: false });
 		},
 		setAspectRatio(value) {
 			state.settings.aspectRatio = value;
-			refresh({ rebuildNodes: false, rebuildLinks: false });
+			refresh({ rebuildLinks: false });
 		},
 	};
 
-	setupNodeEditor(doc, nodeEditorActions, signal);
 	setupLinkEditor(doc, linkEditorActions, state, signal);
 	setupThemeControl(doc, state, themeControlActions, signal);
 	setupToolbar(doc, state, toolbarActions, signal);
@@ -320,13 +305,15 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		if (destroyed) return;
 		destroyed = true;
 		controller.abort();
-		// nodeRowSortable/linkRowSortable are (re)created by refresh()'s
-		// renderNodeEditor/renderLinkEditor calls, not by the setup* calls
-		// above, so there's no "setup order" to reverse here — just tear down
-		// preview-drag state, then the link Sortable, then the node Sortable.
+		// linkRowSortable is (re)created by refresh()'s renderLinkEditor calls,
+		// not by the setup* calls above, so there's no "setup order" to reverse
+		// here — just tear down preview-drag state, then the link Sortable.
 		cancelPreviewDrag();
 		destroySortable(linkRowSortable);
-		destroySortable(nodeRowSortable);
+		// Unmounting runs use-row-sortable.ts's cleanup synchronously, which
+		// tears down the node editor's Sortable instance (and any mid-drag
+		// ghost/clone) the same way destroySortable(linkRowSortable) just did.
+		render(null, nodeEditorRoot);
 	}
 
 	return { destroy };

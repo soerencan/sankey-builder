@@ -136,22 +136,86 @@ describe("row reordering", () => {
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 
 		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
-		const onEnd = Sortable.get(nodeRows)?.options.onEnd;
+		const nodeSortable = Sortable.get(nodeRows);
+		const onEnd = nodeSortable?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
 		// Sortable has already reordered the DOM by the time onEnd fires for a
-		// real drag; the handler itself only needs the before/after indices, so
-		// a synthetic event is enough to exercise the commit path in isolation.
-		onEnd(fakeSortableEvent({ oldIndex: 0, newIndex: 2 }));
+		// real drag; this event's indices are what the handler actually acts
+		// on, so a synthetic `item` (left in its current, untouched position —
+		// the next test below drives the DOM-restore step itself) is enough to
+		// exercise the commit path in isolation.
+		const item = requireElement<HTMLElement>('.drag-handle[data-id="n1"]', nodeRows).closest(
+			".node-row",
+		) as HTMLElement;
+		onEnd({ item, oldIndex: 0, newIndex: 2 } as unknown as Sortable.SortableEvent);
 
 		expect(nodeNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
 		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n3", "n1", "n4"]);
 
-		// The rebuild the move triggers replaces .node-rows wholesale, so the
-		// old container's Sortable instance must not still be registered — the
-		// no-leak guarantee attachRowSortable's destroy(previous) provides.
-		expect(Sortable.get(nodeRows)).toBeNull();
+		// Unlike the pre-Preact editors, the controller's move re-render keeps
+		// the same rows container and Sortable instance — use-row-sortable.ts's
+		// hook owns them for the life of the mounted editor, not per-rebuild.
+		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRows);
+		expect(Sortable.get(nodeRows)).toBe(nodeSortable);
+	});
+
+	it("onEnd restores the DOM to pre-drag order before dispatching the move, then ends in model order after Preact's re-render, with focus kept on the dragged row's handle", () => {
+		mountApp();
+
+		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
+		const instance = Sortable.get(nodeRows);
+		const onEnd = instance?.options.onEnd;
+		if (!onEnd) throw new Error("unreachable");
+
+		const rowIds = () =>
+			Array.from(nodeRows.querySelectorAll<HTMLButtonElement>(".drag-handle")).map(
+				(h) => h.dataset.id,
+			);
+		expect(rowIds()).toEqual(["n1", "n2", "n3", "n4"]);
+
+		const draggedRow = requireElement<HTMLElement>('.drag-handle[data-id="n1"]', nodeRows).closest(
+			".node-row",
+		) as HTMLElement;
+
+		// Reproduce the live DOM state Sortable leaves behind mid-drag (it has
+		// already moved the row by the time onEnd fires): n1 dragged down to
+		// sit just before n4, landing at [n2, n3, n1, n4].
+		for (const id of ["n2", "n3", "n1", "n4"]) {
+			const row = requireElement<HTMLButtonElement>(
+				`.drag-handle[data-id="${id}"]`,
+				nodeRows,
+			).closest(".node-row");
+			if (row) nodeRows.appendChild(row);
+		}
+		expect(rowIds()).toEqual(["n2", "n3", "n1", "n4"]);
+
+		// Focused once the mid-drag DOM state is established — the handle's
+		// focus at the moment onEnd fires (e.g. from the mousedown that started
+		// the drag) is what use-row-sortable.ts's onEnd is responsible for
+		// carrying through its own restore/dispatch/re-render, not whatever
+		// happened to Sortable's own earlier drag-tracking DOM edits.
+		draggedRow.querySelector<HTMLButtonElement>(".drag-handle")?.focus();
+
+		// fakeSortableEvent only carries oldIndex/newIndex (see its own comment
+		// above) — this test needs `item` too, so it builds the event directly.
+		onEnd({ item: draggedRow, oldIndex: 0, newIndex: 2 } as unknown as Sortable.SortableEvent);
+
+		// The move (n1 to index 2) landed, but by DOM identity, not just value —
+		// same row/container elements throughout, no duplicated or lost rows.
+		const rowsAfter = Array.from(nodeRows.querySelectorAll(".node-row"));
+		expect(rowsAfter).toHaveLength(4);
+		expect(new Set(rowsAfter).size).toBe(rowsAfter.length);
+		expect(rowIds()).toEqual(["n2", "n3", "n1", "n4"]);
+		const stored = getStoredState();
+		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n3", "n1", "n4"]);
+
+		// Preact reused the same keyed row/handle across the re-render, so focus
+		// survived the whole restore-then-dispatch-then-reconcile sequence.
+		expect(document.activeElement).toBe(
+			requireElement<HTMLButtonElement>('.drag-handle[data-id="n1"]', nodeRows),
+		);
 	});
 
 	it("committing a link row's Sortable onEnd reorders it: order and storage follow", () => {
@@ -228,21 +292,38 @@ describe("row reordering", () => {
 		expect(Sortable.get(nodeRows)).toBe(instance);
 	});
 
-	it("rebuilding the node editor destroys the previous Sortable instance rather than leaking it", () => {
+	it("adding a node re-renders the node editor in place: the rows container and its Sortable instance survive", () => {
 		mountApp();
 
 		const before = requireElement<HTMLElement>("#node-editor .node-rows");
-		expect(Sortable.get(before)).toBeTruthy();
+		const instanceBefore = Sortable.get(before);
+		expect(instanceBefore).toBeTruthy();
 
-		// add-node rebuilds the node editor (renderNodeEditor replaces
-		// .node-rows wholesale), which is the case attachRowSortable's
-		// destroy(previous) exists to handle.
+		// Unlike the pre-Preact editor (and unlike the still-imperative link
+		// editor below), a committed node mutation is a keyed Preact re-render,
+		// not a rebuild — use-row-sortable.ts's hook owns the container/Sortable
+		// for the life of the mounted editor, so add-node must not replace or
+		// recreate either.
 		click(document.querySelector('[data-action="add-node"]'));
 
-		expect(Sortable.get(before)).toBeNull();
 		const after = requireElement<HTMLElement>("#node-editor .node-rows");
-		expect(after).not.toBe(before);
-		expect(Sortable.get(after)).toBeTruthy();
+		expect(after).toBe(before);
+		expect(Sortable.get(after)).toBe(instanceBefore);
+	});
+
+	it("destroying the app tears down the node editor's Sortable instance exactly once", () => {
+		const { app } = mountApp();
+
+		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
+		const instance = Sortable.get(nodeRows);
+		expect(instance).toBeTruthy();
+		if (!instance) throw new Error("unreachable");
+		const destroySpy = vi.spyOn(instance, "destroy");
+
+		app.destroy();
+
+		expect(destroySpy).toHaveBeenCalledTimes(1);
+		expect(Sortable.get(nodeRows)).toBeNull();
 	});
 
 	it("rebuilding the link editor destroys the previous Sortable instance exactly once rather than leaking it", () => {

@@ -195,7 +195,7 @@ export function renderLinkEditor(
 /**
  * Restyles the existing node <option> labels in place from the current
  * state, without touching any other markup — used when only a node's name
- * changes (src/app/start-app.ts's renameNode), so the link editor's rows/
+ * changes (src/app/start-app.tsx's renameNode), so the link editor's rows/
  * container and its Sortable instance survive untouched. Only `textContent`
  * is written: order and the `value`/`selected`/`disabled` attributes are
  * left exactly as renderLinkOptions set them, since Sortable's cloneNode
@@ -205,8 +205,7 @@ export function renderLinkEditor(
  * Options are matched by their `value` property, not by interpolating each
  * node's id into a `[value="..."]` selector — imported ids are arbitrary
  * strings, and one containing a quote/backslash would throw from
- * querySelector — mirroring updateNodeSwatches's id-safe iteration in
- * node-editor.ts.
+ * querySelector.
  */
 export function updateNodeOptionLabels(doc: Document, state: State): void {
 	const root = doc.getElementById("link-editor");
@@ -257,7 +256,8 @@ function commitLinkValue(
 }
 
 /**
- * Delegated listeners on the link-editor root, mirroring setupNodeEditor.
+ * Delegated listeners on the link-editor root — the node editor's equivalent
+ * wiring is now declarative JSX event handlers in node-editor.tsx instead.
  * Select changes do a full rebuild (focus loss on a <select> after
  * choosing a value is normal browser behavior); the value input follows
  * the same focus-preserving path as node renames. `signal` is the owning

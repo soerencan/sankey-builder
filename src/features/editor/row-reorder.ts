@@ -80,9 +80,10 @@ const TOUCH_START_THRESHOLD_PX = 4;
 
 /**
  * Safely destroys a Sortable instance, including the mid-drag orphaned-clone
- * cleanup documented on attachRowSortable below. Exported so AppHandle's
- * destroy() (src/app/start-app.ts) can reuse the same cleanup for the node/link editor
- * instances it owns, without duplicating the mid-drag branch.
+ * cleanup documented on attachRowSortable below. Exported so both the node
+ * editor's use-row-sortable.ts hook and AppHandle's destroy() (src/app/start-app.tsx,
+ * for the still-imperative link editor) can reuse the same cleanup without
+ * duplicating the mid-drag branch.
  */
 export function destroySortable(instance: Sortable | null): void {
 	// A container rebuild (e.g. a keyboard reorder in the other box, or a
@@ -102,11 +103,14 @@ export function destroySortable(instance: Sortable | null): void {
 
 /**
  * Creates a SortableJS instance for a rows container, for pointer/touch
- * dragging. The editors rebuild their `.node-rows`/`.link-rows` container
- * wholesale on every state change, so this is called once per rebuild
- * (from renderNodeEditor/renderLinkEditor) rather than once at setup like
+ * dragging. Used by the still-imperative link editor, which rebuilds its
+ * `.link-rows` container wholesale on every state change, so this is called
+ * once per rebuild (from renderLinkEditor) rather than once at setup like
  * setupRowReorder above — `previous`, if given, is destroy()ed first so a
  * rebuild never leaks an instance still listening on a detached container.
+ * The node editor no longer uses this — its Sortable instance is owned by
+ * use-row-sortable.ts's hook instead, created once per mount rather than per
+ * rebuild.
  *
  * `forceFallback` makes Sortable synthesize its own drag (a floating clone
  * that tracks the pointer, `fallbackClass`) instead of native HTML5 DnD,
