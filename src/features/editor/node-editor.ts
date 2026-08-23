@@ -1,6 +1,7 @@
 import { select } from "d3";
 import type Sortable from "sortablejs";
 import type { Node, State } from "../../model/graph";
+import { isHTMLElement, isHTMLInputElement } from "../../shared/dom";
 import type { NodeColorResolver } from "../diagram/colors";
 import { attachRowSortable, setupRowReorder } from "./row-reorder";
 
@@ -144,7 +145,7 @@ export function setupNodeEditor(
 	root.addEventListener(
 		"click",
 		(event) => {
-			if (!(event.target instanceof HTMLElement)) return;
+			if (!isHTMLElement(event.target)) return;
 			const { action, id } = event.target.dataset;
 			if (action === "add-node") {
 				actions.addNode();
@@ -158,7 +159,7 @@ export function setupNodeEditor(
 	root.addEventListener(
 		"input",
 		(event) => {
-			if (!(event.target instanceof HTMLInputElement)) return;
+			if (!isHTMLInputElement(event.target)) return;
 			const { action, id } = event.target.dataset;
 			if (action === "rename-node" && id !== undefined) {
 				actions.renameNode(id, event.target.value);

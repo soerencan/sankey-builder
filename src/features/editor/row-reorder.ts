@@ -1,4 +1,5 @@
 import Sortable from "sortablejs";
+import { isElement, isHTMLElement } from "../../shared/dom";
 
 export interface RowReorderConfig {
 	/** id of the editor box root (e.g. "node-editor"). */
@@ -40,7 +41,7 @@ export function setupRowReorder(
 	const rowSelector = `.${config.rowClass}`;
 
 	const rowOf = (target: EventTarget | null): HTMLElement | null =>
-		target instanceof Element ? target.closest<HTMLElement>(rowSelector) : null;
+		isElement(target) ? target.closest<HTMLElement>(rowSelector) : null;
 
 	const rows = (): HTMLElement[] => Array.from(root.querySelectorAll<HTMLElement>(rowSelector));
 
@@ -48,7 +49,7 @@ export function setupRowReorder(
 		"keydown",
 		(event) => {
 			const target = event.target;
-			if (!(target instanceof HTMLElement) || !target.classList.contains("drag-handle")) return;
+			if (!isHTMLElement(target) || !target.classList.contains("drag-handle")) return;
 			if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
 			const row = rowOf(target);
 			if (!row) return;

@@ -2,6 +2,7 @@ import { select } from "d3";
 import type Sortable from "sortablejs";
 import type { Link, Node, State } from "../../model/graph";
 import { MAX_LINK_VALUE } from "../../model/validation";
+import { isHTMLElement, isHTMLInputElement } from "../../shared/dom";
 import {
 	type LinkValueInvalidReason,
 	exceedsFractionDigits,
@@ -21,6 +22,20 @@ export interface LinkEditorActions {
 
 function linkValueErrorId(index: number): string {
 	return `link-value-error-${index}`;
+}
+
+/** A realm-safe stand-in for `instanceof HTMLSelectElement`, duck-typed on tag name. */
+function isSelectElement(target: EventTarget | null): target is HTMLSelectElement {
+	return isHTMLElement(target) && target.tagName === "SELECT";
+}
+
+/**
+ * Realm-safe stand-in for `instanceof InputEvent` — `inputType` is a plain
+ * string property every InputEvent has (unlike `data`, which is legitimately
+ * null for deletions), so it's a safe discriminator from a plain Event.
+ */
+function isInputEvent(event: Event): event is InputEvent {
+	return typeof (event as InputEvent).inputType === "string";
 }
 
 /**
@@ -276,7 +291,7 @@ export function setupLinkEditor(
 	root.addEventListener(
 		"click",
 		(event) => {
-			if (!(event.target instanceof HTMLElement)) return;
+			if (!isHTMLElement(event.target)) return;
 			const { action, index } = event.target.dataset;
 			if (action === "add-link") {
 				actions.addLink();
@@ -291,7 +306,7 @@ export function setupLinkEditor(
 		"change",
 		(event) => {
 			const target = event.target;
-			if (target instanceof HTMLSelectElement) {
+			if (isSelectElement(target)) {
 				const { action, index } = target.dataset;
 				if (index === undefined) return;
 				// The placeholder's empty value maps back to a null endpoint.
@@ -302,7 +317,7 @@ export function setupLinkEditor(
 				}
 				return;
 			}
-			if (!(target instanceof HTMLInputElement)) return;
+			if (!isHTMLInputElement(target)) return;
 			const { action, index } = target.dataset;
 			if (action !== "update-link-value" || index === undefined) return;
 			// On blur, an empty or invalid field never reached state — restore the
@@ -325,9 +340,9 @@ export function setupLinkEditor(
 	root.addEventListener(
 		"beforeinput",
 		(event) => {
-			if (!(event instanceof InputEvent)) return;
+			if (!isInputEvent(event)) return;
 			const target = event.target;
-			if (!(target instanceof HTMLInputElement)) return;
+			if (!isHTMLInputElement(target)) return;
 			const { action, index } = target.dataset;
 			if (action !== "update-link-value" || index === undefined) return;
 
@@ -357,7 +372,7 @@ export function setupLinkEditor(
 	root.addEventListener(
 		"input",
 		(event) => {
-			if (!(event.target instanceof HTMLInputElement)) return;
+			if (!isHTMLInputElement(event.target)) return;
 			const target = event.target;
 			const { action, index } = target.dataset;
 			if (action !== "update-link-value" || index === undefined) return;

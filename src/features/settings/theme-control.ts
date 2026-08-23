@@ -2,6 +2,7 @@ import type { State } from "../../model/graph";
 import { type Theme, isTheme } from "../../model/settings";
 import type { DialogController } from "../../shared/dialog";
 import { setupDialog } from "../../shared/dialog";
+import { isElement, isHTMLDialogElement } from "../../shared/dom";
 import { THEME_OPTIONS } from "./options";
 
 export interface ThemeControlActions {
@@ -52,12 +53,12 @@ export function setupThemeControl(
 ): void {
 	const button = doc.getElementById("theme-button");
 	const dialogEl = doc.getElementById("theme-dialog");
-	if (!button || !(dialogEl instanceof HTMLDialogElement)) return;
+	if (!button || !isHTMLDialogElement(dialogEl)) return;
 
 	const dialog: DialogController = setupDialog(dialogEl, signal);
 
 	function handleClick(event: Event): void {
-		if (!(event.target instanceof Element)) return;
+		if (!isElement(event.target)) return;
 		const trigger = event.target.closest<HTMLElement>("[data-action]");
 		if (!trigger) return;
 		const { action, value } = trigger.dataset;

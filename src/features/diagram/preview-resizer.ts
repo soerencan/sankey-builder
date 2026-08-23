@@ -1,3 +1,5 @@
+import { isElement } from "../../shared/dom";
+
 export const PREVIEW_HEIGHT_STORAGE_KEY = "sankey-builder-preview-height";
 export const MIN_PREVIEW_HEIGHT = 240;
 export const MAX_PREVIEW_HEIGHT = 720;
@@ -68,7 +70,7 @@ export function setupPreviewResizer(doc: Document, win: Window, signal: AbortSig
 	controls.addEventListener(
 		"click",
 		(event) => {
-			if (!(event.target instanceof Element)) return;
+			if (!isElement(event.target)) return;
 			const action = event.target.closest<HTMLElement>("[data-action]")?.dataset.action;
 			if (action === "preview-smaller") apply(height - PREVIEW_HEIGHT_STEP);
 			else if (action === "preview-larger") apply(height + PREVIEW_HEIGHT_STEP);

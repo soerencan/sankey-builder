@@ -13,6 +13,7 @@ import {
 } from "../../model/settings";
 import type { DialogController } from "../../shared/dialog";
 import { setupDialog } from "../../shared/dialog";
+import { isElement } from "../../shared/dom";
 import { paletteColors } from "../diagram/colors";
 import { ASPECT_RATIO_LABELS, LINK_COLOR_OPTIONS, PALETTE_LABELS } from "./options";
 
@@ -162,7 +163,7 @@ export function setupToolbar(
 	panel.addEventListener(
 		"click",
 		(event) => {
-			if (!(event.target instanceof Element)) return;
+			if (!isElement(event.target)) return;
 			// Buttons contain child icons/swatch strips, so the click target is
 			// often a descendant rather than the button itself — closest() finds
 			// the actual data-action owner regardless of which child was hit.

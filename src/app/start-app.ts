@@ -83,7 +83,12 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const ioNoticeRoot = requireRoot(doc, "io-notice");
 	const storageNoticeRoot = requireRoot(doc, "storage-notice");
 
-	const controller = new AbortController();
+	// win.AbortController, not the bare global: `doc` may belong to a window
+	// other than this module's own ambient one (e.g. a second startApp()
+	// instance mounted into another window). The `?? globalThis.AbortController`
+	// fallback only matters for a window lacking its own constructor — not a
+	// case any real browser hits, but cheap insurance.
+	const controller = new (win.AbortController ?? globalThis.AbortController)();
 	const { signal } = controller;
 	let destroyed = false;
 

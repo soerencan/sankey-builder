@@ -54,17 +54,20 @@ export function serializeDiagramSvg(
 /**
  * Rasterizes a standalone svg document (as produced by serializeDiagramSvg)
  * into a PNG blob via an offscreen canvas, drawn at width*scale by
- * height*scale.
+ * height*scale. `win`'s own `URL` creates/revokes the intermediate object
+ * URL — not the ambient global — since `doc`/`win` may belong to a window
+ * other than this module's own ambient one.
  */
 export function rasterizeSvg(
 	doc: Document,
+	win: Window,
 	xml: string,
 	width: number,
 	height: number,
 	scale: number,
 ): Promise<Blob> {
 	return new Promise((resolve, reject) => {
-		const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
+		const url = win.URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
 		const img = doc.createElement("img");
 		img.onload = () => {
 			// drawImage and toBlob can throw synchronously (e.g. SecurityError on a
@@ -78,23 +81,23 @@ export function rasterizeSvg(
 				canvas.height = height * scale;
 				const ctx = canvas.getContext("2d");
 				if (!ctx) {
-					URL.revokeObjectURL(url);
+					win.URL.revokeObjectURL(url);
 					reject(new Error("Could not get a 2d canvas context to rasterize the diagram."));
 					return;
 				}
 				ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 				canvas.toBlob((blob) => {
-					URL.revokeObjectURL(url);
+					win.URL.revokeObjectURL(url);
 					if (blob) resolve(blob);
 					else reject(new Error("Rasterizing the diagram to PNG failed."));
 				}, "image/png");
 			} catch (err) {
-				URL.revokeObjectURL(url);
+				win.URL.revokeObjectURL(url);
 				reject(err);
 			}
 		};
 		img.onerror = () => {
-			URL.revokeObjectURL(url);
+			win.URL.revokeObjectURL(url);
 			reject(new Error("Could not load the diagram svg for rasterization."));
 		};
 		img.src = url;

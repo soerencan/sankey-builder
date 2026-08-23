@@ -1,5 +1,6 @@
 import type { State } from "../../model/graph";
 import { setupDialog } from "../../shared/dialog";
+import { isHTMLDialogElement, isHTMLElement, isHTMLInputElement } from "../../shared/dom";
 import { rasterizeSvg, serializeDiagramSvg, svgViewBoxSize } from "../diagram/export";
 import { type ImportState, parseImport, serializeState } from "./diagram-file";
 
@@ -9,6 +10,16 @@ const EXPORT_PNG_FILENAME = "sankey.png";
 // Hidpi-crisp output (1920x960 at the diagram's 960x480 base size) without
 // making the caller reason about canvas pixel math.
 const PNG_EXPORT_SCALE = 2;
+
+/**
+ * A realm-safe stand-in for `instanceof SVGSVGElement`. Only the root `<svg>`
+ * element has this exact tag name; nothing downstream needs an SVG-specific
+ * API (serializeDiagramSvg/svgViewBoxSize only call generic Element/Node
+ * methods), so tagName alone is enough to duck-type it.
+ */
+function isSvgSvgElement(target: Element | null): target is SVGSVGElement {
+	return !!target && target.tagName === "svg";
+}
 
 export interface IoActions {
 	importDiagram(imported: ImportState, repairs: string[]): void;
@@ -38,17 +49,16 @@ export function setupIo(
 	const diagramExportDialogEl = doc.getElementById("diagram-export-dialog");
 	const importButton = doc.getElementById("import-button");
 	const fileInput = doc.getElementById("import-file");
-	if (!(fileInput instanceof HTMLInputElement)) return;
-	const diagramExportDialog =
-		diagramExportDialogEl instanceof HTMLDialogElement
-			? setupDialog(diagramExportDialogEl, signal)
-			: undefined;
+	if (!isHTMLInputElement(fileInput)) return;
+	const diagramExportDialog = isHTMLDialogElement(diagramExportDialogEl)
+		? setupDialog(diagramExportDialogEl, signal)
+		: undefined;
 
 	exportButton?.addEventListener(
 		"click",
 		() => {
 			const blob = new Blob([serializeState(state)], { type: "application/json" });
-			download(doc, blob, EXPORT_JSON_FILENAME);
+			download(doc, win, blob, EXPORT_JSON_FILENAME);
 			actions.reportExportSuccess(EXPORT_JSON_FILENAME);
 		},
 		{ signal },
@@ -56,7 +66,7 @@ export function setupIo(
 	diagramExportButton?.addEventListener(
 		"click",
 		() => {
-			if (diagramExportButton instanceof HTMLElement) {
+			if (isHTMLElement(diagramExportButton)) {
 				diagramExportDialog?.open(diagramExportButton);
 			}
 		},
@@ -71,7 +81,7 @@ export function setupIo(
 			() => {
 				const svg = serializeVisibleDiagram(doc, win, actions);
 				if (svg) {
-					download(doc, new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
+					download(doc, win, new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
 					actions.reportExportSuccess(EXPORT_SVG_FILENAME);
 				}
 				closeContainingDialog(exportSvgButton);
@@ -89,9 +99,9 @@ export function setupIo(
 				if (svg) {
 					const svgElement = doc.querySelector("#diagram svg") as SVGSVGElement;
 					const { width, height } = svgViewBoxSize(svgElement);
-					rasterizeSvg(doc, svg, width, height, PNG_EXPORT_SCALE)
+					rasterizeSvg(doc, win, svg, width, height, PNG_EXPORT_SCALE)
 						.then((blob) => {
-							download(doc, blob, EXPORT_PNG_FILENAME);
+							download(doc, win, blob, EXPORT_PNG_FILENAME);
 							actions.reportExportSuccess(EXPORT_PNG_FILENAME);
 						})
 						.catch((err) => {
@@ -139,7 +149,7 @@ export function setupIo(
  */
 function closeContainingDialog(control: HTMLElement): void {
 	const dialog = control.closest("dialog");
-	if (dialog instanceof HTMLDialogElement && dialog.open) dialog.close();
+	if (isHTMLDialogElement(dialog) && dialog.open) dialog.close();
 }
 
 /**
@@ -157,7 +167,7 @@ function serializeVisibleDiagram(
 	actions: IoActions,
 ): string | undefined {
 	const svgEl = doc.querySelector("#diagram svg");
-	if (!(svgEl instanceof SVGSVGElement)) {
+	if (!isSvgSvgElement(svgEl)) {
 		actions.reportExportError("Nothing to export — the diagram is empty.");
 		return undefined;
 	}
@@ -171,8 +181,10 @@ function serializeVisibleDiagram(
 	return serializeDiagramSvg(svgEl, { labelColor, background });
 }
 
-function download(doc: Document, blob: Blob, filename: string): void {
-	const url = URL.createObjectURL(blob);
+// win's own URL/setTimeout, not the ambient global — doc/win may belong to a
+// window other than this module's own ambient one.
+function download(doc: Document, win: Window, blob: Blob, filename: string): void {
+	const url = win.URL.createObjectURL(blob);
 	const anchor = doc.createElement("a");
 	anchor.href = url;
 	anchor.download = filename;
@@ -180,5 +192,5 @@ function download(doc: Document, blob: Blob, filename: string): void {
 	// Defer the revoke: some engines resolve the blob: URL only after click()
 	// returns, and Safari historically failed the download on a synchronous
 	// revoke. A macrotask later is safe for every engine.
-	setTimeout(() => URL.revokeObjectURL(url), 0);
+	win.setTimeout(() => win.URL.revokeObjectURL(url), 0);
 }

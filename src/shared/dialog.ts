@@ -1,3 +1,5 @@
+import { isElement } from "./dom";
+
 export interface DialogController {
 	/** Opens the dialog modally and moves focus in; `trigger` is refocused on close. */
 	open(trigger: HTMLElement): void;
@@ -35,7 +37,7 @@ export function setupDialog(dialog: HTMLDialogElement, signal: AbortSignal): Dia
 				close();
 				return;
 			}
-			if (!(event.target instanceof Element)) return;
+			if (!isElement(event.target)) return;
 			if (event.target.closest('[data-action="close-dialog"]')) close();
 		},
 		{ signal },
