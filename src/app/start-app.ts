@@ -137,7 +137,9 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 *    own doc comment for why persistence runs regardless of validity.
 	 * 3. Rebuild the requested editors regardless of validity, so the user
 	 *    can see and fix the offending row. The flags exist to preserve input
-	 *    focus/caret: rebuilding the editor being typed in would drop it.
+	 *    focus/caret (rebuilding the editor being typed in would drop it) and
+	 *    to skip needless editor/Sortable teardown when a change doesn't
+	 *    touch that editor's markup.
 	 * 4. Bail before the diagram rebuild on an invalid graph (see the inline
 	 *    comment below) — otherwise render.
 	 */
@@ -283,7 +285,8 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		},
 		setLinkColor(value) {
 			state.settings.linkColor = value;
-			// Diagram-only setting — skip both editor rebuilds, same as theme above.
+			// Diagram-only setting — it invalidates neither editor's DOM, so skip
+			// both editor rebuilds.
 			refresh({ rebuildNodes: false, rebuildLinks: false });
 		},
 		setAlignment(value) {

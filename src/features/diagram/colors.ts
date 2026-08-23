@@ -7,7 +7,7 @@ import {
 	schemeTableau10,
 } from "d3";
 import type { Node, State } from "../../model/graph";
-import { isPaletteKey } from "../../model/settings";
+import { DEFAULT_SETTINGS, isPaletteKey } from "../../model/settings";
 import type { Palette } from "../../model/settings";
 
 // Values are thunks, not the scheme arrays themselves, so a lookup by an
@@ -25,7 +25,7 @@ const PALETTES: Record<Palette, () => readonly string[]> = {
 };
 
 function activePalette(key: string): readonly string[] {
-	return (isPaletteKey(key) ? PALETTES[key] : PALETTES.observable10)();
+	return (isPaletteKey(key) ? PALETTES[key] : PALETTES[DEFAULT_SETTINGS.palette])();
 }
 
 /**
