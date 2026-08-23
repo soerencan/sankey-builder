@@ -2,21 +2,11 @@ import type { State } from "../../model/graph";
 import { type Theme, isTheme } from "../../model/settings";
 import type { DialogController } from "../../shared/dialog";
 import { setupDialog } from "../../shared/dialog";
+import { THEME_OPTIONS } from "./options";
 
 export interface ThemeControlActions {
 	setTheme(theme: Theme): void;
 }
-
-/**
- * Label and sprite-symbol id per theme mode, keyed by the actual state
- * value. Values stay auto/light/dark; "System" is only the dialog/button's
- * displayed label for "auto".
- */
-const THEME_OPTIONS: Record<Theme, { label: string; iconId: string }> = {
-	auto: { label: "System", iconId: "icon-theme-system" },
-	light: { label: "Light", iconId: "icon-theme-light" },
-	dark: { label: "Dark", iconId: "icon-theme-dark" },
-};
 
 /**
  * Swaps #theme-button's icon/label and the dialog options' aria-pressed to

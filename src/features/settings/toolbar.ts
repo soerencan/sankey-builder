@@ -1,10 +1,8 @@
 import type { State } from "../../model/graph";
 import {
-	ASPECT_RATIO_OPTIONS,
 	type Alignment,
 	type AspectRatio,
 	type LinkColorMode,
-	PALETTE_LABELS,
 	PALETTE_ORDER,
 	type Palette,
 	aspectRatioOption,
@@ -16,6 +14,7 @@ import {
 import type { DialogController } from "../../shared/dialog";
 import { setupDialog } from "../../shared/dialog";
 import { paletteColors } from "../diagram/colors";
+import { ASPECT_RATIO_LABELS, LINK_COLOR_OPTIONS, PALETTE_LABELS } from "./options";
 
 export interface ToolbarActions {
 	setPalette(value: Palette): void;
@@ -28,19 +27,6 @@ export interface ToolbarActions {
 // meaningful prefix; palettes with more entries (e.g. category10's 10) are
 // truncated to keep the preview/dialog rows a consistent width.
 const SWATCH_COUNT = 5;
-
-/**
- * Label and sprite-symbol id per link-color mode, keyed by the actual state
- * value. Exported so tests can pin index.html's hardcoded dialog row labels
- * to this map, the same way tests/integration/settings.test.ts already pins
- * the palette dialog to PALETTE_LABELS.
- */
-export const LINK_COLOR_OPTIONS: Record<LinkColorMode, { label: string; iconId: string }> = {
-	source: { label: "Source", iconId: "icon-link-source" },
-	"source-target": { label: "Source to target (gradient)", iconId: "icon-link-gradient" },
-	target: { label: "Target", iconId: "icon-link-target" },
-	static: { label: "Neutral", iconId: "icon-link-neutral" },
-};
 
 function buildSwatchStrip(doc: Document, strip: HTMLElement, palette: Palette): void {
 	strip.replaceChildren();
@@ -116,8 +102,8 @@ export function syncToolbar(doc: Document, state: State): void {
 	if (ratioButton) {
 		ratioButton
 			.querySelector<HTMLElement>(".aspect-ratio-current")
-			?.replaceChildren(`Aspect ${aspectRatioOption(aspectRatio).label}`);
-		ratioButton.setAttribute("aria-label", `Aspect ratio: ${aspectRatioOption(aspectRatio).label}`);
+			?.replaceChildren(`Aspect ${ASPECT_RATIO_LABELS[aspectRatio]}`);
+		ratioButton.setAttribute("aria-label", `Aspect ratio: ${ASPECT_RATIO_LABELS[aspectRatio]}`);
 	}
 	for (const option of Array.from(
 		doc.querySelectorAll<HTMLButtonElement>('[data-action="set-aspect-ratio"]'),

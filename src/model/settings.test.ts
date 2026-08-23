@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
 	ASPECT_RATIO_OPTIONS,
 	DEFAULT_SETTINGS,
-	PALETTE_LABELS,
 	PALETTE_ORDER,
 	aspectRatioOption,
 	isAlignment,
@@ -41,14 +40,6 @@ describe("PALETTE_ORDER", () => {
 			expect(PALETTE_ORDER.filter((k) => k === key)).toHaveLength(1);
 		}
 		expect(PALETTE_ORDER).toHaveLength(5);
-	});
-});
-
-describe("PALETTE_LABELS", () => {
-	it("has a non-empty label for every palette key", () => {
-		for (const key of PALETTE_ORDER) {
-			expect(PALETTE_LABELS[key].length).toBeGreaterThan(0);
-		}
 	});
 });
 

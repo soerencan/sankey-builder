@@ -11,10 +11,11 @@ import { isPaletteKey } from "../../model/settings";
 import type { Palette } from "../../model/settings";
 
 // Values are thunks, not the scheme arrays themselves, so a lookup by an
-// unresolved palette key never evaluates the wrong scheme. Palette metadata
-// (isPaletteKey, PALETTE_ORDER, PALETTE_LABELS) lives in ../../model/settings instead,
+// unresolved palette key never evaluates the wrong scheme. Palette value
+// metadata (isPaletteKey, PALETTE_ORDER) lives in ../../model/settings instead,
 // so platform/storage.ts's pure-node palette validation never pulls this module — or
-// the `d3` it imports — into its module graph.
+// the `d3` it imports — into its module graph. Display labels live in
+// ../settings/options.ts's PALETTE_LABELS.
 const PALETTES: Record<Palette, () => readonly string[]> = {
 	observable10: () => schemeObservable10,
 	tableau10: () => schemeTableau10,

@@ -1,9 +1,14 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
-import { LINK_COLOR_OPTIONS } from "../../src/features/settings/toolbar";
+import {
+	ASPECT_RATIO_LABELS,
+	LINK_COLOR_OPTIONS,
+	PALETTE_LABELS,
+	THEME_OPTIONS,
+} from "../../src/features/settings/options";
 import { defaultState } from "../../src/model/graph";
-import { ASPECT_RATIO_OPTIONS, PALETTE_LABELS } from "../../src/model/settings";
+import { ALIGNMENTS, ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../src/model/settings";
 import { click, getStoredState, mountApp } from "../helpers/mount-app";
 
 describe("toolbar & settings", () => {
@@ -46,8 +51,8 @@ describe("toolbar & settings", () => {
 
 		expect((dialog as HTMLDialogElement).open).toBe(true);
 
-		// Pin index.html's hardcoded option labels to PALETTE_LABELS (src/model/settings.ts)
-		// so the two can't drift apart.
+		// Pin index.html's hardcoded option labels to PALETTE_LABELS
+		// (src/features/settings/options.ts) so the two can't drift apart.
 		for (const option of Array.from(
 			dialog?.querySelectorAll<HTMLElement>(".palette-option") ?? [],
 		)) {
@@ -91,7 +96,7 @@ describe("toolbar & settings", () => {
 		expect((dialog as HTMLDialogElement).open).toBe(true);
 
 		// Pin index.html's hardcoded option labels to LINK_COLOR_OPTIONS
-		// (src/features/settings/toolbar.ts) so the two can't drift apart.
+		// (src/features/settings/options.ts) so the two can't drift apart.
 		for (const option of Array.from(
 			dialog?.querySelectorAll<HTMLElement>(".choice-option") ?? [],
 		)) {
@@ -258,7 +263,7 @@ describe("toolbar & settings", () => {
 			);
 			expect(copies).toHaveLength(2);
 			for (const copy of Array.from(copies)) {
-				expect(copy.textContent).toContain(preset.label);
+				expect(copy.textContent).toContain(ASPECT_RATIO_LABELS[preset.value]);
 				expect(copy.querySelector(".ratio-preview")).not.toBeNull();
 			}
 		}
@@ -435,5 +440,111 @@ describe("toolbar & settings", () => {
 		const stored = getStoredState();
 		expect(stored.settings.theme).toBe("auto");
 		expect(themeButton?.getAttribute("aria-label")).toBe("Theme: System");
+	});
+});
+
+// Pins index.html's hand-authored control markup to src/features/settings/options.ts's
+// (and, for aspect ratio/alignment values, src/model/settings.ts's) metadata for
+// each of the five closed setting domains, so the two can never silently drift
+// apart. The tests above already exercise behavior around a handful of these
+// rows in passing; this block is the exhaustive, dedicated contract.
+describe("dialog markup vs settings metadata contract", () => {
+	it("palette dialog: data-value set and labels match PALETTE_ORDER / PALETTE_LABELS", () => {
+		mountApp();
+
+		const options = Array.from(
+			document.querySelectorAll<HTMLElement>("#palette-dialog .palette-option"),
+		);
+		expect(options.map((option) => option.dataset.value)).toEqual([...PALETTE_ORDER]);
+		for (const option of options) {
+			const value = option.dataset.value as keyof typeof PALETTE_LABELS;
+			expect(option.querySelector(".palette-option-label")?.textContent).toBe(
+				PALETTE_LABELS[value],
+			);
+		}
+	});
+
+	it("links dialog: data-value set, labels, and icons match LINK_COLOR_OPTIONS", () => {
+		mountApp();
+
+		const options = Array.from(
+			document.querySelectorAll<HTMLElement>("#links-dialog .choice-option"),
+		);
+		expect(new Set(options.map((option) => option.dataset.value))).toEqual(
+			new Set(Object.keys(LINK_COLOR_OPTIONS)),
+		);
+		for (const option of options) {
+			const value = option.dataset.value as keyof typeof LINK_COLOR_OPTIONS;
+			const { label, iconId } = LINK_COLOR_OPTIONS[value];
+			expect(option.querySelector(".choice-option-label")?.textContent).toBe(label);
+			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${iconId}`);
+		}
+	});
+
+	it("display dialog's narrow link-color copy: data-value set matches LINK_COLOR_OPTIONS", () => {
+		mountApp();
+
+		// The narrow Diagram-dialog copy uses deliberately abbreviated labels
+		// (e.g. "Gradient" instead of "Source to target (gradient)"), so only
+		// values are pinned here — the links-dialog test above already pins
+		// the labels/icons for the one copy that owns the canonical text.
+		const options = Array.from(
+			document.querySelectorAll<HTMLElement>('#display-dialog [data-action="set-link-color"]'),
+		);
+		expect(new Set(options.map((option) => option.dataset.value))).toEqual(
+			new Set(Object.keys(LINK_COLOR_OPTIONS)),
+		);
+	});
+
+	it("alignment buttons: each DOM copy's data-value set matches the model's ALIGNMENTS", () => {
+		mountApp();
+
+		// Two DOM copies of the alignment group — the wide toolbar's .align-group
+		// and the narrow Diagram dialog's own copy — checked separately so a
+		// missing/extra button in just one copy can't hide behind the other's
+		// count in a merged set.
+		const wideValues = Array.from(
+			document.querySelectorAll<HTMLElement>('.align-group [data-action="set-alignment"]'),
+		).map((option) => option.dataset.value);
+		expect(new Set(wideValues)).toEqual(new Set(ALIGNMENTS));
+		expect(wideValues).toHaveLength(ALIGNMENTS.length);
+
+		const narrowValues = Array.from(
+			document.querySelectorAll<HTMLElement>('#display-dialog [data-action="set-alignment"]'),
+		).map((option) => option.dataset.value);
+		expect(new Set(narrowValues)).toEqual(new Set(ALIGNMENTS));
+		expect(narrowValues).toHaveLength(ALIGNMENTS.length);
+	});
+
+	it("aspect-ratio dialog: data-value set and labels match ASPECT_RATIO_OPTIONS / ASPECT_RATIO_LABELS", () => {
+		mountApp();
+
+		const options = Array.from(
+			document.querySelectorAll<HTMLElement>("#aspect-ratio-dialog .choice-option"),
+		);
+		expect(options.map((option) => option.dataset.value)).toEqual(
+			ASPECT_RATIO_OPTIONS.map((preset) => preset.value),
+		);
+		for (const option of options) {
+			const value = option.dataset.value as keyof typeof ASPECT_RATIO_LABELS;
+			expect(option.querySelector(".choice-option-label")?.textContent).toBe(
+				ASPECT_RATIO_LABELS[value],
+			);
+		}
+	});
+
+	it("theme dialog: data-value set, labels, and icons match THEME_OPTIONS", () => {
+		mountApp();
+
+		const options = Array.from(
+			document.querySelectorAll<HTMLElement>("#theme-dialog .choice-option"),
+		);
+		expect(options.map((option) => option.dataset.value)).toEqual(Object.keys(THEME_OPTIONS));
+		for (const option of options) {
+			const value = option.dataset.value as keyof typeof THEME_OPTIONS;
+			const { label, iconId } = THEME_OPTIONS[value];
+			expect(option.querySelector(".choice-option-label")?.textContent).toBe(label);
+			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${iconId}`);
+		}
 	});
 });

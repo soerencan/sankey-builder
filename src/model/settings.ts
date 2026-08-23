@@ -12,26 +12,15 @@ export const PALETTE_ORDER = ["observable10", "tableau10", "category10", "set2",
 
 export type Palette = (typeof PALETTE_ORDER)[number];
 
-// Presentation metadata parked here for now — a follow-up step relocates it
-// alongside the rest of the app's display strings.
-/** Human-readable names, matching the labels index.html's palette chooser rows use. */
-export const PALETTE_LABELS: Record<Palette, string> = {
-	observable10: "Observable 10",
-	tableau10: "Tableau 10",
-	category10: "Category 10",
-	set2: "Set 2",
-	dark2: "Dark 2",
-};
-
 const PALETTE_KEYS: ReadonlySet<string> = new Set(PALETTE_ORDER);
 
 /**
  * Own-property guard against the prototype chain (e.g. a palette key of
  * "toString" resolving to `Object.prototype.toString` instead of failing
  * the lookup) — mirrors the pre-migration bundle's `Object.hasOwn(PALETTES,
- * ...)` checks. Backed by a set derived from PALETTE_ORDER (not
- * PALETTE_LABELS) so it doesn't depend on the labels map's eventual move out
- * of this module.
+ * ...)` checks. Backed by a set derived from PALETTE_ORDER, not a labels
+ * map — presentation metadata lives in the settings feature's options module,
+ * which this module must not depend on.
  */
 export function isPaletteKey(key: unknown): key is Palette {
 	return typeof key === "string" && PALETTE_KEYS.has(key);
@@ -49,7 +38,8 @@ export function isLinkColorMode(value: unknown): value is LinkColorMode {
 
 // --- Alignment ---
 
-const ALIGNMENTS = ["left", "right", "center", "justify"] as const;
+/** Canonical value set — index.html's alignment buttons' data-value set is contract-tested against this. */
+export const ALIGNMENTS = ["left", "right", "center", "justify"] as const;
 export type Alignment = (typeof ALIGNMENTS)[number];
 const ALIGNMENT_SET: ReadonlySet<string> = new Set(ALIGNMENTS);
 
@@ -73,7 +63,6 @@ export type AspectRatio = "a-series" | "3:2" | "16:9" | "2:1" | "3:1";
 
 export interface AspectRatioOption {
 	value: AspectRatio;
-	label: string;
 	width: number;
 	height: number;
 }
@@ -81,12 +70,13 @@ export interface AspectRatioOption {
 // A fixed logical height keeps typography, node width, and padding stable
 // between presets. Integer widths make SVG and canvas export dimensions
 // predictable; A-series and 16:9 are rounded by less than one logical pixel.
+// Display labels live in the settings feature's options module's ASPECT_RATIO_LABELS.
 export const ASPECT_RATIO_OPTIONS: readonly AspectRatioOption[] = [
-	{ value: "a-series", label: "A-series", width: 679, height: 480 },
-	{ value: "3:2", label: "3:2", width: 720, height: 480 },
-	{ value: "16:9", label: "16:9", width: 853, height: 480 },
-	{ value: "2:1", label: "2:1", width: 960, height: 480 },
-	{ value: "3:1", label: "3:1", width: 1440, height: 480 },
+	{ value: "a-series", width: 679, height: 480 },
+	{ value: "3:2", width: 720, height: 480 },
+	{ value: "16:9", width: 853, height: 480 },
+	{ value: "2:1", width: 960, height: 480 },
+	{ value: "3:1", width: 1440, height: 480 },
 ];
 
 const ASPECT_RATIO_OPTIONS_BY_VALUE = new Map(
