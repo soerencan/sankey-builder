@@ -6,8 +6,21 @@ import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-r
 import { click, getStoredState, installMarkup, mountApp } from "../helpers/mount-app";
 
 describe("application boot", () => {
-	it("places the diagram before the data editor and has no obsolete resize control", () => {
+	it("static markup is only the icon sprite and the #app mount — production markup comes from startApp() itself", () => {
 		installMarkup();
+
+		expect(document.getElementById("app")).not.toBeNull();
+		expect(document.getElementById("app")?.children).toHaveLength(0);
+		expect(document.querySelector("svg[hidden] symbol")).not.toBeNull();
+		// Nothing of the booted app (header, notices, diagram/data panels) is
+		// present until startApp() itself renders it.
+		expect(document.querySelector(".app-header")).toBeNull();
+		expect(document.querySelector(".diagram-panel")).toBeNull();
+		expect(document.querySelector(".data-card")).toBeNull();
+	});
+
+	it("places the diagram before the data editor and has no obsolete resize control", () => {
+		mountApp();
 
 		const diagramPanel = document.querySelector(".diagram-panel");
 		const dataCard = document.querySelector(".data-card");
@@ -49,10 +62,10 @@ describe("application boot", () => {
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
 	});
 
-	it("throws a useful error naming the missing root when a required static root is absent", () => {
+	it("throws a useful error naming the missing root when the static #app mount is absent", () => {
 		installMarkup();
-		document.getElementById("error")?.remove();
+		document.getElementById("app")?.remove();
 
-		expect(() => startApp(document)).toThrow(/#error/);
+		expect(() => startApp(document)).toThrow(/#app/);
 	});
 });

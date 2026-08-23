@@ -394,7 +394,6 @@ describe("import & export", () => {
 	it("destroy mid-file-read: the eventual completion publishes no notice and mutates nothing", async () => {
 		const { app } = mountApp();
 		const storedBefore = localStorage.getItem(STORAGE_KEY);
-		const noticeBefore = document.getElementById("io-notice")?.textContent;
 
 		const { file, resolveText } = deferredFile();
 		const input = document.getElementById("import-file") as HTMLInputElement;
@@ -402,6 +401,9 @@ describe("import & export", () => {
 		fireChange(input);
 
 		app.destroy();
+		// Unmounts the whole App tree, including the notice region — nothing
+		// left to publish a stale notice into.
+		expect(document.getElementById("io-notice")).toBeNull();
 		resolveText(
 			JSON.stringify({
 				nodes: [{ id: "n1", name: "Stale" }],
@@ -413,7 +415,7 @@ describe("import & export", () => {
 		// other import tests use) before asserting on its absent effects.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		expect(document.getElementById("io-notice")?.textContent).toBe(noticeBefore);
+		expect(document.getElementById("io-notice")).toBeNull();
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
 	});
 

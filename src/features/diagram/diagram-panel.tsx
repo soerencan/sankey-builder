@@ -1,3 +1,4 @@
+import type { RefObject } from "preact";
 import { useLayoutEffect } from "preact/hooks";
 import type { SettingsView } from "../../app/view";
 import type { Alignment, AspectRatio, LinkColorMode, Palette } from "../../model/settings";
@@ -46,9 +47,15 @@ export interface DiagramPanelActions {
 export interface DiagramPanelProps {
 	doc: Document;
 	win: Window;
-	/** The #diagram host: SankeyCanvas's mount point, the SVG/PNG export source, and the
-	 * element style.css reads --diagram-aspect-ratio/--diagram-aspect-number from. */
-	diagramEl: HTMLElement;
+	/**
+	 * The #diagram host: SankeyCanvas's mount point, the SVG/PNG export source,
+	 * and the element style.css reads --diagram-aspect-ratio/
+	 * --diagram-aspect-number from. A ref, not the element directly: App
+	 * renders #diagram and this component as siblings in one tree, so the
+	 * element only exists once the whole tree has committed — read only from
+	 * effects and event handlers below, never during render.
+	 */
+	diagramRef: RefObject<HTMLElement>;
 	settings: SettingsView;
 	actions: DiagramPanelActions;
 	/** The owning app instance's AbortSignal — guards PNG rasterization; see export.ts's own doc comment. */
@@ -112,15 +119,14 @@ function serializeVisibleDiagram(
  * The whole diagram panel's toolbar/dialogs — palette carousel, link-color
  * and alignment controls, aspect ratio, and SVG/PNG export — generated from
  * settings.ts/options.ts metadata rather than duplicated per-option markup.
- * `SankeyCanvas` and `PreviewResizer` stay separately mounted at `diagramEl`
- * and its own sibling root (see start-app.tsx): this component owns only the
- * controls/dialogs portion of the panel, so this step doesn't have to move
- * either of those roots.
+ * `SankeyCanvas` and `PreviewResizer` are App's own siblings of this
+ * component, all sharing the `diagramRef` App owns (see app.tsx): this
+ * component owns only the controls/dialogs portion of the panel.
  */
 export function DiagramPanel({
 	doc,
 	win,
-	diagramEl,
+	diagramRef,
 	settings,
 	actions,
 	signal,
@@ -136,11 +142,19 @@ export function DiagramPanel({
 	// box before/around that svg (see style.css's #diagram doc comment) and
 	// must never be written from anywhere that also touches
 	// --diagram-preview-height — that property is PreviewResizer's alone.
+	// diagramRef.current is populated by the time this runs — see
+	// DiagramPanelProps.diagramRef's own doc comment.
 	useLayoutEffect(() => {
 		const ratio = aspectRatioOption(settings.aspectRatio);
-		diagramEl.style.setProperty("--diagram-aspect-ratio", `${ratio.width} / ${ratio.height}`);
-		diagramEl.style.setProperty("--diagram-aspect-number", String(ratio.width / ratio.height));
-	}, [settings.aspectRatio, diagramEl]);
+		diagramRef.current?.style.setProperty(
+			"--diagram-aspect-ratio",
+			`${ratio.width} / ${ratio.height}`,
+		);
+		diagramRef.current?.style.setProperty(
+			"--diagram-aspect-number",
+			String(ratio.width / ratio.height),
+		);
+	}, [settings.aspectRatio, diagramRef]);
 
 	function cyclePalette(step: 1 | -1): void {
 		const current = PALETTE_ORDER.indexOf(settings.palette);
@@ -150,6 +164,8 @@ export function DiagramPanel({
 
 	function exportSvg(dialog: DialogHandle): void {
 		actions.clearIoNotice();
+		const diagramEl = diagramRef.current;
+		if (!diagramEl) return;
 		const svg = serializeVisibleDiagram(diagramEl, win, actions);
 		if (svg) {
 			download(doc, win, new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
@@ -159,6 +175,8 @@ export function DiagramPanel({
 
 	function exportPng(dialog: DialogHandle): void {
 		actions.clearIoNotice();
+		const diagramEl = diagramRef.current;
+		if (!diagramEl) return;
 		const svg = serializeVisibleDiagram(diagramEl, win, actions);
 		if (svg) {
 			const svgElement = diagramEl.querySelector("svg") as SVGSVGElement;

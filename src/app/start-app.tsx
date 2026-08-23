@@ -1,17 +1,12 @@
 import { render } from "preact";
 import type { DiagramPanelActions } from "../features/diagram/diagram-panel";
-import { DiagramPanel } from "../features/diagram/diagram-panel";
-import { PreviewResizer } from "../features/diagram/preview-resizer";
 import type { DiagramRenderRequest } from "../features/diagram/render";
-import { SankeyCanvas } from "../features/diagram/sankey-canvas";
 import type { DataPanelActions } from "../features/editor/data-panel";
-import { DataPanel } from "../features/editor/data-panel";
 import type { LinkEditorActions } from "../features/editor/link-editor";
 import type { NodeEditorActions } from "../features/editor/node-editor";
 import { removeActiveDragClone } from "../features/editor/row-reorder";
 import { applyTheme } from "../features/settings/theme";
 import type { ThemeControlActions } from "../features/settings/theme-control";
-import { setupThemeControl, syncThemeControl } from "../features/settings/theme-control";
 import type { State } from "../model/graph";
 import {
 	addLink,
@@ -26,6 +21,7 @@ import {
 } from "../model/graph";
 import { validate } from "../model/validation";
 import { loadState, saveState } from "../platform/storage";
+import { App } from "./app";
 import type { Notice } from "./notices";
 import { createLinkProjector, projectNodes, projectSettings } from "./view";
 
@@ -39,7 +35,7 @@ const STORAGE_NOTICE =
 	"The diagram keeps working, but edits won't survive closing or reloading this tab — " +
 	"try freeing up space or leaving private/incognito mode.";
 
-/** Looks up a static root `startApp` itself writes to, throwing a message naming the id if it's missing from `doc`. */
+/** Looks up the one static root `startApp` renders the whole app into, throwing a message naming it if it's missing from `doc`. */
 function requireRoot(doc: Document, id: string): HTMLElement {
 	const el = doc.getElementById(id);
 	if (!el) throw new Error(`startApp: missing required "#${id}" element in the document`);
@@ -49,30 +45,24 @@ function requireRoot(doc: Document, id: string): HTMLElement {
 /**
  * Boots one application instance against `doc`. Every setup module below is
  * markup-agnostic and reads no ambient `window`/`document`/`localStorage`
- * itself — this is the sole owner of state, the action objects, the Sortable
- * instances, and the app-scoped AbortController, so a second `startApp` call
- * after `destroy()` on the first never shares mutable state or duplicated
- * listeners with it. Calling `startApp` again without destroying the first
- * instance is not supported — both instances would bind listeners to the
- * same document.
+ * itself — this is the sole owner of state, the action objects, and the
+ * app-scoped AbortController, so a second `startApp` call after `destroy()`
+ * on the first never shares mutable state or duplicated listeners with it.
+ * Calling `startApp` again without destroying the first instance is not
+ * supported — both instances would bind listeners to the same document.
  */
 export function startApp(doc: Document = globalThis.document): AppHandle {
 	const view = doc.defaultView;
 	if (!view) throw new Error("startApp: document has no defaultView/window to bind to");
 	// Re-bound to a non-nullable type (rather than relying on narrowing of
-	// `view`) so closures below — refresh() and the action objects — don't
+	// `view`) so closures below — renderApp() and the action objects — don't
 	// need their own null checks.
 	const win: Window = view;
 
-	// Resolved once, up front, so a markup regression fails loudly at boot
-	// rather than silently no-op-ing on every notice update below.
-	const errorRoot = requireRoot(doc, "error");
-	const ioNoticeRoot = requireRoot(doc, "io-notice");
-	const storageNoticeRoot = requireRoot(doc, "storage-notice");
-	const dataPanelRoot = requireRoot(doc, "data-panel");
-	const diagramRoot = requireRoot(doc, "diagram");
-	const previewResizerRoot = requireRoot(doc, "preview-resizer");
-	const diagramControlsRoot = requireRoot(doc, "diagram-controls");
+	// The single Preact root (PLAN.md's Phase 6) — resolved once, up front, so
+	// a markup regression fails loudly at boot rather than silently no-op-ing
+	// on every render below.
+	const appRoot = requireRoot(doc, "app");
 
 	// win.AbortController, not the bare global: `doc` may belong to a window
 	// other than this module's own ambient one (e.g. a second startApp()
@@ -94,19 +84,61 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	// can key its redraw off reference identity — see its own doc comment.
 	let lastValidRequest: DiagramRenderRequest | null = null;
 
+	// At most one Notice per kind (PLAN.md's Notice policy) — plain local
+	// state, not Preact state, since this controller (not any component) owns
+	// every committed action and is the sole source renderApp() below reads.
+	let graphNotice: Notice | null = null;
+	let storageNotice: Notice | null = null;
+	let ioNotice: Notice | null = null;
+
 	applyTheme(doc, state.settings.theme);
 
-	// Presentation is still the three legacy containers this step — see
-	// PLAN.md's "Notice policy" and notices.ts's own doc comment; only the
-	// consolidated NoticeRegion (next step) reads these Notice values back.
+	/**
+	 * The one controller render function (PLAN.md's Phase 6, step 8):
+	 * projects the current domain state and notices into a fresh view
+	 * snapshot and hands it to `App`. Every action path below calls this
+	 * exactly once, at its own end — after every mutation and notice-state
+	 * assignment (showGraphNotice/showStorageNotice/showIoNotice, which only
+	 * assign) it cares about have already landed, so `App` never sees an
+	 * intermediate mix of a stale `lastValidRequest` with already-updated
+	 * notices or vice versa.
+	 */
+	function renderApp(): void {
+		render(
+			<App
+				doc={doc}
+				win={win}
+				state={state}
+				theme={state.settings.theme}
+				nodes={projectNodes(state)}
+				links={projectLinks(state)}
+				settings={projectSettings(state)}
+				notices={[graphNotice, storageNotice, ioNotice].filter(
+					(notice): notice is Notice => notice !== null,
+				)}
+				lastValidRequest={lastValidRequest}
+				themeActions={themeControlActions}
+				diagramActions={diagramPanelActions}
+				nodeActions={nodeEditorActions}
+				linkActions={linkEditorActions}
+				dataActions={dataPanelActions}
+				signal={signal}
+			/>,
+			appRoot,
+		);
+	}
+
+	// Assign only — no render. Every caller below is responsible for calling
+	// renderApp() itself, exactly once, after it's done assigning/mutating
+	// (see renderApp's own doc comment for why).
 	function showGraphNotice(notice: Notice | null): void {
-		errorRoot.textContent = notice?.message ?? "";
+		graphNotice = notice;
 	}
 	function showStorageNotice(notice: Notice | null): void {
-		storageNoticeRoot.textContent = notice?.message ?? "";
+		storageNotice = notice;
 	}
 	function showIoNotice(notice: Notice | null): void {
-		ioNoticeRoot.textContent = notice?.message ?? "";
+		ioNotice = notice;
 	}
 
 	/**
@@ -126,6 +158,8 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 * 3. Update the storage notice from the save result — storage may recover
 	 *    (e.g. quota freed up elsewhere), so a previously shown notice clears
 	 *    rather than staying stuck once saves work again.
+	 *
+	 * Assigns notice state only; every caller renders once itself afterward.
 	 */
 	function persistAndClearNotices(): void {
 		showIoNotice(null);
@@ -134,7 +168,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	}
 
 	/**
-	 * The validate-then-render flow — the subtlest sequencing in the app.
+	 * The validate-then-persist flow — the subtlest sequencing in the app.
 	 * Order matters and is preserved exactly:
 	 *
 	 * 1. Validate. Only on a valid graph does `lastValidRequest` get replaced
@@ -146,16 +180,18 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 *    disturbing the visible SVG (see DiagramRenderRequest's own comment).
 	 * 2. Persist + update notices regardless of validity — see
 	 *    persistAndClearNotices's own doc comment for why.
-	 * 3. Render both editors, DiagramPanel, and SankeyCanvas unconditionally.
-	 *    The editors' rows are keyed (node id; the link projector's weak key),
-	 *    so a Preact re-render patches names/swatches/values/order in place —
-	 *    preserving focus, an in-progress link-value draft, and each
-	 *    row-sortable hook's Sortable instance — instead of rebuilding.
-	 *    DiagramPanel re-renders unconditionally too, so its aria-pressed
-	 *    controls follow a settings change or import. SankeyCanvas only
-	 *    reruns D3 when `lastValidRequest`'s identity actually changed (its
-	 *    own layout effect is keyed on it), so passing the same reference
-	 *    here on an invalid graph is a no-op redraw.
+	 * 3. Render exactly once, after every assignment above has landed, so
+	 *    `App` never sees a stale `lastValidRequest` paired with
+	 *    already-updated notices (see renderApp's own doc comment). Editors/
+	 *    DiagramPanel/SankeyCanvas all re-render as part of that one App
+	 *    render regardless of validity: the editors' rows are keyed (node id;
+	 *    the link projector's weak key), so Preact patches
+	 *    names/swatches/values/order in place — preserving focus, an
+	 *    in-progress link-value draft, and each row-sortable hook's Sortable
+	 *    instance — instead of rebuilding. SankeyCanvas only reruns D3 when
+	 *    `lastValidRequest`'s identity actually changed (its own layout
+	 *    effect is keyed on it), so an unchanged reference on an invalid
+	 *    graph is a no-op redraw.
 	 */
 	function refresh(): void {
 		const result = validate(state);
@@ -173,34 +209,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		}
 
 		persistAndClearNotices();
-
-		const nodes = projectNodes(state);
-		render(
-			<DataPanel
-				doc={doc}
-				win={win}
-				state={state}
-				nodes={nodes}
-				links={projectLinks(state)}
-				nodeActions={nodeEditorActions}
-				linkActions={linkEditorActions}
-				actions={dataPanelActions}
-				signal={signal}
-			/>,
-			dataPanelRoot,
-		);
-		render(
-			<DiagramPanel
-				doc={doc}
-				win={win}
-				diagramEl={diagramRoot}
-				settings={projectSettings(state)}
-				actions={diagramPanelActions}
-				signal={signal}
-			/>,
-			diagramControlsRoot,
-		);
-		render(<SankeyCanvas request={lastValidRequest} />, diagramRoot);
+		renderApp();
 	}
 
 	const nodeEditorActions: NodeEditorActions = {
@@ -258,29 +267,34 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const dataPanelActions: DataPanelActions = {
 		clearIoNotice() {
 			showIoNotice(null);
+			renderApp();
 		},
 		importDiagram(imported, repairs) {
 			// theme is deliberately untouched — a per-browser preference, not
-			// diagram data, so it survives an import. No syncThemeControl call
-			// here for that reason: nothing about the theme control could go stale.
+			// diagram data, so it survives an import.
 			replaceDiagram(state, imported);
 			refresh();
 			// No notice when nothing needed adjusting — the changed data is
 			// sufficient feedback (PLAN.md's Notice policy).
 			if (repairs.length === 0) return;
-			// Set AFTER refresh() (which clears #io-notice) so this message survives
-			// the import's own refresh and only retires on the next committed action.
+			// Set AFTER refresh() (which clears the io notice and already
+			// rendered once) so this message survives the import's own refresh
+			// and only retires on the next committed action. Its own trailing
+			// renderApp() call is this action's second (and final) render.
 			showIoNotice({
 				kind: "io",
 				tone: "warning",
 				message: `Imported ${state.nodes.length} nodes, ${state.links.length} links. Adjustments: ${repairs.join("; ")}.`,
 			});
+			renderApp();
 		},
 		reportImportError(message) {
 			showIoNotice({ kind: "io", tone: "error", message });
+			renderApp();
 		},
 		reportExportError(message) {
 			showIoNotice({ kind: "io", tone: "error", message });
+			renderApp();
 		},
 	};
 
@@ -291,18 +305,20 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			// Theme is a per-browser preference, not diagram data — unlike the
 			// other settings actions, it deliberately skips refresh() entirely:
 			// no validation re-run (the graph's validity can't depend on the
-			// theme) and no diagram/editor rebuilds, just persist + notices.
+			// theme) and no diagram/editor rebuilds, just persist + notices, then
+			// one render (which also picks up the new theme prop for ThemeControl).
 			persistAndClearNotices();
+			renderApp();
 		},
 	};
 
 	const diagramPanelActions: DiagramPanelActions = {
 		setPalette(value) {
 			state.settings.palette = value;
-			// Node colors are palette-derived; refresh()'s unconditional render
-			// re-projects the node editor's swatches from the now-updated
-			// state.settings.palette. Neither editor's row DOM/Sortable is rebuilt
-			// — see refresh()'s own doc comment.
+			// Node colors are palette-derived; refresh()'s render re-projects the
+			// node editor's swatches from the now-updated state.settings.palette.
+			// Neither editor's row DOM/Sortable is rebuilt — see refresh()'s own
+			// doc comment.
 			refresh();
 		},
 		setLinkColor(value) {
@@ -321,40 +337,24 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		reportExportError: dataPanelActions.reportExportError,
 	};
 
-	setupThemeControl(doc, state, themeControlActions, signal);
-
-	// Mounted once, not by refresh(): the preview height is independent of
-	// diagram State (see PreviewResizer's own doc comment) and never gets a
-	// new `diagramEl`/`win` after boot.
-	render(<PreviewResizer diagramEl={diagramRoot} win={win} />, previewResizerRoot);
-
 	refresh();
-	// setupThemeControl wires listeners only (see its own doc) — sync the
-	// initial theme button/dialog here, against the state loadState() just
-	// restored. DiagramPanel needs no equivalent call: refresh() above
-	// already rendered it from that same state.
-	syncThemeControl(doc, state);
 
 	function destroy(): void {
 		if (destroyed) return;
 		destroyed = true;
 		controller.abort();
-		// Must run before unmounting DataPanel below — see
-		// removeActiveDragClone's own doc comment for why destroying one
-		// editor's Sortable instance first would otherwise poison the other's
-		// own mid-drag cleanup.
+		// Must run before unmounting App below — see removeActiveDragClone's own
+		// doc comment for why destroying one editor's Sortable instance first
+		// would otherwise poison the other's own mid-drag cleanup.
 		removeActiveDragClone();
-		// Unmounts DataPanel; each editor's use-row-sortable.ts cleanup runs
-		// synchronously, tearing down its own Sortable instance.
-		render(null, dataPanelRoot);
-		// Unmounts DiagramPanel; each of its useDialog() hooks tears down its
-		// own listeners as an effect cleanup, not via the AbortSignal above.
-		render(null, diagramControlsRoot);
-		// Unmounts SankeyCanvas, whose own layout-effect cleanup clears the SVG.
-		render(null, diagramRoot);
-		// Unmounts PreviewResizer, whose own layout-effect cleanup cancels any
-		// in-progress drag and releases pointer capture — see its own doc comment.
-		render(null, previewResizerRoot);
+		// Unmounts the whole App tree in one pass: DataPanel's own
+		// use-row-sortable.ts cleanup tears down each editor's Sortable instance,
+		// DiagramPanel/ThemeControl's useDialog() hooks tear down their own
+		// listeners, SankeyCanvas's layout-effect cleanup clears the SVG, and
+		// PreviewResizer's layout-effect cleanup cancels any in-progress drag and
+		// releases pointer capture — all as ordinary Preact unmount cleanup, not
+		// via the AbortSignal above.
+		render(null, appRoot);
 	}
 
 	return { destroy };

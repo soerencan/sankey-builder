@@ -150,75 +150,11 @@
     </symbol>
   </svg>
 
-  <header class="app-header">
-    <h1>Sankey Builder</h1>
-    <button
-      type="button"
-      id="theme-button"
-      class="toolbar-button"
-      data-action="open-theme-dialog"
-      aria-haspopup="dialog"
-      aria-label="Theme: System"
-    >
-      <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-theme-system"></use></svg>
-    </button>
-  </header>
-
-  <dialog id="theme-dialog" aria-labelledby="theme-dialog-heading">
-    <h3 id="theme-dialog-heading">Theme</h3>
-    <div class="choice-options" role="group" aria-label="Theme">
-      <button
-        type="button"
-        class="choice-option"
-        data-action="set-theme"
-        data-value="auto"
-        aria-pressed="true"
-      >
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-theme-system"></use></svg>
-        <span class="choice-option-label">System</span>
-      </button>
-      <button
-        type="button"
-        class="choice-option"
-        data-action="set-theme"
-        data-value="light"
-        aria-pressed="false"
-      >
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-theme-light"></use></svg>
-        <span class="choice-option-label">Light</span>
-      </button>
-      <button
-        type="button"
-        class="choice-option"
-        data-action="set-theme"
-        data-value="dark"
-        aria-pressed="false"
-      >
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-theme-dark"></use></svg>
-        <span class="choice-option-label">Dark</span>
-      </button>
-    </div>
-    <button type="button" class="dialog-close" data-action="close-dialog">Close</button>
-  </dialog>
-
-  <div id="error" role="status" aria-live="polite"></div>
-  <div id="storage-notice" role="status" aria-live="polite"></div>
-  <div id="io-notice" role="status" aria-live="polite"></div>
-
-  <main class="app-layout">
-    <!-- Diagram panel: DiagramPanel (src/features/diagram/diagram-panel.tsx)
-         mounts its toolbar/dialog markup here; SankeyCanvas and PreviewResizer
-         mount separately at #diagram/#preview-resizer, which stay static. -->
-    <section class="diagram-panel" aria-labelledby="diagram-heading">
-      <div id="diagram-controls"></div>
-      <div id="diagram" aria-label="Sankey diagram"></div>
-      <div id="preview-resizer" class="preview-resizer" aria-label="Diagram preview size controls"></div>
-    </section>
-
-    <!-- Data panel: DataPanel (src/features/editor/data-panel.tsx) mounts its
-         header, import/export controls, and both editors here. -->
-    <section id="data-panel" class="data-card" aria-labelledby="data-heading"></section>
-  </main>
+  <!-- The single Preact application root (PLAN.md's Phase 6) — startApp()
+       (src/app/start-app.tsx) renders the header, notices, diagram panel, and
+       data panel into this element. No other static application markup
+       lives in this document. -->
+  <div id="app"></div>
 
   <script type="module" src="./src/main.ts"></script>
 </body>

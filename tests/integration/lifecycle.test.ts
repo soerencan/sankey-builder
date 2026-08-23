@@ -82,6 +82,9 @@ describe("application lifecycle", () => {
 			// AbortController aborts synchronously, which is what rasterizeSvg's
 			// own abort handling relies on to settle without a browser event.
 			app.destroy();
+			// Unmounts the whole App tree, including the notice region — nothing
+			// left to publish a stale notice into.
+			expect(document.getElementById("io-notice")).toBeNull();
 			// exportPng's .catch runs as a microtask, after this synchronous test
 			// body would otherwise return — flush it before asserting on its
 			// (absent) effects, or a removed signal.aborted guard would go unnoticed.
@@ -89,7 +92,7 @@ describe("application lifecycle", () => {
 
 			expect(anchors).toHaveLength(0);
 			expect(revokeObjectURL).toHaveBeenCalledTimes(1);
-			expect(document.getElementById("io-notice")?.textContent).toBe("");
+			expect(document.getElementById("io-notice")).toBeNull();
 		} finally {
 			restore();
 			revokeObjectURL.mockRestore();
@@ -324,8 +327,8 @@ describe("application lifecycle", () => {
 			});
 		}
 
-		// setupThemeControl's handler closes the dialog after every set-theme
-		// click regardless of the save outcome, so re-open it for the recovery click.
+		// ThemeControl's onClick closes the dialog after every set-theme click
+		// regardless of the save outcome, so re-open it for the recovery click.
 		click(themeButton);
 		const dialogAfterRecovery = document.getElementById("theme-dialog") as HTMLDialogElement;
 		click(dialogAfterRecovery.querySelector<HTMLButtonElement>('[data-value="dark"]'));

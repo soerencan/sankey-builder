@@ -675,17 +675,15 @@ describe("theme changes skip validation and the redraw", () => {
 	});
 });
 
-// DiagramPanel renders the palette/links/aspect-ratio/alignment dialogs
-// directly from src/features/settings/options.ts's (and model/settings.ts's)
-// metadata, so most cases below pin dataset wiring/completeness — every
-// entry in the source table is actually present in the rendered DOM with the
-// right data-value/label/icon — rather than checking two independent
-// sources against each other. The alignment value-set check is the
-// exception: it still compares the rendered DOM against model/settings.ts's
-// ALIGNMENTS directly, since options.ts's own ALIGNMENT_OPTIONS deliberately
-// reorders that set (see its doc comment) and could still drift from it. The
-// theme dialog remains index.html's own hand-authored markup (theme-control.ts
-// isn't converted yet), so its case is still a genuine cross-source check.
+// DiagramPanel and ThemeControl render their dialogs directly from
+// src/features/settings/options.ts's (and model/settings.ts's) metadata, so
+// most cases below pin dataset wiring/completeness — every entry in the
+// source table is actually present in the rendered DOM with the right
+// data-value/label/icon — rather than checking two independent sources
+// against each other. The alignment value-set check is the exception: it
+// still compares the rendered DOM against model/settings.ts's ALIGNMENTS
+// directly, since options.ts's own ALIGNMENT_OPTIONS deliberately reorders
+// that set (see its doc comment) and could still drift from it.
 // The tests above already exercise behavior around a handful of these rows
 // in passing; this block is the exhaustive, dedicated contract.
 describe("dialog markup vs settings metadata contract", () => {

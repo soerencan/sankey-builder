@@ -1,4 +1,4 @@
-import type { JSX } from "preact";
+import type { JSX, RefObject } from "preact";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 
 export const PREVIEW_HEIGHT_STORAGE_KEY = "sankey-builder-preview-height";
@@ -33,8 +33,14 @@ function persistPreviewHeight(storage: Storage, value: number): void {
 }
 
 export interface PreviewResizerProps {
-	/** The element the current height is written to as --diagram-preview-height (the #diagram root). */
-	diagramEl: HTMLElement;
+	/**
+	 * The #diagram root, which the current height is written to as
+	 * --diagram-preview-height. A ref, not the element directly: App renders
+	 * #diagram and this component as siblings in one tree, so the element
+	 * only exists once the whole tree has committed — read only from effects
+	 * and event handlers below, never during render.
+	 */
+	diagramRef: RefObject<HTMLElement>;
 	/** The realm to read/write localStorage on and to attach the window-level drag listeners to. */
 	win: Window;
 }
@@ -48,9 +54,9 @@ interface DragState {
 /**
  * The desktop preview splitter. The preference is intentionally kept outside
  * diagram State: it changes only the displayed viewport, never D3's logical
- * extent or exported JSON/SVG/PNG dimensions — which is also why this
- * component is mounted once at boot rather than re-rendered by the
- * controller's refresh() alongside the rest of the app.
+ * extent or exported JSON/SVG/PNG dimensions — which is also why applying a
+ * height writes directly to `diagramRef`/the DOM below rather than flowing
+ * back through the controller's `state`/refresh().
  *
  * Height and aria-valuenow are written directly to the DOM through refs
  * inside the event handlers below, not through useState, so a click or
@@ -58,7 +64,7 @@ interface DragState {
  * after dispatching the event, with no microtask/render flush in between).
  * `initialHeight` only seeds the first render's markup.
  */
-export function PreviewResizer({ diagramEl, win }: PreviewResizerProps) {
+export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 	const splitterRef = useRef<HTMLDivElement>(null);
 	const [initialHeight] = useState(() => loadPreviewHeight(win.localStorage));
 	const heightRef = useRef(initialHeight);
@@ -67,7 +73,7 @@ export function PreviewResizer({ diagramEl, win }: PreviewResizerProps) {
 	function apply(next: number, persist = true): void {
 		const height = clampPreviewHeight(next);
 		heightRef.current = height;
-		diagramEl.style.setProperty("--diagram-preview-height", `${height}px`);
+		diagramRef.current?.style.setProperty("--diagram-preview-height", `${height}px`);
 		const splitter = splitterRef.current;
 		if (splitter) {
 			splitter.setAttribute("aria-valuenow", String(height));
@@ -77,10 +83,12 @@ export function PreviewResizer({ diagramEl, win }: PreviewResizerProps) {
 	}
 
 	// Mount-once effect (empty dependency array): applies the loaded height to
-	// diagramEl (a separate element this component doesn't render, so JSX
-	// alone can't reach it) and owns the window-level pointermove/pointerup
-	// listeners a drag needs even once the pointer leaves the splitter.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: diagramEl/win are stable for this component's lifetime — see the mount-once rationale above.
+	// diagramRef.current (a sibling element this component doesn't render, so
+	// JSX alone can't reach it — populated by the time this runs, since layout
+	// effects fire only after the whole App tree has committed) and owns the
+	// window-level pointermove/pointerup listeners a drag needs even once the
+	// pointer leaves the splitter.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: diagramRef/win are stable for this component's lifetime — see the mount-once rationale above.
 	useLayoutEffect(() => {
 		apply(heightRef.current, false);
 

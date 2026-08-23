@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { useDialog } from "./use-dialog";
 
 /**
- * Same fixture shape as shared/dialog.test.ts's, adapted to JSX: this hook is
- * markup-agnostic too, so the test proves that against arbitrary content
- * rather than the one real DiagramPanel consumer.
+ * Arbitrary fixture markup, not one of the real DiagramPanel/ThemeControl
+ * dialogs: this hook is markup-agnostic, so the test proves that rather than
+ * exercising just one real consumer.
  */
 function Fixture() {
 	const dialog = useDialog();
@@ -15,6 +15,12 @@ function Fixture() {
 		<>
 			<button type="button" id="trigger" onClick={(event) => dialog.open(event.currentTarget)}>
 				Open
+			</button>
+			{/* Calls the hook's own close() directly, distinct from the
+			    [data-action=close-dialog] button below, which instead exercises
+			    the delegated click listener's close path. */}
+			<button type="button" id="direct-close" onClick={() => dialog.close()}>
+				Direct close
 			</button>
 			<dialog id="fixture-dialog" ref={dialog.ref}>
 				<h3>Fixture</h3>
@@ -38,6 +44,7 @@ function Fixture() {
 describe("useDialog", () => {
 	let container: HTMLElement;
 	let trigger: HTMLButtonElement;
+	let directClose: HTMLButtonElement;
 	let dialog: HTMLDialogElement;
 
 	beforeEach(() => {
@@ -45,11 +52,17 @@ describe("useDialog", () => {
 		document.body.appendChild(container);
 		render(<Fixture />, container);
 		const triggerEl = container.querySelector("#trigger");
+		const directCloseEl = container.querySelector("#direct-close");
 		const dialogEl = container.querySelector("#fixture-dialog");
-		if (!(triggerEl instanceof HTMLButtonElement) || !(dialogEl instanceof HTMLDialogElement)) {
+		if (
+			!(triggerEl instanceof HTMLButtonElement) ||
+			!(directCloseEl instanceof HTMLButtonElement) ||
+			!(dialogEl instanceof HTMLDialogElement)
+		) {
 			throw new Error("fixture markup is missing an expected element");
 		}
 		trigger = triggerEl;
+		directClose = directCloseEl;
 		dialog = dialogEl;
 	});
 
@@ -58,6 +71,30 @@ describe("useDialog", () => {
 
 		expect(dialog.open).toBe(true);
 		expect(document.activeElement).toBe(dialog.querySelector('[data-value="b"]'));
+	});
+
+	it("open() falls back to the first focusable element when nothing is pressed", () => {
+		for (const button of Array.from(dialog.querySelectorAll("[aria-pressed]"))) {
+			button.setAttribute("aria-pressed", "false");
+		}
+		trigger.click();
+
+		expect(document.activeElement).toBe(dialog.querySelector('[data-value="a"]'));
+	});
+
+	it("close() is a no-op when the dialog isn't open", () => {
+		expect(dialog.open).toBe(false);
+		expect(() => directClose.click()).not.toThrow();
+		expect(dialog.open).toBe(false);
+	});
+
+	it("close() (called directly, not via a delegated click) closes an open dialog and restores focus to the trigger", () => {
+		trigger.click();
+
+		directClose.click();
+
+		expect(dialog.open).toBe(false);
+		expect(document.activeElement).toBe(trigger);
 	});
 
 	it("clicking a [data-action=close-dialog] button closes the dialog and returns focus to the trigger", () => {
