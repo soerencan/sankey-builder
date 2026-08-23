@@ -521,6 +521,40 @@ describe("diagram-only settings leave both editors and both Sortables untouched"
 	});
 });
 
+// The last-valid render request is only replaced when the graph validates
+// (see start-app.tsx's refresh()) — a diagram-setting change made while
+// invalid must still persist and update controls, but leaves the request
+// (and therefore the on-screen SVG) exactly as it was.
+describe("a diagram-setting change made while the graph is invalid", () => {
+	it("persists and updates controls but leaves the last-valid SVG element and markup untouched", () => {
+		mountApp();
+
+		// Retargeting the third link to n1 closes a 2-node cycle, same setup as
+		// the theme-while-invalid test above.
+		const target = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
+		target.value = "n1";
+		fireChange(target);
+		expect(document.getElementById("error")?.textContent).toContain("cycle");
+
+		const svgBefore = document.querySelector("#diagram svg");
+		const svgHtmlBefore = svgBefore?.outerHTML;
+
+		const leftOption = Array.from(
+			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
+		).find((option) => option.closest(".align-group") && option.dataset.value === "left");
+		click(leftOption);
+
+		expect(getStoredState().settings.alignment).toBe("left");
+		expect(leftOption?.getAttribute("aria-pressed")).toBe("true");
+		expect(document.getElementById("error")?.textContent).toContain("cycle");
+
+		// Identity, not just markup equality: refresh() passed SankeyCanvas the
+		// same `lastValidRequest` reference, so its layout effect never reran.
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
+	});
+});
+
 // Unlike the diagram-only settings above, palette changes DO affect the node
 // editor — its swatches must show the new colors — but that's a style patch
 // on the existing `.node-swatch` elements, not a rebuild: row/container DOM

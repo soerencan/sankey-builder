@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { setupPreviewResizer } from "../features/diagram/preview-resizer";
-import { renderDiagram } from "../features/diagram/render";
+import type { DiagramRenderRequest } from "../features/diagram/render";
+import { SankeyCanvas } from "../features/diagram/sankey-canvas";
 import type { LinkEditorActions } from "../features/editor/link-editor";
 import { LinkEditor } from "../features/editor/link-editor";
 import type { NodeEditorActions } from "../features/editor/node-editor";
@@ -88,6 +89,11 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	// keys — see createLinkProjector's own doc comment.
 	const projectLinks = createLinkProjector();
 
+	// The last-valid diagram render request (PLAN.md's "Last-valid diagram
+	// snapshot"). Reassigned wholesale, never mutated in place, so SankeyCanvas
+	// can key its redraw off reference identity — see its own doc comment.
+	let lastValidRequest: DiagramRenderRequest | null = null;
+
 	applyTheme(doc, state.settings.theme);
 
 	/**
@@ -118,22 +124,36 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 * The validate-then-render flow — the subtlest sequencing in the app.
 	 * Order matters and is preserved exactly:
 	 *
-	 * 1. Validate, then persist + update notices — see persistAndClearNotices's
-	 *    own doc comment for why persistence runs regardless of validity.
-	 * 2. Render both editors unconditionally: their rows are keyed (node id;
-	 *    the link projector's weak key), so a Preact re-render patches
-	 *    names/swatches/values/order in place — preserving focus, an
-	 *    in-progress link-value draft, and each row-sortable hook's Sortable
-	 *    instance — instead of rebuilding. There's no rebuild-flag/focus
-	 *    trade-off left to make for either editor.
-	 * 3. Bail before the diagram rebuild on an invalid graph (see the inline
-	 *    comment below) — otherwise render. renderDiagram builds its own color
-	 *    resolver from the snapshot it's handed (see createNodeColorResolver's
-	 *    own doc comment for why it's rebuilt per pass rather than cached).
+	 * 1. Validate. Only on a valid graph does `lastValidRequest` get replaced
+	 *    with a fresh deep snapshot (state.nodes/links/settings are still the
+	 *    live, mutable objects — cloning here, not on every access, is what
+	 *    lets SankeyCanvas treat the request as a stable historical value). An
+	 *    invalid graph leaves the previous request's reference untouched, which
+	 *    is what keeps a diagram-setting change made mid-invalid-edit from
+	 *    disturbing the visible SVG (see DiagramRenderRequest's own comment).
+	 * 2. Persist + update notices regardless of validity — see
+	 *    persistAndClearNotices's own doc comment for why.
+	 * 3. Render both editors and SankeyCanvas unconditionally. The editors'
+	 *    rows are keyed (node id; the link projector's weak key), so a Preact
+	 *    re-render patches names/swatches/values/order in place — preserving
+	 *    focus, an in-progress link-value draft, and each row-sortable hook's
+	 *    Sortable instance — instead of rebuilding. SankeyCanvas only reruns
+	 *    D3 when `lastValidRequest`'s identity actually changed (its own
+	 *    layout effect is keyed on it), so passing the same reference here on
+	 *    an invalid graph is a no-op redraw.
 	 */
 	function refresh(): void {
 		const result = validate(state);
 		errorRoot.textContent = result.ok ? "" : (result.error ?? "");
+		if (result.ok) {
+			lastValidRequest = {
+				state: structuredClone({
+					nodes: state.nodes,
+					links: state.links,
+					settings: state.settings,
+				}),
+			};
+		}
 
 		persistAndClearNotices();
 
@@ -143,15 +163,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			<LinkEditor links={projectLinks(state)} nodes={nodes} actions={linkEditorActions} />,
 			linkEditorRoot,
 		);
-		// Bail before the diagram rebuild so the last good render stays on
-		// screen; the editors above still update so the user can see and fix
-		// the offending row.
-		if (!result.ok) return;
-		renderDiagram(diagramRoot, {
-			nodes: state.nodes,
-			links: state.links,
-			settings: state.settings,
-		});
+		render(<SankeyCanvas request={lastValidRequest} />, diagramRoot);
 	}
 
 	const nodeEditorActions: NodeEditorActions = {
@@ -296,6 +308,8 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		// synchronously, tearing down its own Sortable instance.
 		render(null, nodeEditorRoot);
 		render(null, linkEditorRoot);
+		// Unmounts SankeyCanvas, whose own layout-effect cleanup clears the SVG.
+		render(null, diagramRoot);
 	}
 
 	return { destroy };

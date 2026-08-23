@@ -211,4 +211,21 @@ describe("characterization: pre-Preact-migration behavior", () => {
 		);
 		expect(n1Option.textContent).toBe("Lignite");
 	});
+
+	it("keeps the diagram SVG untouched by a row-local invalid draft that never commits", async () => {
+		mountApp();
+
+		const svgBefore = document.querySelector("#diagram svg");
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+
+		valueInput.value = "abc";
+		fireInput(valueInput);
+		await tick();
+
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		// The draft is row-local state (see link-row.tsx) and never reaches the
+		// controller, so it can't touch lastValidRequest — same <svg> element,
+		// not just equivalent markup.
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+	});
 });

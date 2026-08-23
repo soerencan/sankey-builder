@@ -47,6 +47,17 @@ describe("application lifecycle", () => {
 		expect(() => app.destroy()).not.toThrow();
 	});
 
+	it("clears the diagram SVG from the DOM on destroy", () => {
+		const { app } = mountApp();
+		expect(document.querySelector("#diagram svg")).not.toBeNull();
+
+		app.destroy();
+
+		// Unmounting SankeyCanvas runs its own layout-effect cleanup — see its
+		// doc comment — which is the only thing that can remove the svg here.
+		expect(document.querySelector("#diagram svg")).toBeNull();
+	});
+
 	it("stops reacting to events after destroy: no DOM or storage mutation", () => {
 		const { app } = mountApp();
 		app.destroy();

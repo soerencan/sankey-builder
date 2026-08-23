@@ -176,8 +176,9 @@ function serializeVisibleDiagram(
 	// Read resolved colors from the live page (theme-aware): currentColor's
 	// on-screen resolution for labels, and the diagram container's own
 	// background — both would otherwise default to black/transparent once
-	// the svg is detached from the page. svgEl.parentElement is #diagram
-	// itself, since renderDiagram appends the svg directly into it.
+	// the svg is detached from the page. svgEl.parentElement is the
+	// SankeyCanvas host (.sankey-canvas, nested inside the static #diagram),
+	// since renderDiagram appends the svg directly into it.
 	const labelColor = win.getComputedStyle(svgEl).color;
 	const background = win.getComputedStyle(svgEl.parentElement as Element).backgroundColor;
 	return serializeDiagramSvg(svgEl, { labelColor, background });

@@ -32,6 +32,17 @@ export interface DiagramSnapshot {
 	readonly settings: Readonly<Settings>;
 }
 
+/**
+ * Wraps a `DiagramSnapshot` so `SankeyCanvas` can key its D3 redraw off
+ * request *identity* rather than deep-comparing snapshots — the controller
+ * only ever hands out a new request when the graph is valid, so an unchanged
+ * reference means "don't touch the last-valid SVG" (see start-app.tsx's
+ * refresh()).
+ */
+export interface DiagramRenderRequest {
+	readonly state: DiagramSnapshot;
+}
+
 // No link fields beyond the ones d3-sankey's own SankeyLinkMinimal already
 // declares (source/target/value) — the second type param exists for extras.
 // `Record<string, unknown>` looks like the natural choice here but doesn't

@@ -466,15 +466,15 @@ select {
 }
 
 /* Card wrapper around the toolbar + diagram. Keeping the border and radius
-   outside #diagram lets the renderer clear that element wholesale without
-   wiping out the toolbar. */
+   outside .sankey-canvas lets the renderer clear that element wholesale
+   without wiping out the toolbar. */
 .diagram-panel {
   min-width: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-2);
-  /* Clips #diagram's square corners to the card's own rounding. */
+  /* Clips .sankey-canvas's square corners to the card's own rounding. */
   overflow: hidden;
   /* Shared with the coarse-pointer override below. */
   --toolbar-height: 3rem;
@@ -496,7 +496,18 @@ select {
   border-bottom: 1px solid var(--border);
 }
 
+/* #diagram is now just Preact's static mount point for SankeyCanvas — its own
+   box carries no sizing so SankeyCanvas's rendered .sankey-canvas div (the
+   D3-owned host, sole child) can be the real #diagram-panel flex item without
+   an extra nested box. It keeps receiving the --diagram-aspect-ratio/
+   --diagram-preview-height custom properties toolbar.ts and
+   preview-resizer.ts write directly to it; those inherit into
+   .sankey-canvas unaffected by display: contents. */
 #diagram {
+  display: contents;
+}
+
+.sankey-canvas {
   flex: 0 0 auto;
   min-width: 0;
   width: min(
@@ -512,11 +523,11 @@ select {
 
 /* Match the rendered SVG's 2:1 viewBox when renderDiagram() has no content to
    append, instead of collapsing the full-width preview to a toolbar sliver. */
-#diagram:empty {
+.sankey-canvas:empty {
   aspect-ratio: var(--diagram-aspect-ratio, 2 / 1);
 }
 
-#diagram svg {
+.sankey-canvas svg {
   display: block;
   width: 100%;
   height: 100%;
@@ -709,7 +720,7 @@ select {
     display: flex;
   }
 
-  #diagram {
+  .sankey-canvas {
     width: 100%;
   }
 
