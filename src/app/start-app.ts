@@ -1,4 +1,3 @@
-import { select } from "d3";
 import type Sortable from "sortablejs";
 import { createNodeColorResolver } from "../features/diagram/colors";
 import { setupPreviewResizer } from "../features/diagram/preview-resizer";
@@ -53,6 +52,13 @@ interface RefreshOptions {
 	rebuildLinks?: boolean;
 }
 
+/** Looks up a static root `startApp` itself writes to, throwing a message naming the id if it's missing from `doc`. */
+function requireRoot(doc: Document, id: string): HTMLElement {
+	const el = doc.getElementById(id);
+	if (!el) throw new Error(`startApp: missing required "#${id}" element in the document`);
+	return el;
+}
+
 /**
  * Boots one application instance against `doc`. Every setup module below is
  * markup-agnostic and reads no ambient `window`/`document`/`localStorage`
@@ -70,6 +76,12 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	// `view`) so closures below — refresh() and the action objects — don't
 	// need their own null checks.
 	const win: Window = view;
+
+	// Resolved once, up front, so a markup regression fails loudly at boot
+	// rather than silently no-op-ing on every notice update below.
+	const errorRoot = requireRoot(doc, "error");
+	const ioNoticeRoot = requireRoot(doc, "io-notice");
+	const storageNoticeRoot = requireRoot(doc, "storage-notice");
 
 	const controller = new AbortController();
 	const { signal } = controller;
@@ -104,9 +116,9 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 *    rather than staying stuck once saves work again.
 	 */
 	function persistAndClearNotices(): void {
-		select(doc.getElementById("io-notice")).text("");
+		ioNoticeRoot.textContent = "";
 		const saved = saveState(win.localStorage, state);
-		select(doc.getElementById("storage-notice")).text(saved ? "" : STORAGE_NOTICE);
+		storageNoticeRoot.textContent = saved ? "" : STORAGE_NOTICE;
 	}
 
 	/**
@@ -129,7 +141,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	function refresh({ rebuildNodes = true, rebuildLinks = true }: RefreshOptions = {}): void {
 		const nodeColor = createNodeColorResolver(state);
 		const result = validate(state);
-		select(doc.getElementById("error")).text(result.ok ? "" : (result.error ?? ""));
+		errorRoot.textContent = result.ok ? "" : (result.error ?? "");
 
 		persistAndClearNotices();
 
@@ -224,19 +236,19 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			// Set AFTER refresh() (which clears #io-notice) so this message survives
 			// the import's own refresh and only retires on the next user action.
 			// Separate from #storage-notice so it doesn't disturb that lifecycle.
-			select(doc.getElementById("io-notice")).text(message);
+			ioNoticeRoot.textContent = message;
 		},
 		reportImportError(message) {
-			select(doc.getElementById("io-notice")).text(message);
+			ioNoticeRoot.textContent = message;
 		},
 		reportExportError(message) {
-			select(doc.getElementById("io-notice")).text(message);
+			ioNoticeRoot.textContent = message;
 		},
 		reportExportSuccess(filename) {
 			// Not preceded by refresh() (export doesn't touch state), so no risk of
 			// this being cleared before it's shown; it retires the same way import's
 			// notice does, on the next refresh()-triggering user action.
-			select(doc.getElementById("io-notice")).text(`Exported ${filename}.`);
+			ioNoticeRoot.textContent = `Exported ${filename}.`;
 		},
 	};
 

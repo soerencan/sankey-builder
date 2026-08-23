@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
+import { startApp } from "../../src/app/start-app";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-resizer";
 import { click, getStoredState, installMarkup, mountApp } from "../helpers/mount-app";
 
@@ -46,5 +47,12 @@ describe("application boot", () => {
 		expect(diagram?.querySelectorAll("svg path")).toHaveLength(3);
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(4);
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
+	});
+
+	it("throws a useful error naming the missing root when a required static root is absent", () => {
+		installMarkup();
+		document.getElementById("error")?.remove();
+
+		expect(() => startApp(document)).toThrow(/#error/);
 	});
 });
