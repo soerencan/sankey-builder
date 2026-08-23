@@ -11,7 +11,7 @@ import {
 } from "../../src/features/settings/options";
 import { defaultState } from "../../src/model/graph";
 import { ALIGNMENTS, ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../src/model/settings";
-import { click, getStoredState, mountApp, requireElement } from "../helpers/mount-app";
+import { click, fireChange, getStoredState, mountApp, requireElement } from "../helpers/mount-app";
 
 describe("toolbar & settings", () => {
 	it("palette-next advances the carousel: state, preview label, and rendered colors all follow", () => {
@@ -559,6 +559,78 @@ describe("palette changes patch node-editor swatches without rebuilding either e
 
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.palette).toBe("tableau10");
+	});
+});
+
+// Phase 6: unlike the diagram-only settings above, theme is not diagram data
+// per the plan's action/effect matrix — changing it must skip validation and
+// the redraw entirely (only palette/link-color/alignment/aspect-ratio redraw),
+// just apply the theme, persist, and clear the one-shot I/O notice.
+describe("theme changes skip validation and the redraw", () => {
+	it("on a valid graph: persists, clears a seeded I/O notice, applies data-theme, and leaves the rendered SVG untouched", async () => {
+		mountApp();
+
+		// Seed #io-notice the same way files.test.ts's import tests do — a
+		// successful import sets it after its own refresh() — so "cleared by the
+		// theme change" below is a real assertion, not two empty strings.
+		const payload = {
+			nodes: [
+				{ id: "n1", name: "X" },
+				{ id: "n2", name: "Y" },
+			],
+			links: [{ source: "n1", target: "n2", value: 3 }],
+		};
+		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		fireChange(input);
+		// Flush the async file.text() + parseImport chain.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(document.getElementById("io-notice")?.textContent).toBe("Imported 2 nodes, 1 links.");
+
+		const svgBefore = document.querySelector("#diagram svg");
+		expect(svgBefore).not.toBeNull();
+
+		const themeButton = document.getElementById("theme-button");
+		click(themeButton);
+		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
+		click(dialog.querySelector('[data-value="light"]'));
+
+		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+		expect(getStoredState().settings.theme).toBe("light");
+		expect(document.getElementById("io-notice")?.textContent).toBe("");
+		// No re-render: same <svg> element, not just equivalent markup.
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+	});
+
+	it("on an invalid graph (cycle): leaves the error banner and the last valid diagram untouched", () => {
+		mountApp();
+
+		// defaultState's links: n1->n3 (10), n2->n3 (6), n3->n4 (14). Retargeting
+		// the third link to n1 closes a 2-node cycle (n1->n3->n1), same setup as
+		// editor.test.ts's cycle test.
+		const target = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
+		target.value = "n1";
+		fireChange(target);
+
+		const errorBefore = document.getElementById("error")?.textContent;
+		expect(errorBefore).toContain("cycle");
+		const svgBefore = document.querySelector("#diagram svg");
+
+		const themeButton = document.getElementById("theme-button");
+		click(themeButton);
+		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
+		click(dialog.querySelector('[data-value="light"]'));
+
+		// The theme change didn't re-run validation: the same cycle error is
+		// still showing, verbatim, and the diagram (SVG identity, the main
+		// proxy for "no render happened") is untouched.
+		expect(document.getElementById("error")?.textContent).toBe(errorBefore);
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+
+		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+		expect(getStoredState().settings.theme).toBe("light");
 	});
 });
 

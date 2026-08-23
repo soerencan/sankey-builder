@@ -188,4 +188,44 @@ describe("application lifecycle", () => {
 		click(addNodeButtonAfterFailure);
 		expect(notice()).toBe("");
 	});
+
+	it("surfaces a storage notice on a theme-change save failure and clears it once the next theme change recovers", () => {
+		mountApp();
+
+		const notice = () => document.getElementById("storage-notice")?.textContent;
+		expect(notice()).toBe("");
+
+		const themeButton = document.getElementById("theme-button");
+
+		const originalLocalStorage = localStorage;
+		const throwingStorage: Partial<Storage> = {
+			setItem: () => {
+				throw new Error("QuotaExceededError");
+			},
+		};
+		Object.defineProperty(globalThis, "localStorage", {
+			value: throwingStorage,
+			configurable: true,
+			writable: true,
+		});
+		try {
+			click(themeButton);
+			const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
+			click(dialog.querySelector<HTMLButtonElement>('[data-value="light"]'));
+			expect(notice()).toBe(STORAGE_NOTICE);
+		} finally {
+			Object.defineProperty(globalThis, "localStorage", {
+				value: originalLocalStorage,
+				configurable: true,
+				writable: true,
+			});
+		}
+
+		// setupThemeControl's handler closes the dialog after every set-theme
+		// click regardless of the save outcome, so re-open it for the recovery click.
+		click(themeButton);
+		const dialogAfterRecovery = document.getElementById("theme-dialog") as HTMLDialogElement;
+		click(dialogAfterRecovery.querySelector<HTMLButtonElement>('[data-value="dark"]'));
+		expect(notice()).toBe("");
+	});
 });

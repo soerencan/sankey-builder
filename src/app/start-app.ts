@@ -82,6 +82,30 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	applyTheme(doc, state.settings.theme);
 
 	/**
+	 * The save/notice portion of refresh() below, factored out so the
+	 * theme-change path can reuse it without also validating or redrawing.
+	 * Order matters and is preserved exactly (see refresh()'s own doc comment
+	 * for the surrounding rationale):
+	 *
+	 * 1. Clear any I/O notice (import or export): it's a one-shot result of the
+	 *    last action, so the next user action retires it. importDiagram() sets
+	 *    #io-notice AFTER its own refresh() call, so its message survives that
+	 *    refresh and clears here on the following action.
+	 * 2. Save — regardless of validity: an invalid *topology* the user is still
+	 *    editing (e.g. a cycle) is retained in the editor and must survive a
+	 *    reload; there is no "last-good state" in storage, only the last-good
+	 *    *diagram*, which stays on screen without needing its own storage.
+	 * 3. Update the storage notice from the save result — storage may recover
+	 *    (e.g. quota freed up elsewhere), so a previously shown notice clears
+	 *    rather than staying stuck once saves work again.
+	 */
+	function persistAndClearNotices(): void {
+		select(doc.getElementById("io-notice")).text("");
+		const saved = saveState(win.localStorage, state);
+		select(doc.getElementById("storage-notice")).text(saved ? "" : STORAGE_NOTICE);
+	}
+
+	/**
 	 * The current validateAndRender flow, ported from the pre-migration
 	 * bundle and the subtlest behavior in the app. Order matters and is
 	 * preserved exactly:
@@ -89,35 +113,21 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 * 1. Rebuild the color resolver fresh from state (replaces the
 	 *    pre-migration bundle's module-level currentColorScale singleton).
 	 * 2. Validate and update the error notice.
-	 * 3. Save — regardless of validity: an invalid *topology* the user is still
-	 *    editing (e.g. a cycle) is retained in the editor and must survive a
-	 *    reload; there is no "last-good state" in storage, only the last-good
-	 *    *diagram*, which stays on screen without needing its own storage.
-	 * 4. Update the storage notice from the save result.
-	 * 5. Rebuild the requested editors — regardless of validity — so the user
+	 * 3. Persist and update the I/O/storage notices — see
+	 *    persistAndClearNotices()'s own doc comment.
+	 * 4. Rebuild the requested editors — regardless of validity — so the user
 	 *    can see and fix the offending row. The flags exist to preserve input
 	 *    focus/caret: rebuilding the editor being typed in would drop it.
-	 * 6. Bail before the diagram rebuild so the last good render stays on
+	 * 5. Bail before the diagram rebuild so the last good render stays on
 	 *    screen when invalid.
-	 * 7. Otherwise render the diagram — full SVG rebuild.
+	 * 6. Otherwise render the diagram — full SVG rebuild.
 	 */
 	function refresh({ rebuildNodes = true, rebuildLinks = true }: RefreshOptions = {}): void {
 		const nodeColor = createNodeColorResolver(state);
 		const result = validate(state);
 		select(doc.getElementById("error")).text(result.ok ? "" : (result.error ?? ""));
 
-		// Clear any I/O notice (import or export): it's a one-shot result of the last
-		// action, so the next user action retires it. importDiagram() sets #io-notice
-		// AFTER its own refresh() call, so its message survives that refresh and
-		// clears here on the following action.
-		select(doc.getElementById("io-notice")).text("");
-
-		// Always persist, even when invalid — see the rationale above.
-		const saved = saveState(win.localStorage, state);
-		// Storage may recover (e.g. quota freed up elsewhere) — clear a
-		// previously shown notice rather than leaving it stuck once saves work
-		// again.
-		select(doc.getElementById("storage-notice")).text(saved ? "" : STORAGE_NOTICE);
+		persistAndClearNotices();
 
 		if (rebuildNodes) {
 			nodeRowSortable = renderNodeEditor(
@@ -227,9 +237,11 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		setTheme(value) {
 			state.settings.theme = value;
 			applyTheme(doc, value);
-			// Theme doesn't affect graph validity or editor markup — skip both
-			// editor rebuilds, same as the color-drag path above.
-			refresh({ rebuildNodes: false, rebuildLinks: false });
+			// Theme is a per-browser preference, not diagram data — unlike the
+			// other settings actions, it deliberately skips refresh() entirely:
+			// no validation re-run (the graph's validity can't depend on the
+			// theme) and no diagram/editor rebuilds, just persist + notices.
+			persistAndClearNotices();
 		},
 	};
 
