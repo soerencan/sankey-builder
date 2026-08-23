@@ -4,7 +4,11 @@ import { createNodeColorResolver } from "../features/diagram/colors";
 import { setupPreviewResizer } from "../features/diagram/preview-resizer";
 import { renderDiagram } from "../features/diagram/render";
 import type { LinkEditorActions } from "../features/editor/link-editor";
-import { renderLinkEditor, setupLinkEditor } from "../features/editor/link-editor";
+import {
+	renderLinkEditor,
+	setupLinkEditor,
+	updateNodeOptionLabels,
+} from "../features/editor/link-editor";
 import type { NodeEditorActions } from "../features/editor/node-editor";
 import {
 	renderNodeEditor,
@@ -159,11 +163,14 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		},
 		renameNode(id, name) {
 			renameNode(state, id, name);
-			// Skip the node editor's own rebuild (would reset this input's
-			// focus/caret mid-keystroke) but still rebuild the link editor, whose
-			// source/target <select> options show node names and would otherwise
-			// go stale.
-			refresh({ rebuildNodes: false });
+			// Skip both editors' own rebuilds: rebuilding the node editor would
+			// reset this input's focus/caret mid-keystroke, and rebuilding the
+			// link editor would tear down its rows/Sortable instance for a change
+			// that's purely cosmetic there. Its source/target <select> options
+			// show node names and would otherwise go stale, so patch just their
+			// text directly instead.
+			refresh({ rebuildNodes: false, rebuildLinks: false });
+			updateNodeOptionLabels(doc, state);
 		},
 		moveNode(from, to) {
 			moveNode(state, from, to);

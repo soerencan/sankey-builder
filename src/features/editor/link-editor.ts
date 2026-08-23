@@ -177,6 +177,32 @@ export function renderLinkEditor(
 	return attachRowSortable(container, { rowClass: "link-row", move: moveLink }, previousSortable);
 }
 
+/**
+ * Restyles the existing node <option> labels in place from the current
+ * state, without touching any other markup — used when only a node's name
+ * changes (src/app/start-app.ts's renameNode), so the link editor's rows/
+ * container and its Sortable instance survive untouched. Only `textContent`
+ * is written: order and the `value`/`selected`/`disabled` attributes are
+ * left exactly as renderLinkOptions set them, since Sortable's cloneNode
+ * drag ghost reads those attributes and any drift there would desync the
+ * ghost from the live row (see renderLinkOptions's own doc comment).
+ *
+ * Options are matched by their `value` property, not by interpolating each
+ * node's id into a `[value="..."]` selector — imported ids are arbitrary
+ * strings, and one containing a quote/backslash would throw from
+ * querySelector — mirroring updateNodeSwatches's id-safe iteration in
+ * node-editor.ts.
+ */
+export function updateNodeOptionLabels(doc: Document, state: State): void {
+	const root = doc.getElementById("link-editor");
+	if (!root) return;
+	const namesById = new Map(state.nodes.map((n) => [n.id, n.name]));
+	for (const option of Array.from(root.querySelectorAll<HTMLOptionElement>("option.node-option"))) {
+		const name = namesById.get(option.value);
+		if (name !== undefined) option.textContent = name;
+	}
+}
+
 /** Sets (or clears, for "") the text of the field's paired error element. */
 function setLinkValueError(doc: Document, index: number, message: string): void {
 	const el = doc.getElementById(linkValueErrorId(index));

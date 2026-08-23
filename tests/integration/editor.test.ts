@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import Sortable from "sortablejs";
 import { describe, expect, it, vi } from "vitest";
 import { STORAGE_KEY } from "../../src/platform/storage";
 import {
@@ -387,5 +388,88 @@ describe("node & link editing", () => {
 		fireChange(clearedSource);
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
 		expect(getStoredState().links[3].source).toBeNull();
+	});
+
+	it("renaming a node keeps the input's focus/identity, patches link-option labels, and leaves the link editor's rows/Sortable untouched", () => {
+		mountApp();
+
+		const svgBefore = document.querySelector("#diagram svg");
+		expect(svgBefore).not.toBeNull();
+
+		const linkEditorRoot = requireElement<HTMLElement>("#link-editor");
+		const linkRowsBefore = requireElement<HTMLElement>("#link-editor .link-rows");
+		const linkRowElsBefore = Array.from(document.querySelectorAll("#link-editor .link-row"));
+		const sortableBefore = Sortable.get(linkRowsBefore);
+		expect(sortableBefore).toBeTruthy();
+
+		// Snapshot order + selected/disabled attributes of every node-option
+		// across every source/target select — renaming must leave all of this
+		// untouched, only the text should change.
+		const optionsBefore = Array.from(
+			document.querySelectorAll<HTMLOptionElement>("#link-editor option.node-option"),
+		).map((option) => ({
+			value: option.value,
+			selected: option.getAttribute("selected"),
+			disabled: option.getAttribute("disabled"),
+		}));
+
+		// n1 "Coal" is the source of link 0 (n1 -> n3) in defaultState, and
+		// appears as an option (selected or not) in every source/target select.
+		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
+		nameInput.focus();
+		expect(document.activeElement).toBe(nameInput);
+
+		nameInput.value = "Lignite";
+		fireInput(nameInput);
+
+		// (a) same input element, still focused. happy-dom has no native typing
+		// pipeline, so this harness (like the link-value tests above) simulates
+		// a keystroke by reassigning `.value` wholesale — but browsers (and
+		// happy-dom) collapse the selection to the end of the field whenever
+		// `.value` is reassigned that way, regardless of what the app does with
+		// focus. That makes a mid-string caret-preservation assertion
+		// unfalsifiable through this harness, so it's dropped; selectionStart
+		// is checked only as a smoke check that the property still reads back
+		// (i.e. the app never blurs/reprograms it after the fact).
+		expect(document.contains(nameInput)).toBe(true);
+		expect(document.activeElement).toBe(nameInput);
+		expect(nameInput.selectionStart).toBe("Lignite".length);
+
+		// (b) every node-option showing n1, across every select, gets its text
+		// updated.
+		const n1Options = Array.from(
+			document.querySelectorAll<HTMLOptionElement>('#link-editor option.node-option[value="n1"]'),
+		);
+		expect(n1Options.length).toBeGreaterThan(0);
+		for (const option of n1Options) {
+			expect(option.textContent).toBe("Lignite");
+		}
+
+		// (c) the link editor's container/rows/Sortable instance survive — no
+		// rebuild.
+		expect(document.getElementById("link-editor")).toBe(linkEditorRoot);
+		expect(document.querySelector("#link-editor .link-rows")).toBe(linkRowsBefore);
+		const linkRowElsAfter = Array.from(document.querySelectorAll("#link-editor .link-row"));
+		expect(linkRowElsAfter.length).toBe(linkRowElsBefore.length);
+		linkRowElsAfter.forEach((row, i) => expect(row).toBe(linkRowElsBefore[i]));
+		expect(Sortable.get(linkRowsBefore)).toBe(sortableBefore);
+
+		// (e) option order and selected/disabled attributes are exactly as
+		// before — only textContent changed.
+		const optionsAfter = Array.from(
+			document.querySelectorAll<HTMLOptionElement>("#link-editor option.node-option"),
+		).map((option) => ({
+			value: option.value,
+			selected: option.getAttribute("selected"),
+			disabled: option.getAttribute("disabled"),
+		}));
+		expect(optionsAfter).toEqual(optionsBefore);
+
+		// (d) the diagram still redraws for a still-valid graph.
+		const svgAfter = document.querySelector("#diagram svg");
+		expect(svgAfter).not.toBeNull();
+		expect(svgAfter).not.toBe(svgBefore);
+
+		expect(getStoredState().nodes.find((n: { id: string }) => n.id === "n1")?.name).toBe("Lignite");
 	});
 });
