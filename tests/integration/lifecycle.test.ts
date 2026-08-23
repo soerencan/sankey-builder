@@ -1,17 +1,24 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
-import { startApp } from "../src/app";
-import { STORAGE_KEY } from "../src/persist";
-import { PREVIEW_HEIGHT_STORAGE_KEY } from "../src/preview-resizer";
-import { click, installMarkup, mountApp } from "./helpers/mount-app";
+import { startApp } from "../../src/app";
+import { STORAGE_KEY } from "../../src/persist";
+import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/preview-resizer";
+import { click, installMarkup, mountApp } from "../helpers/mount-app";
+
+// Pinned verbatim from src/app.ts's STORAGE_NOTICE — app.ts doesn't export
+// it, so this hardcodes (and thereby pins) the user-visible copy.
+const STORAGE_NOTICE =
+	"Changes can't be saved in this browser right now (storage may be full or unavailable). " +
+	"The diagram keeps working, but edits won't survive closing or reloading this tab — " +
+	"try freeing up space or leaving private/incognito mode.";
 
 /**
  * A minimal Storage backed by its own Map, tracking every setItem key. Used
  * to count persisted saves precisely — swapping the whole `localStorage`
  * global rather than `vi.spyOn(Storage.prototype, ...)`, which happy-dom's
  * per-instance method binding makes unreliable once localStorage has already
- * been touched elsewhere (see tests/app.test.ts's storage-notice test).
+ * been touched elsewhere (see the storage-notice test below).
  */
 function makeCountingStorage(): { storage: Storage; setItemCalls: string[] } {
 	const store = new Map<string, string>();
@@ -99,5 +106,52 @@ describe("application lifecycle", () => {
 		} finally {
 			app.destroy();
 		}
+	});
+
+	it("surfaces a storage notice on save failure and clears it once saves recover", () => {
+		mountApp();
+
+		const notice = () => document.getElementById("storage-notice")?.textContent;
+		expect(notice()).toBe("");
+
+		const addNodeButton = document.querySelector<HTMLButtonElement>('[data-action="add-node"]');
+		expect(addNodeButton).not.toBeNull();
+
+		// happy-dom's Storage binds each method onto an internal target the
+		// first time it's accessed (see happy-dom's ClassMethodBinder), and by
+		// this point the earlier tests in this file have already forced that —
+		// so `vi.spyOn(Storage.prototype, "setItem")` silently stops taking
+		// effect. Swapping the whole `localStorage` global for a throwing stub
+		// sidesteps that caching rather than fighting it.
+		const originalLocalStorage = localStorage;
+		const throwingStorage: Partial<Storage> = {
+			setItem: () => {
+				throw new Error("QuotaExceededError");
+			},
+		};
+		Object.defineProperty(globalThis, "localStorage", {
+			value: throwingStorage,
+			configurable: true,
+			writable: true,
+		});
+		try {
+			click(addNodeButton);
+			expect(notice()).toBe(STORAGE_NOTICE);
+		} finally {
+			Object.defineProperty(globalThis, "localStorage", {
+				value: originalLocalStorage,
+				configurable: true,
+				writable: true,
+			});
+		}
+
+		// The failed save above still rebuilt the node editor (editors rebuild
+		// regardless of validity), which tore down and recreated the button —
+		// re-query rather than reuse the now-detached reference.
+		const addNodeButtonAfterFailure = document.querySelector<HTMLButtonElement>(
+			'[data-action="add-node"]',
+		);
+		click(addNodeButtonAfterFailure);
+		expect(notice()).toBe("");
 	});
 });
