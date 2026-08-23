@@ -8,6 +8,7 @@ import {
 	getStoredState,
 	mountApp,
 	requireElement,
+	tick,
 } from "../helpers/mount-app";
 
 // Pinned verbatim from src/app/start-app.ts's STORAGE_NOTICE — app/start-app.ts doesn't export
@@ -169,7 +170,7 @@ describe("characterization: pre-Preact-migration behavior", () => {
 		expect(getStoredState().links[0].value).toBe(20);
 	});
 
-	it("leaves an invalid link-value draft untouched by an unrelated committed rename", () => {
+	it("leaves an invalid link-value draft untouched by an unrelated committed rename", async () => {
 		mountApp();
 
 		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
@@ -180,29 +181,31 @@ describe("characterization: pre-Preact-migration behavior", () => {
 
 		valueInput.value = "abc";
 		fireInput(valueInput);
+		await tick();
 
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
-		// renameNode's refresh() skips both editor rebuilds (see start-app.ts),
-		// so the draft/error state on the untouched link row must survive intact.
+		// The link row's draft is row-local state, keyed by link (see
+		// app/view.ts's createLinkProjector) rather than array index — an
+		// unrelated rename's re-render patches this row's DOM in place instead
+		// of rebuilding it, so the draft/error state must survive intact.
 		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
 		nameInput.value = "Lignite";
 		fireInput(nameInput);
 
-		// Identity, not just value/attribute equality: renameNode's refresh()
-		// skips the link editor's rebuild, but if that guard ever regressed, the
-		// rebuilt row would carry the same default value/attributes on a
-		// *detached* node and these assertions would pass while the visible
-		// draft was actually lost.
+		// Identity, not just value/attribute equality: if the link row were ever
+		// rebuilt instead of patched, the rebuilt row would carry the same
+		// default value/attributes on a *detached* node and these assertions
+		// would pass while the visible draft was actually lost.
 		expect(requireElement<HTMLInputElement>('.link-value[data-index="0"]')).toBe(valueInput);
 		expect(valueInput.value).toBe("abc");
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
-		// Confirms the rename itself actually reached the app (and
-		// updateNodeOptionLabels ran) rather than the assertions above merely
-		// tolerating a no-op rename.
+		// Confirms the rename itself actually reached the app (and the link
+		// editor's re-projected node options picked it up) rather than the
+		// assertions above merely tolerating a no-op rename.
 		const n1Option = requireElement<HTMLOptionElement>(
 			'#link-editor option.node-option[value="n1"]',
 		);

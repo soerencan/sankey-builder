@@ -10,6 +10,7 @@ import {
 	getStoredState,
 	mountApp,
 	requireElement,
+	tick,
 } from "../helpers/mount-app";
 
 describe("node & link editing", () => {
@@ -29,7 +30,7 @@ describe("node & link editing", () => {
 		expect(parsed.nodes.some((n: { id: string }) => n.id === "n5")).toBe(true);
 	});
 
-	it("leaves state untouched on empty/invalid value edits and restores the text on blur", () => {
+	it("leaves state untouched on empty/invalid value edits and restores the text on blur", async () => {
 		mountApp();
 
 		const svgBefore = document.querySelector("#diagram svg");
@@ -41,6 +42,7 @@ describe("node & link editing", () => {
 
 		valueInput.value = "";
 		fireInput(valueInput);
+		await tick();
 
 		expect(document.getElementById("error")?.textContent).toBe("");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
@@ -50,12 +52,20 @@ describe("node & link editing", () => {
 
 		valueInput.value = "abc";
 		fireInput(valueInput);
+		// The row-local draft's aria-invalid marker is set by a Preact render,
+		// which — unlike a committed action's controller refresh() — is only
+		// scheduled, not run synchronously within this event (see tick()'s doc
+		// comment in tests/helpers/mount-app.ts).
+		await tick();
 
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(document.getElementById("error")?.textContent).toBe("");
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(getStoredState().links[0].value).toBe(10);
 
+		// Blur restoration, unlike per-keystroke draft feedback, is a
+		// synchronous DOM write (see link-row.tsx's handleChange) — no tick()
+		// needed here.
 		fireChange(valueInput);
 		expect(valueInput.value).toBe("10");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
@@ -80,7 +90,7 @@ describe("node & link editing", () => {
 		expect(getStoredState().links[0].value).toBe(20);
 	});
 
-	it("shows an inline, accessible error message for an invalid link value and clears it once valid", () => {
+	it("shows an inline, accessible error message for an invalid link value and clears it once valid", async () => {
 		mountApp();
 
 		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
@@ -95,6 +105,7 @@ describe("node & link editing", () => {
 
 		valueInput.value = "abc";
 		fireInput(valueInput);
+		await tick();
 
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
@@ -103,6 +114,7 @@ describe("node & link editing", () => {
 		// keypress, only when the value actually becomes valid or blank).
 		valueInput.value = "abcd";
 		fireInput(valueInput);
+		await tick();
 
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
@@ -115,12 +127,14 @@ describe("node & link editing", () => {
 
 		valueInput.value = "9999999999999999";
 		fireInput(valueInput);
+		await tick();
 		expect(errorEl.textContent).toBe("Enter a number no greater than 1000000000000000.");
 
 		// Over 4 fractional digits, set directly (bypassing beforeinput's
 		// keystroke/paste interception), still reaches the message branch.
 		valueInput.value = "0.00001";
 		fireInput(valueInput);
+		await tick();
 		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
 
 		fireChange(valueInput);
@@ -129,7 +143,7 @@ describe("node & link editing", () => {
 		expect(errorEl.textContent).toBe("");
 	});
 
-	it("pins the exact error message for other ambiguous link-value inputs, ahead of a parser refactor", () => {
+	it("pins the exact error message for other ambiguous link-value inputs, ahead of a parser refactor", async () => {
 		mountApp();
 
 		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
@@ -143,6 +157,7 @@ describe("node & link editing", () => {
 		// the maximum-value one, even though 1e20 is itself above MAX_LINK_VALUE.
 		valueInput.value = "1e20";
 		fireInput(valueInput);
+		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
@@ -152,6 +167,7 @@ describe("node & link editing", () => {
 		// "greater than 0" message despite the parsed value being 0.
 		valueInput.value = "0.00000";
 		fireInput(valueInput);
+		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
 
@@ -159,17 +175,19 @@ describe("node & link editing", () => {
 		// wins, same ordering as above.
 		valueInput.value = "1000000000000001.00001";
 		fireInput(valueInput);
+		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
 
 		valueInput.value = "   ";
 		fireInput(valueInput);
+		await tick();
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(errorEl.textContent).toBe("");
 		expect(getStoredState().links[0].value).toBe(10);
 	});
 
-	it("intercepts the 4-decimal cap at beforeinput (block keystroke, truncate paste)", () => {
+	it("intercepts the 4-decimal cap at beforeinput (block keystroke, truncate paste)", async () => {
 		mountApp();
 
 		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
@@ -227,7 +245,12 @@ describe("node & link editing", () => {
 		expect(beforeinput({ inputType: "insertFromPaste", data: "0.00001" }).defaultPrevented).toBe(
 			true,
 		);
+		// The truncated value/caret are synchronous DOM writes the beforeinput
+		// handler must make itself (having just prevented the browser's own
+		// insertion) — but the invalid draft's aria-invalid marker is a Preact
+		// render, scheduled rather than run inline; see tick()'s doc comment.
 		expect(valueInput.value).toBe("0.0000");
+		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(getStoredState().links[0].value).toBe(12.3456);
 
@@ -238,6 +261,7 @@ describe("node & link editing", () => {
 		expect(beforeinput({ inputType: "insertFromPaste", data: "abc" }).defaultPrevented).toBe(false);
 		valueInput.value = "abc";
 		fireInput(valueInput);
+		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 	});
 
@@ -294,6 +318,7 @@ describe("node & link editing", () => {
 		// be byte-for-byte untouched.
 		valueInput.value = "abc";
 		fireInput(valueInput);
+		await tick();
 
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
@@ -303,12 +328,47 @@ describe("node & link editing", () => {
 
 		valueInput.value = "";
 		fireInput(valueInput);
+		await tick();
 
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
 		expect(document.getElementById("error")?.textContent).toBe(errorBefore);
 		expect(document.getElementById("io-notice")?.textContent).toBe(noticeBefore);
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+	});
+
+	it("node deletion cascades: rows for a deleted link disappear, but an invalid draft on a surviving link (whose index shifts) persists", async () => {
+		mountApp();
+
+		// Draft goes on the n3->n4 link at index 2 — AFTER the link that's about
+		// to be cascade-deleted, so its own index shifts (2 -> 1). Keying rows by
+		// array index instead of link identity would make this row (now index 1)
+		// pick up whatever the *previous* index-1 row (n2->n3, deleted) happened
+		// to render, silently discarding the draft instead of carrying it along.
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="2"]');
+		valueInput.value = "abc";
+		fireInput(valueInput);
+		await tick();
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+
+		// Deleting n2 cascades to remove the n2->n3 link at index 1 (see
+		// model/graph.ts's deleteNode), leaving the edited n3->n4 link — same
+		// Link object, same view key — as the new row 1.
+		click(requireElement<HTMLButtonElement>('.node-delete[data-id="n2"]'));
+
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(2);
+		const survivingValueInput = requireElement<HTMLInputElement>('.link-value[data-index="1"]');
+		expect(survivingValueInput).toBe(valueInput);
+		expect(survivingValueInput.value).toBe("abc");
+		expect(survivingValueInput.getAttribute("aria-invalid")).toBe("true");
+		const describedbyId = survivingValueInput.getAttribute("aria-describedby");
+		const errorEl = describedbyId ? document.getElementById(describedbyId) : null;
+		expect(errorEl?.textContent).toBe("Enter a plain number greater than 0.");
+
+		// The other surviving link (n1->n3, untouched, now row 0) is unaffected.
+		const otherValueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		expect(otherValueInput.value).toBe("10");
+		expect(otherValueInput.hasAttribute("aria-invalid")).toBe(false);
 	});
 
 	it("Add link appends an unassigned row that stays inert until both endpoints are chosen", () => {
@@ -412,8 +472,10 @@ describe("node & link editing", () => {
 			expect(option.textContent).toBe("Lignite");
 		}
 
-		// (c) the link editor's container/rows/Sortable instance survive — no
-		// rebuild.
+		// (c) the link editor's container/rows/Sortable instance survive: rows
+		// are keyed by link (see app/view.ts's createLinkProjector), so the
+		// rename's re-render patches existing DOM in place rather than
+		// rebuilding.
 		expect(document.getElementById("link-editor")).toBe(linkEditorRoot);
 		expect(document.querySelector("#link-editor .link-rows")).toBe(linkRowsBefore);
 		const linkRowElsAfter = Array.from(document.querySelectorAll("#link-editor .link-row"));

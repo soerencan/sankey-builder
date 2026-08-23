@@ -10,9 +10,13 @@ export interface UseRowSortableOptions {
 	onMove(from: number, to: number): void;
 }
 
-// Mirrors row-reorder.ts's attachRowSortable exactly — see that module's own
-// doc comments for why each option is set the way it is (forceFallback, the
-// touch-hold delay/threshold, the ghost/chosen/fallback classes).
+// Touch-only hold before a drag arms (delayOnTouchOnly below) — matches the
+// hold-to-lift feel of native mobile list reordering; mouse drags still start
+// immediately. Below this many pixels of finger movement *during* that hold,
+// Sortable cancels the pending drag rather than starting one, so a scroll
+// gesture that starts on a row still scrolls instead of lifting it.
+// touchStartThreshold has no effect without a delay (touch or otherwise) —
+// SortableJS only consults it from the delayed-drag path.
 const TOUCH_HOLD_DELAY_MS = 150;
 const TOUCH_START_THRESHOLD_PX = 4;
 
@@ -20,12 +24,11 @@ const TOUCH_START_THRESHOLD_PX = 4;
  * Owns one SortableJS instance (pointer/touch drag) plus the keyboard
  * ArrowUp/ArrowDown reorder path for a Preact-rendered rows container.
  *
- * Unlike the pre-Preact editors, the rows container is never torn down on a
- * committed move — Preact keeps it and diffs its keyed rows in place across
- * the controller's synchronous re-render — so this effect runs once on mount
- * and cleans up once on unmount (`useLayoutEffect` with an empty dependency
- * array), rather than being recreated on every render the way
- * `attachRowSortable` used to be. `onMove` is read through a ref so a new
+ * The rows container is never torn down on a committed move — Preact keeps
+ * it and diffs its keyed rows in place across the controller's synchronous
+ * re-render — so this effect runs once on mount and cleans up once on
+ * unmount (`useLayoutEffect` with an empty dependency array), rather than
+ * being recreated on every render. `onMove` is read through a ref so a new
  * closure each render never forces that recreation either.
  */
 export function useRowSortable(

@@ -1,5 +1,5 @@
 import { createNodeColorResolver } from "../features/diagram/colors";
-import type { State } from "../model/graph";
+import type { Link, State } from "../model/graph";
 
 /** Immutable per-node DTO handed to NodeEditor — see PLAN.md's view-snapshot rationale. */
 export interface NodeView {
@@ -22,4 +22,41 @@ export function projectNodes(state: State): readonly NodeView[] {
 		name: node.name,
 		swatchColor: nodeColor(node),
 	}));
+}
+
+/** Immutable per-link DTO handed to LinkEditor — see createLinkProjector's own doc comment for its key. */
+export interface LinkView {
+	readonly key: string;
+	readonly index: number;
+	readonly source: string | null;
+	readonly target: string | null;
+	readonly value: number;
+}
+
+/**
+ * Creates a per-application-instance link view projector (see start-app.tsx,
+ * which builds one alongside its `State`). It owns a `WeakMap<Link, string>`
+ * that assigns each domain Link object a stable view key the first time it's
+ * projected, and reuses that key on every later projection of the same
+ * object — updateLink/moveLink (model/graph.ts) mutate/splice links in
+ * place, so a value or endpoint edit and a reorder both keep their key (and
+ * therefore their row-local draft), while replaceDiagram (import) pushes
+ * brand new Link objects that correctly get fresh keys, resetting any draft.
+ * Deleted links simply drop out of later projections and leave the registry
+ * to GC. A fresh WeakMap/counter per call, not module-level state, so two
+ * concurrent application instances (e.g. the cross-realm tests) never share
+ * keys.
+ */
+export function createLinkProjector(): (state: State) => readonly LinkView[] {
+	const keys = new WeakMap<Link, string>();
+	let nextKey = 0;
+	return (state: State): readonly LinkView[] =>
+		state.links.map((link, index) => {
+			let key = keys.get(link);
+			if (key === undefined) {
+				key = `link-${nextKey++}`;
+				keys.set(link, key);
+			}
+			return { key, index, source: link.source, target: link.target, value: link.value };
+		});
 }

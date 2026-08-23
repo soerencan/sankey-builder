@@ -9,6 +9,7 @@ import {
 	getStoredState,
 	mountApp,
 	requireElement,
+	tick,
 } from "../helpers/mount-app";
 
 describe("row reordering", () => {
@@ -71,7 +72,7 @@ describe("row reordering", () => {
 		expect(document.activeElement).toBe(moved);
 	});
 
-	// Pointer/touch dragging is now delegated to SortableJS (src/features/editor/row-reorder.ts),
+	// Pointer/touch dragging is now delegated to SortableJS (src/features/editor/use-row-sortable.ts),
 	// which happy-dom can construct but can't be driven through a realistic
 	// pointer/touch gesture (no real layout, no native drag/touch pipeline) —
 	// see VERIFICATION.md for what still needs a real browser. These tests
@@ -81,8 +82,9 @@ describe("row reordering", () => {
 	// would once a real drag completes) commits the same state/DOM/storage
 	// change the old pointer-drag tests asserted.
 	//
-	// features/editor/row-reorder.ts's onEnd handler only reads oldIndex/newIndex off the
-	// event, so these synthetic events omit every other SortableEvent field —
+	// use-row-sortable.ts's onEnd handler also reads `item` (to restore
+	// pre-drag DOM order before dispatch — see its own doc comment), so the
+	// no-op-guard tests below that only exercise oldIndex/newIndex omit it;
 	// fakeSortableEvent casts past that rather than constructing a full Event.
 	const fakeSortableEvent = (
 		event: Partial<Pick<Sortable.SortableEvent, "oldIndex" | "newIndex">>,
@@ -218,7 +220,7 @@ describe("row reordering", () => {
 		);
 	});
 
-	it("committing a link row's Sortable onEnd reorders it: order and storage follow", () => {
+	it("committing a link row's Sortable onEnd reorders it: order, storage, and container/Sortable identity all follow", () => {
 		mountApp();
 
 		const linkValues = () =>
@@ -228,14 +230,80 @@ describe("row reordering", () => {
 		expect(linkValues()).toEqual(["10", "6", "14"]);
 
 		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
-		const onEnd = Sortable.get(linkRows)?.options.onEnd;
+		const linkSortable = Sortable.get(linkRows);
+		const onEnd = linkSortable?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
-		onEnd(fakeSortableEvent({ oldIndex: 0, newIndex: 1 }));
+		// Sortable has already reordered the DOM by the time onEnd fires for a
+		// real drag; this event's indices are what the handler actually acts
+		// on, so a synthetic `item` (left in its current, untouched position —
+		// the test below drives the DOM-restore step itself) is enough to
+		// exercise the commit path in isolation — mirrors the node-row
+		// equivalent above.
+		const item = requireElement<HTMLElement>('.drag-handle[data-index="0"]', linkRows).closest(
+			".link-row",
+		) as HTMLElement;
+		onEnd({ item, oldIndex: 0, newIndex: 1 } as unknown as Sortable.SortableEvent);
 
 		expect(linkValues()).toEqual(["6", "10", "14"]);
 		const stored = getStoredState();
 		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([6, 10, 14]);
+
+		// Unlike the pre-Preact editor, the controller's move re-render keeps
+		// the same rows container and Sortable instance — use-row-sortable.ts's
+		// hook owns them for the life of the mounted editor, not per-rebuild.
+		expect(requireElement<HTMLElement>("#link-editor .link-rows")).toBe(linkRows);
+		expect(Sortable.get(linkRows)).toBe(linkSortable);
+	});
+
+	it("an invalid link-value draft follows its link through a keyboard reorder, not its array position", async () => {
+		mountApp();
+
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		valueInput.value = "abc";
+		fireInput(valueInput);
+		await tick();
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+
+		const handle = requireElement<HTMLButtonElement>('#link-editor .drag-handle[data-index="0"]');
+		handle.focus();
+		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+		// Same element, now at row 1: the draft is keyed by link (see
+		// app/view.ts's createLinkProjector), not the row's array index.
+		const movedValueInput = requireElement<HTMLInputElement>('.link-value[data-index="1"]');
+		expect(movedValueInput).toBe(valueInput);
+		expect(movedValueInput.value).toBe("abc");
+		expect(movedValueInput.getAttribute("aria-invalid")).toBe("true");
+
+		// The link now at row 0 (the one that was displaced) is unaffected.
+		const otherValueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		expect(otherValueInput.value).toBe("6");
+		expect(otherValueInput.hasAttribute("aria-invalid")).toBe(false);
+	});
+
+	it("an invalid link-value draft follows its link through a pointer (Sortable onEnd) reorder", async () => {
+		mountApp();
+
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		valueInput.value = "abc";
+		fireInput(valueInput);
+		await tick();
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+
+		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
+		const onEnd = Sortable.get(linkRows)?.options.onEnd;
+		if (!onEnd) throw new Error("unreachable");
+		const item = requireElement<HTMLElement>('.drag-handle[data-index="0"]', linkRows).closest(
+			".link-row",
+		) as HTMLElement;
+
+		onEnd({ item, oldIndex: 0, newIndex: 1 } as unknown as Sortable.SortableEvent);
+
+		const movedValueInput = requireElement<HTMLInputElement>('.link-value[data-index="1"]');
+		expect(movedValueInput).toBe(valueInput);
+		expect(movedValueInput.value).toBe("abc");
+		expect(movedValueInput.getAttribute("aria-invalid")).toBe("true");
 	});
 
 	it("a cloned row keeps its select/input values (Sortable's drag ghost is a cloneNode)", () => {
@@ -261,8 +329,9 @@ describe("row reordering", () => {
 			nodeRow.querySelector<HTMLInputElement>(".node-name")?.value,
 		);
 
-		// Value edits skip the row rebuild (focus preservation), so the attribute
-		// mirror in commitLinkValue must keep later clones truthful too.
+		// A valid edit is a committed action — its refresh() render runs
+		// synchronously, so the row's ref-based value-attribute mirror (see
+		// link-row.tsx) has already updated by the time this reads the clone.
 		value.value = "42";
 		fireInput(value);
 		const cloneAfterEdit = linkRow.cloneNode(true) as HTMLElement;
@@ -326,25 +395,38 @@ describe("row reordering", () => {
 		expect(Sortable.get(nodeRows)).toBeNull();
 	});
 
-	it("rebuilding the link editor destroys the previous Sortable instance exactly once rather than leaking it", () => {
+	it("destroying the app tears down the link editor's Sortable instance exactly once", () => {
+		const { app } = mountApp();
+
+		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
+		const instance = Sortable.get(linkRows);
+		expect(instance).toBeTruthy();
+		if (!instance) throw new Error("unreachable");
+		const destroySpy = vi.spyOn(instance, "destroy");
+
+		app.destroy();
+
+		expect(destroySpy).toHaveBeenCalledTimes(1);
+		expect(Sortable.get(linkRows)).toBeNull();
+	});
+
+	it("adding a link re-renders the link editor in place: the rows container and its Sortable instance survive", () => {
 		mountApp();
 
 		const before = requireElement<HTMLElement>("#link-editor .link-rows");
-		const previousInstance = Sortable.get(before);
-		expect(previousInstance).toBeTruthy();
-		if (!previousInstance) throw new Error("unreachable");
-		const destroySpy = vi.spyOn(previousInstance, "destroy");
+		const instanceBefore = Sortable.get(before);
+		expect(instanceBefore).toBeTruthy();
 
-		// add-link rebuilds the link editor (renderLinkEditor replaces
-		// .link-rows wholesale), the link-box counterpart to the add-node case
-		// above — same attachRowSortable's destroy(previous) guard.
+		// Unlike the pre-Preact editor, a committed link mutation is a keyed
+		// Preact re-render, not a rebuild — use-row-sortable.ts's hook owns the
+		// container/Sortable for the life of the mounted editor, so add-link
+		// must not replace or recreate either — mirrors the node-row
+		// equivalent above.
 		click(document.querySelector('[data-action="add-link"]'));
 
-		expect(destroySpy).toHaveBeenCalledTimes(1);
-		expect(Sortable.get(before)).toBeNull();
 		const after = requireElement<HTMLElement>("#link-editor .link-rows");
-		expect(after).not.toBe(before);
-		expect(Sortable.get(after)).toBeTruthy();
+		expect(after).toBe(before);
+		expect(Sortable.get(after)).toBe(instanceBefore);
 	});
 
 	it("boundary keyboard move is a no-op (ArrowUp on the first node row)", () => {

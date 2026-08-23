@@ -11,6 +11,7 @@ import {
 	getStoredState,
 	mountApp,
 	requireElement,
+	tick,
 } from "../helpers/mount-app";
 
 function removeAllNodes(): void {
@@ -106,9 +107,9 @@ describe("import & export", () => {
 		expect(notice()).toBe("Imported 2 nodes, 1 links.");
 
 		// An invalid or empty draft never reaches actions.updateLinkValue (see
-		// commitLinkValue in link-editor.ts), so refresh() — and its
-		// unconditional #io-notice clear — never runs; the import notice must
-		// stand, unlike the committed rename in the test above.
+		// link-row.tsx's commitDraft), so refresh() — and its unconditional
+		// #io-notice clear — never runs; the import notice must stand, unlike
+		// the committed rename in the test above.
 		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
 		valueInput.value = "abc";
 		fireInput(valueInput);
@@ -117,6 +118,34 @@ describe("import & export", () => {
 		valueInput.value = "";
 		fireInput(valueInput);
 		expect(notice()).toBe("Imported 2 nodes, 1 links.");
+	});
+
+	it("import replaces a link's row entirely, resetting an in-progress draft (fresh Link objects get fresh view keys)", async () => {
+		mountApp();
+
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		valueInput.value = "abc";
+		fireInput(valueInput);
+		await tick();
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+
+		const payload = {
+			nodes: [
+				{ id: "n1", name: "X" },
+				{ id: "n2", name: "Y" },
+			],
+			links: [{ source: "n1", target: "n2", value: 7 }],
+			settings: {},
+		};
+		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		fireChange(input);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const importedValueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		expect(importedValueInput.hasAttribute("aria-invalid")).toBe(false);
+		expect(importedValueInput.value).toBe("7");
 	});
 
 	it("rejects a non-diagram file, leaving state and storage untouched, and shows the error", async () => {
