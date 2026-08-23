@@ -6,7 +6,7 @@
  * model stays free of user-facing strings.
  */
 
-import type { AspectRatio, LinkColorMode, Palette, Theme } from "../../model/settings";
+import type { Alignment, AspectRatio, LinkColorMode, Palette, Theme } from "../../model/settings";
 
 // --- Palette ---
 
@@ -21,17 +21,52 @@ export const PALETTE_LABELS: Record<Palette, string> = {
 
 // --- Link color mode ---
 
+export interface LinkColorOptionMeta {
+	label: string;
+	/** The narrow display-dialog's abbreviated copy — identical to `label` except for the gradient mode. */
+	shortLabel: string;
+	iconId: string;
+}
+
 /**
  * Label and sprite-symbol id per link-color mode, keyed by the actual state
- * value. Contract-tested against index.html's hardcoded links/Diagram dialog
- * rows in tests/integration/settings.test.ts.
+ * value. Declaration order is the dialogs' display order (DiagramPanel reads
+ * it via Object.entries) — source, source-target, target, static — which
+ * intentionally differs from model/settings.ts's LINK_COLOR_MODES validation
+ * order. DiagramPanel renders the links/Diagram dialog rows directly from
+ * this table; tests/integration/settings.test.ts's rendered-DOM contract
+ * pins that every entry is actually wired into the markup.
  */
-export const LINK_COLOR_OPTIONS: Record<LinkColorMode, { label: string; iconId: string }> = {
-	source: { label: "Source", iconId: "icon-link-source" },
-	"source-target": { label: "Source to target (gradient)", iconId: "icon-link-gradient" },
-	target: { label: "Target", iconId: "icon-link-target" },
-	static: { label: "Neutral", iconId: "icon-link-neutral" },
+export const LINK_COLOR_OPTIONS: Record<LinkColorMode, LinkColorOptionMeta> = {
+	source: { label: "Source", shortLabel: "Source", iconId: "icon-link-source" },
+	"source-target": {
+		label: "Source to target (gradient)",
+		shortLabel: "Gradient",
+		iconId: "icon-link-gradient",
+	},
+	target: { label: "Target", shortLabel: "Target", iconId: "icon-link-target" },
+	static: { label: "Neutral", shortLabel: "Neutral", iconId: "icon-link-neutral" },
 };
+
+// --- Alignment ---
+
+/**
+ * Label and sprite-symbol id per alignment, in the toolbar/dialog's display
+ * order (left, center, right, justify) — deliberately not
+ * model/settings.ts's ALIGNMENTS validation order (left, right, center,
+ * justify), so this array is the source for DOM iteration order rather than
+ * a re-sort of that one. DiagramPanel renders the alignment rows directly
+ * from this table; tests/integration/settings.test.ts's rendered-DOM
+ * contract pins the value set (not order) against model/settings.ts's
+ * ALIGNMENTS, since that's the one genuinely independent source left to
+ * check against.
+ */
+export const ALIGNMENT_OPTIONS: readonly { value: Alignment; label: string; iconId: string }[] = [
+	{ value: "left", label: "Left", iconId: "icon-align-left" },
+	{ value: "center", label: "Center", iconId: "icon-align-center" },
+	{ value: "right", label: "Right", iconId: "icon-align-right" },
+	{ value: "justify", label: "Justify", iconId: "icon-align-justify" },
+];
 
 // --- Theme ---
 

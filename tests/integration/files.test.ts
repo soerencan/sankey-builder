@@ -68,7 +68,7 @@ describe("import & export", () => {
 		expect(stored.settings.linkColor).toBe("static");
 		// Theme stays the pre-import "light", NOT the file's "dark".
 		expect(stored.settings.theme).toBe("light");
-		// The toolbar's carousel preview and links button follow the import too (syncToolbar).
+		// DiagramPanel's carousel preview and links button follow the import too (both re-render from refresh()).
 		expect(document.getElementById("palette-preview")?.getAttribute("aria-label")).toBe(
 			"Palette: Set 2",
 		);

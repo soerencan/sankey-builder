@@ -11,13 +11,13 @@ export interface ThemeControlActions {
 
 /**
  * Swaps #theme-button's icon/label and the dialog options' aria-pressed to
- * match state — same full-rebuild-from-state approach as syncToolbar, just
- * scoped to the header button and dialog rather than .diagram-panel, since
- * those two live outside it. Also called once at boot (after
- * setupThemeControl). Import deliberately does not call this — theme is a
- * per-browser preference, not diagram data, so it's untouched by import and
- * there's nothing here that could go stale (see app/start-app.ts's
- * ioActions.importDiagram).
+ * match state — a full-rebuild-from-state approach scoped to the header
+ * button and dialog, which sit outside .diagram-panel (DiagramPanel's own
+ * settings controls re-render this way implicitly, as part of Preact's
+ * render). Also called once at boot (after setupThemeControl). Import
+ * deliberately does not call this — theme is a per-browser preference, not
+ * diagram data, so it's untouched by import and there's nothing here that
+ * could go stale (see app/start-app.ts's ioActions.importDiagram).
  */
 export function syncThemeControl(doc: Document, state: State): void {
 	const theme = state.settings.theme;
@@ -38,12 +38,10 @@ export function syncThemeControl(doc: Document, state: State): void {
 
 /**
  * Delegated click listeners on #theme-button and #theme-dialog — the two
- * elements the header control is split across (they sit outside
- * .diagram-panel, so setupToolbar's single panel-wide listener doesn't cover
- * them). Same data-action switch style as setupToolbar, just with its own
- * pair of roots instead of one shared ancestor. `signal` is the owning app
- * instance's AbortSignal — AppHandle.destroy() aborting it tears both
- * listeners below down.
+ * elements the header control is split across, outside .diagram-panel (which
+ * DiagramPanel now owns as JSX event handlers instead of a delegated
+ * listener). `signal` is the owning app instance's AbortSignal —
+ * AppHandle.destroy() aborting it tears both listeners below down.
  */
 export function setupThemeControl(
 	doc: Document,

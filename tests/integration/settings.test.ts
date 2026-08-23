@@ -180,8 +180,9 @@ describe("toolbar & settings", () => {
 		mountApp();
 
 		// Two DOM copies of each alignment button exist (the wide toolbar's
-		// .align-group and the narrow Diagram dialog) — syncToolbar keeps both
-		// in lockstep, so every pressed button must share the same value.
+		// .align-group and the narrow Diagram dialog) — DiagramPanel renders
+		// both from the same settings, so every pressed button must share the
+		// same value.
 		const pressed = Array.from(
 			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
 		).filter((option) => option.getAttribute("aria-pressed") === "true");
@@ -666,11 +667,19 @@ describe("theme changes skip validation and the redraw", () => {
 	});
 });
 
-// Pins index.html's hand-authored control markup to src/features/settings/options.ts's
-// (and, for aspect ratio/alignment values, src/model/settings.ts's) metadata for
-// each of the five closed setting domains, so the two can never silently drift
-// apart. The tests above already exercise behavior around a handful of these
-// rows in passing; this block is the exhaustive, dedicated contract.
+// DiagramPanel renders the palette/links/aspect-ratio/alignment dialogs
+// directly from src/features/settings/options.ts's (and model/settings.ts's)
+// metadata, so most cases below pin dataset wiring/completeness — every
+// entry in the source table is actually present in the rendered DOM with the
+// right data-value/label/icon — rather than checking two independent
+// sources against each other. The alignment value-set check is the
+// exception: it still compares the rendered DOM against model/settings.ts's
+// ALIGNMENTS directly, since options.ts's own ALIGNMENT_OPTIONS deliberately
+// reorders that set (see its doc comment) and could still drift from it. The
+// theme dialog remains index.html's own hand-authored markup (theme-control.ts
+// isn't converted yet), so its case is still a genuine cross-source check.
+// The tests above already exercise behavior around a handful of these rows
+// in passing; this block is the exhaustive, dedicated contract.
 describe("dialog markup vs settings metadata contract", () => {
 	it("palette dialog: data-value set and labels match PALETTE_ORDER / PALETTE_LABELS", () => {
 		mountApp();

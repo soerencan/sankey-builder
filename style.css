@@ -500,9 +500,9 @@ select {
    box carries no sizing so SankeyCanvas's rendered .sankey-canvas div (the
    D3-owned host, sole child) can be the real #diagram-panel flex item without
    an extra nested box. It keeps receiving the --diagram-aspect-ratio/
-   --diagram-preview-height custom properties toolbar.ts and
-   preview-resizer.ts write directly to it; those inherit into
-   .sankey-canvas unaffected by display: contents. */
+   --diagram-aspect-number custom properties diagram-panel.tsx writes and the
+   --diagram-preview-height property preview-resizer.tsx writes directly to
+   it; those inherit into .sankey-canvas unaffected by display: contents. */
 #diagram {
   display: contents;
 }

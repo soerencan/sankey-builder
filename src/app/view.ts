@@ -1,5 +1,6 @@
 import { createNodeColorResolver } from "../features/diagram/colors";
 import type { Link, State } from "../model/graph";
+import type { Alignment, AspectRatio, LinkColorMode, Palette } from "../model/settings";
 
 /** Immutable per-node DTO handed to NodeEditor — see PLAN.md's view-snapshot rationale. */
 export interface NodeView {
@@ -32,6 +33,20 @@ export interface LinkView {
 	readonly source: string | null;
 	readonly target: string | null;
 	readonly value: number;
+}
+
+/** DiagramPanel's settings slice — theme is a separate per-browser preference, not diagram data, so it's excluded. */
+export interface SettingsView {
+	readonly palette: Palette;
+	readonly linkColor: LinkColorMode;
+	readonly alignment: Alignment;
+	readonly aspectRatio: AspectRatio;
+}
+
+/** Projects the diagram-relevant settings, same DTO-per-render approach as projectNodes. */
+export function projectSettings(state: State): SettingsView {
+	const { palette, linkColor, alignment, aspectRatio } = state.settings;
+	return { palette, linkColor, alignment, aspectRatio };
 }
 
 /**

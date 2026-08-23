@@ -1,4 +1,6 @@
 import { render } from "preact";
+import type { DiagramPanelActions } from "../features/diagram/diagram-panel";
+import { DiagramPanel } from "../features/diagram/diagram-panel";
 import { PreviewResizer } from "../features/diagram/preview-resizer";
 import type { DiagramRenderRequest } from "../features/diagram/render";
 import { SankeyCanvas } from "../features/diagram/sankey-canvas";
@@ -12,8 +14,6 @@ import { setupIo } from "../features/files/controls";
 import { applyTheme } from "../features/settings/theme";
 import type { ThemeControlActions } from "../features/settings/theme-control";
 import { setupThemeControl, syncThemeControl } from "../features/settings/theme-control";
-import type { ToolbarActions } from "../features/settings/toolbar";
-import { setupToolbar, syncToolbar } from "../features/settings/toolbar";
 import type { State } from "../model/graph";
 import {
 	addLink,
@@ -28,7 +28,7 @@ import {
 } from "../model/graph";
 import { validate } from "../model/validation";
 import { loadState, saveState } from "../platform/storage";
-import { createLinkProjector, projectNodes } from "./view";
+import { createLinkProjector, projectNodes, projectSettings } from "./view";
 
 export interface AppHandle {
 	/** Idempotent — safe to call more than once. */
@@ -74,6 +74,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const linkEditorRoot = requireRoot(doc, "link-editor");
 	const diagramRoot = requireRoot(doc, "diagram");
 	const previewResizerRoot = requireRoot(doc, "preview-resizer");
+	const diagramControlsRoot = requireRoot(doc, "diagram-controls");
 
 	// win.AbortController, not the bare global: `doc` may belong to a window
 	// other than this module's own ambient one (e.g. a second startApp()
@@ -134,14 +135,16 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 *    disturbing the visible SVG (see DiagramRenderRequest's own comment).
 	 * 2. Persist + update notices regardless of validity — see
 	 *    persistAndClearNotices's own doc comment for why.
-	 * 3. Render both editors and SankeyCanvas unconditionally. The editors'
-	 *    rows are keyed (node id; the link projector's weak key), so a Preact
-	 *    re-render patches names/swatches/values/order in place — preserving
-	 *    focus, an in-progress link-value draft, and each row-sortable hook's
-	 *    Sortable instance — instead of rebuilding. SankeyCanvas only reruns
-	 *    D3 when `lastValidRequest`'s identity actually changed (its own
-	 *    layout effect is keyed on it), so passing the same reference here on
-	 *    an invalid graph is a no-op redraw.
+	 * 3. Render both editors, DiagramPanel, and SankeyCanvas unconditionally.
+	 *    The editors' rows are keyed (node id; the link projector's weak key),
+	 *    so a Preact re-render patches names/swatches/values/order in place —
+	 *    preserving focus, an in-progress link-value draft, and each
+	 *    row-sortable hook's Sortable instance — instead of rebuilding.
+	 *    DiagramPanel re-renders unconditionally too, so its aria-pressed
+	 *    controls follow a settings change or import. SankeyCanvas only
+	 *    reruns D3 when `lastValidRequest`'s identity actually changed (its
+	 *    own layout effect is keyed on it), so passing the same reference
+	 *    here on an invalid graph is a no-op redraw.
 	 */
 	function refresh(): void {
 		const result = validate(state);
@@ -163,6 +166,16 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		render(
 			<LinkEditor links={projectLinks(state)} nodes={nodes} actions={linkEditorActions} />,
 			linkEditorRoot,
+		);
+		render(
+			<DiagramPanel
+				doc={doc}
+				win={win}
+				diagramEl={diagramRoot}
+				settings={projectSettings(state)}
+				actions={diagramPanelActions}
+			/>,
+			diagramControlsRoot,
 		);
 		render(<SankeyCanvas request={lastValidRequest} />, diagramRoot);
 	}
@@ -216,13 +229,15 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		},
 	};
 
+	// Shared by both setupIo (import/JSON export) and diagramPanelActions
+	// below (SVG/PNG export), so every #io-notice message goes through one
+	// implementation regardless of which control produced it.
 	const ioActions: IoActions = {
 		importDiagram(imported, repairs) {
 			// theme is deliberately untouched — a per-browser preference, not
 			// diagram data, so it survives an import. No syncThemeControl call
 			// here for that reason: nothing about the theme control could go stale.
 			replaceDiagram(state, imported);
-			syncToolbar(doc, state);
 			refresh();
 			let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
 			if (repairs.length > 0) message += ` Adjustments: ${repairs.join("; ")}.`;
@@ -257,7 +272,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		},
 	};
 
-	const toolbarActions: ToolbarActions = {
+	const diagramPanelActions: DiagramPanelActions = {
 		setPalette(value) {
 			state.settings.palette = value;
 			// Node colors are palette-derived; refresh()'s unconditional render
@@ -278,10 +293,11 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			state.settings.aspectRatio = value;
 			refresh();
 		},
+		reportExportSuccess: ioActions.reportExportSuccess,
+		reportExportError: ioActions.reportExportError,
 	};
 
 	setupThemeControl(doc, state, themeControlActions, signal);
-	setupToolbar(doc, state, toolbarActions, signal);
 	setupIo(doc, win, state, ioActions, signal);
 
 	// Mounted once, not by refresh(): the preview height is independent of
@@ -290,10 +306,10 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	render(<PreviewResizer diagramEl={diagramRoot} win={win} />, previewResizerRoot);
 
 	refresh();
-	// setupToolbar/setupThemeControl wire listeners only (see their own docs) —
-	// sync the initial preview/dialog rows here, against the state
-	// loadState() just restored.
-	syncToolbar(doc, state);
+	// setupThemeControl wires listeners only (see its own doc) — sync the
+	// initial theme button/dialog here, against the state loadState() just
+	// restored. DiagramPanel needs no equivalent call: refresh() above
+	// already rendered it from that same state.
 	syncThemeControl(doc, state);
 
 	function destroy(): void {
@@ -309,6 +325,9 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		// synchronously, tearing down its own Sortable instance.
 		render(null, nodeEditorRoot);
 		render(null, linkEditorRoot);
+		// Unmounts DiagramPanel; each of its useDialog() hooks tears down its
+		// own listeners as an effect cleanup, not via the AbortSignal above.
+		render(null, diagramControlsRoot);
 		// Unmounts SankeyCanvas, whose own layout-effect cleanup clears the SVG.
 		render(null, diagramRoot);
 		// Unmounts PreviewResizer, whose own layout-effect cleanup cancels any
