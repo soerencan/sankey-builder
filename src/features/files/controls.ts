@@ -49,6 +49,8 @@ export function setupIo(
 	const diagramExportDialogEl = doc.getElementById("diagram-export-dialog");
 	const importButton = doc.getElementById("import-button");
 	const fileInput = doc.getElementById("import-file");
+	// Resolved once rather than re-queried by every export handler below.
+	const diagramHost = doc.getElementById("diagram");
 	if (!isHTMLInputElement(fileInput)) return;
 	const diagramExportDialog = isHTMLDialogElement(diagramExportDialogEl)
 		? setupDialog(diagramExportDialogEl, signal)
@@ -79,7 +81,7 @@ export function setupIo(
 		exportSvgButton.addEventListener(
 			"click",
 			() => {
-				const svg = serializeVisibleDiagram(doc, win, actions);
+				const svg = serializeVisibleDiagram(diagramHost, win, actions);
 				if (svg) {
 					download(doc, win, new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
 					actions.reportExportSuccess(EXPORT_SVG_FILENAME);
@@ -95,9 +97,9 @@ export function setupIo(
 		exportPngButton.addEventListener(
 			"click",
 			() => {
-				const svg = serializeVisibleDiagram(doc, win, actions);
+				const svg = serializeVisibleDiagram(diagramHost, win, actions);
 				if (svg) {
-					const svgElement = doc.querySelector("#diagram svg") as SVGSVGElement;
+					const svgElement = diagramHost?.querySelector("svg") as SVGSVGElement;
 					const { width, height } = svgViewBoxSize(svgElement);
 					rasterizeSvg(doc, win, svg, width, height, PNG_EXPORT_SCALE)
 						.then((blob) => {
@@ -162,11 +164,11 @@ function closeContainingDialog(control: HTMLElement): void {
  * there's nothing to export.
  */
 function serializeVisibleDiagram(
-	doc: Document,
+	diagramHost: HTMLElement | null,
 	win: Window,
 	actions: IoActions,
 ): string | undefined {
-	const svgEl = doc.querySelector("#diagram svg");
+	const svgEl = diagramHost?.querySelector("svg") ?? null;
 	if (!isSvgSvgElement(svgEl)) {
 		actions.reportExportError("Nothing to export — the diagram is empty.");
 		return undefined;

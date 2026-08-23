@@ -6,7 +6,7 @@ import {
 	schemeSet2,
 	schemeTableau10,
 } from "d3";
-import type { Node, State } from "../../model/graph";
+import type { Node } from "../../model/graph";
 import { DEFAULT_SETTINGS, isPaletteKey } from "../../model/settings";
 import type { Palette } from "../../model/settings";
 
@@ -38,18 +38,26 @@ export function paletteColors(key: Palette): readonly string[] {
 export type NodeColorResolver = (node: Node) => string;
 
 /**
- * Built once per refresh pass and reused across the editors and the diagram,
- * rather than a module-level singleton (which would leak state across app
- * instances) or rebuilding an O(n) ordinal scale on every single lookup.
+ * Built fresh each time a caller needs one (the node editor projector and the
+ * diagram renderer each build their own) rather than a module-level
+ * singleton (which would leak state across app instances) — cheap because
+ * it's an O(n) ordinal scale, and the explicit-domain construction below
+ * makes any two resolvers built from the same nodes/palette interchangeable.
+ * Takes nodes + palette rather than a whole `State`/snapshot so it works
+ * unchanged for both the mutable domain state (editors) and the renderer's
+ * readonly `DiagramSnapshot`.
  */
-export function createNodeColorResolver(state: State): NodeColorResolver {
+export function createNodeColorResolver(
+	nodes: readonly Readonly<Node>[],
+	palette: Palette,
+): NodeColorResolver {
 	// Explicit domain (current node ids) so colors stay deterministic and
 	// don't reshuffle as nodes are added/removed/renamed.
 	const scale = scaleOrdinal(
-		state.nodes.map((n) => n.id),
-		activePalette(state.settings.palette),
+		nodes.map((n) => n.id),
+		activePalette(palette),
 	);
 	// Single seam for palette switching — everything else calls the resolver
-	// instead of touching a scale/state.settings.palette directly.
+	// instead of touching a scale/palette directly.
 	return (node) => scale(node.id);
 }

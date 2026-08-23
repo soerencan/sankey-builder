@@ -1,5 +1,4 @@
 import { render } from "preact";
-import { createNodeColorResolver } from "../features/diagram/colors";
 import { setupPreviewResizer } from "../features/diagram/preview-resizer";
 import { renderDiagram } from "../features/diagram/render";
 import type { LinkEditorActions } from "../features/editor/link-editor";
@@ -72,6 +71,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const storageNoticeRoot = requireRoot(doc, "storage-notice");
 	const nodeEditorRoot = requireRoot(doc, "node-editor");
 	const linkEditorRoot = requireRoot(doc, "link-editor");
+	const diagramRoot = requireRoot(doc, "diagram");
 
 	// win.AbortController, not the bare global: `doc` may belong to a window
 	// other than this module's own ambient one (e.g. a second startApp()
@@ -118,22 +118,20 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 * The validate-then-render flow — the subtlest sequencing in the app.
 	 * Order matters and is preserved exactly:
 	 *
-	 * 1. Rebuild the color resolver fresh from state (see
-	 *    createNodeColorResolver's own doc comment for why it's rebuilt here
-	 *    rather than cached).
-	 * 2. Validate, then persist + update notices — see persistAndClearNotices's
+	 * 1. Validate, then persist + update notices — see persistAndClearNotices's
 	 *    own doc comment for why persistence runs regardless of validity.
-	 * 3. Render both editors unconditionally: their rows are keyed (node id;
+	 * 2. Render both editors unconditionally: their rows are keyed (node id;
 	 *    the link projector's weak key), so a Preact re-render patches
 	 *    names/swatches/values/order in place — preserving focus, an
 	 *    in-progress link-value draft, and each row-sortable hook's Sortable
 	 *    instance — instead of rebuilding. There's no rebuild-flag/focus
 	 *    trade-off left to make for either editor.
-	 * 4. Bail before the diagram rebuild on an invalid graph (see the inline
-	 *    comment below) — otherwise render.
+	 * 3. Bail before the diagram rebuild on an invalid graph (see the inline
+	 *    comment below) — otherwise render. renderDiagram builds its own color
+	 *    resolver from the snapshot it's handed (see createNodeColorResolver's
+	 *    own doc comment for why it's rebuilt per pass rather than cached).
 	 */
 	function refresh(): void {
-		const nodeColor = createNodeColorResolver(state);
 		const result = validate(state);
 		errorRoot.textContent = result.ok ? "" : (result.error ?? "");
 
@@ -149,7 +147,11 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		// screen; the editors above still update so the user can see and fix
 		// the offending row.
 		if (!result.ok) return;
-		renderDiagram(doc, state, nodeColor);
+		renderDiagram(diagramRoot, {
+			nodes: state.nodes,
+			links: state.links,
+			settings: state.settings,
+		});
 	}
 
 	const nodeEditorActions: NodeEditorActions = {

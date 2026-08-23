@@ -8,10 +8,11 @@ import {
 	sankeyRight,
 } from "d3-sankey";
 import type { SankeyLink, SankeyNode } from "d3-sankey";
-import type { Link, Node, State } from "../../model/graph";
+import type { Link, Node, Settings } from "../../model/graph";
 import { isComplete } from "../../model/graph";
 import type { Alignment, LinkColorMode } from "../../model/settings";
 import { aspectRatioOption } from "../../model/settings";
+import { createNodeColorResolver } from "./colors";
 import type { NodeColorResolver } from "./colors";
 
 // A link with both endpoints assigned — the only kind d3-sankey ever lays out.
@@ -19,6 +20,17 @@ type CompleteLink = Link & { source: string; target: string };
 
 export const DIAGRAM_WIDTH = 960;
 export const DIAGRAM_HEIGHT = 480;
+
+/**
+ * The renderer's own input contract, decoupled from the mutable domain
+ * `State` — callers hand over a point-in-time view rather than a live
+ * reference the renderer (or anything it calls into) could mutate.
+ */
+export interface DiagramSnapshot {
+	readonly nodes: readonly Readonly<Node>[];
+	readonly links: readonly Readonly<Link>[];
+	readonly settings: Readonly<Settings>;
+}
 
 // No link fields beyond the ones d3-sankey's own SankeyLinkMinimal already
 // declares (source/target/value) — the second type param exists for extras.
@@ -66,24 +78,31 @@ function alignFn(name: Alignment): typeof sankeyJustify {
 
 /**
  * Runs d3-sankey layout on a copy of the graph, since d3-sankey mutates
- * whatever it's given.
+ * whatever it's given. `structuredClone` deep-copies `nodes`/`sourceLinks`
+ * into an entirely new object graph; the cast below only types that copy as
+ * mutable for d3-sankey's in-place layout — it never mutates the readonly
+ * snapshot the caller passed in.
  */
 function layout(
-	state: State,
-	sourceLinks: CompleteLink[],
+	nodes: readonly Readonly<Node>[],
+	sourceLinks: readonly CompleteLink[],
+	alignment: Alignment,
 	width: number,
 	height: number,
 ): { nodes: LayoutNode[]; links: LayoutLink[] } {
-	const { nodes, links } = structuredClone({ nodes: state.nodes, links: sourceLinks });
+	const working = structuredClone({ nodes, links: sourceLinks }) as {
+		nodes: Node[];
+		links: CompleteLink[];
+	};
 	const graph = sankey<Node, LinkExtra>()
 		.nodeId((d) => d.id)
-		.nodeAlign(alignFn(state.settings.alignment))
+		.nodeAlign(alignFn(alignment))
 		.nodeWidth(15)
 		.nodePadding(10)
 		.extent([
 			[1, 5],
 			[width - 1, height - 5],
-		])({ nodes, links });
+		])(working);
 	return graph as unknown as { nodes: LayoutNode[]; links: LayoutLink[] };
 }
 
@@ -100,24 +119,33 @@ function linkStroke(mode: LinkColorMode, nodeColor: NodeColorResolver): (d: Layo
 	return (d) => `url(#link-grad-${d.index})`;
 }
 
-export function renderDiagram(doc: Document, state: State, nodeColor: NodeColorResolver): void {
-	const container = select(doc.getElementById("diagram"));
-	container.html("");
+export function renderDiagram(container: HTMLElement, snapshot: DiagramSnapshot): void {
+	const root = select(container);
+	// Clears only the container's descendants — the container element itself
+	// is caller-owned.
+	root.html("");
 
 	// d3-sankey's internal bin-by-column step does `new Array(-1)` on an
 	// empty node list, throwing RangeError before it ever gets to layout.
-	if (state.nodes.length === 0) return;
+	if (snapshot.nodes.length === 0) return;
 	// Only complete links have geometry; incomplete ones are omitted. Zero
 	// complete links collapses every node into a single column with zero value,
 	// which d3-sankey turns into NaN geometry (0 * Infinity) rather than a
 	// throw — nothing meaningful to draw anyway, so bail the same way.
-	const completeLinks = state.links.filter(isComplete);
+	const completeLinks = snapshot.links.filter(isComplete);
 	if (completeLinks.length === 0) return;
 
-	const { width, height } = aspectRatioOption(state.settings.aspectRatio);
-	const { nodes, links } = layout(state, completeLinks, width, height);
+	const nodeColor = createNodeColorResolver(snapshot.nodes, snapshot.settings.palette);
+	const { width, height } = aspectRatioOption(snapshot.settings.aspectRatio);
+	const { nodes, links } = layout(
+		snapshot.nodes,
+		completeLinks,
+		snapshot.settings.alignment,
+		width,
+		height,
+	);
 
-	const svg = container.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
+	const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
 
 	// Paint order matches the reference example: link ribbons under node rects.
 	// Each link gets its own <g> so the source-target mode can nest a
@@ -130,7 +158,7 @@ export function renderDiagram(doc: Document, state: State, nodeColor: NodeColorR
 		.data(links)
 		.join("g");
 
-	if (state.settings.linkColor === "source-target") {
+	if (snapshot.settings.linkColor === "source-target") {
 		linkGroup
 			.append("linearGradient")
 			.attr("id", (d) => `link-grad-${d.index}`)
@@ -154,7 +182,7 @@ export function renderDiagram(doc: Document, state: State, nodeColor: NodeColorR
 	linkGroup
 		.append("path")
 		.attr("d", sankeyLinkHorizontal())
-		.attr("stroke", linkStroke(state.settings.linkColor, nodeColor))
+		.attr("stroke", linkStroke(snapshot.settings.linkColor, nodeColor))
 		.attr("stroke-width", (d) => Math.max(1, d.width));
 
 	svg

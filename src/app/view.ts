@@ -11,12 +11,13 @@ export interface NodeView {
 /**
  * Projects the current node editor's view from domain state. Nodes are
  * already stably identified by id, so — unlike the deferred link projector —
- * this needs no weak key registry. Rebuilds the color resolver from `state`
- * on every call rather than accepting a shared one (see
- * createNodeColorResolver's own doc comment for why it's rebuilt per pass).
+ * this needs no weak key registry. Rebuilds the color resolver from
+ * `state.nodes`/`state.settings.palette` on every call rather than accepting
+ * a shared one (see createNodeColorResolver's own doc comment for why it's
+ * built fresh per caller).
  */
 export function projectNodes(state: State): readonly NodeView[] {
-	const nodeColor = createNodeColorResolver(state);
+	const nodeColor = createNodeColorResolver(state.nodes, state.settings.palette);
 	return state.nodes.map((node) => ({
 		id: node.id,
 		name: node.name,
