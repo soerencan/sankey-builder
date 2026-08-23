@@ -11,9 +11,10 @@ import { NodeEditor } from "./node-editor";
 const EXPORT_JSON_FILENAME = "sankey.json";
 
 export interface DataPanelActions {
+	/** Starting a new import or export attempt clears any notice left by a previous one (PLAN.md's Notice policy). */
+	clearIoNotice(): void;
 	importDiagram(imported: ImportState, repairs: string[]): void;
 	reportImportError(message: string): void;
-	reportExportSuccess(filename: string): void;
 	// Unused by this component's own JSON export (which has no failure path) but
 	// part of the shared #io-notice action object start-app.tsx also hands to
 	// DiagramPanel for SVG/PNG export failures — see start-app.tsx's ioActions.
@@ -54,9 +55,9 @@ export function DataPanel({
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	function handleExport(): void {
+		actions.clearIoNotice();
 		const blob = new Blob([serializeState(state)], { type: "application/json" });
 		download(doc, win, blob, EXPORT_JSON_FILENAME);
-		actions.reportExportSuccess(EXPORT_JSON_FILENAME);
 	}
 
 	async function handleFileChange(): Promise<void> {
@@ -66,6 +67,7 @@ export function DataPanel({
 		// Reset now, before the read, so re-picking the same file still re-fires 'change'.
 		input.value = "";
 		if (!file) return;
+		actions.clearIoNotice();
 
 		let text: string;
 		try {

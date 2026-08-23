@@ -98,17 +98,12 @@ describe("import & export", () => {
 			"Links: Neutral",
 		);
 
-		expect(document.getElementById("io-notice")?.textContent).toBe("Imported 3 nodes, 2 links.");
-
-		// The import notice is one-shot: the next user action (here, a rename)
-		// runs refresh(), which retires it.
-		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
-		nameInput.value = "Renamed";
-		fireInput(nameInput);
+		// Import without repairs is no longer announced — the changed data is
+		// sufficient feedback (PLAN.md's Notice policy).
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 
-	it("import notice: not cleared by an invalid or empty link-value draft, only by the next committed action", async () => {
+	it("import notice: a repair warning is not cleared by an invalid or empty link-value draft, only by the next committed action", async () => {
 		mountApp();
 
 		const payload = {
@@ -116,7 +111,10 @@ describe("import & export", () => {
 				{ id: "n1", name: "X" },
 				{ id: "n2", name: "Y" },
 			],
-			links: [{ source: "n1", target: "n2", value: 3 }],
+			// A dangling target is repaired to null, which installs the warning
+			// this test needs — a plain, repair-free import (see the test above)
+			// installs no notice at all to seed from.
+			links: [{ source: "n1", target: "gone", value: 3 }],
 			settings: {},
 		};
 		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
@@ -126,20 +124,28 @@ describe("import & export", () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		const notice = () => document.getElementById("io-notice")?.textContent;
-		expect(notice()).toBe("Imported 2 nodes, 1 links.");
+		const repairMessage =
+			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.";
+		expect(notice()).toBe(repairMessage);
 
 		// An invalid or empty draft never reaches actions.updateLinkValue (see
 		// link-row.tsx's commitDraft), so refresh() — and its unconditional
-		// #io-notice clear — never runs; the import notice must stand, unlike
-		// the committed rename in the test above.
+		// #io-notice clear — never runs; the import notice must stand.
 		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
 		valueInput.value = "abc";
 		fireInput(valueInput);
-		expect(notice()).toBe("Imported 2 nodes, 1 links.");
+		expect(notice()).toBe(repairMessage);
 
 		valueInput.value = "";
 		fireInput(valueInput);
-		expect(notice()).toBe("Imported 2 nodes, 1 links.");
+		expect(notice()).toBe(repairMessage);
+
+		// The import notice is one-shot: the next committed action (here, a
+		// rename) runs refresh(), which retires it.
+		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
+		nameInput.value = "Renamed";
+		fireInput(nameInput);
+		expect(notice()).toBe("");
 	});
 
 	it("import replaces a link's row entirely, resetting an in-progress draft (fresh Link objects get fresh view keys)", async () => {
@@ -251,7 +257,7 @@ describe("import & export", () => {
 		expect(revokedUrl).toBe("blob:fake");
 	});
 
-	it("announces a successful export via #io-notice", async () => {
+	it("shows no notice for a successful export — the download itself is sufficient feedback", async () => {
 		mountApp();
 
 		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
@@ -264,7 +270,68 @@ describe("import & export", () => {
 			revokeObjectURL.mockRestore();
 		}
 
-		expect(document.getElementById("io-notice")?.textContent).toBe("Exported sankey.json.");
+		expect(document.getElementById("io-notice")?.textContent).toBe("");
+	});
+
+	it("starting a new export clears a prior io notice", async () => {
+		mountApp();
+
+		// Seed #io-notice with an import failure — a failed import reports
+		// directly, without going through refresh(), so nothing else has
+		// cleared it yet.
+		const file = new File(['{"totally":"unrelated"}'], "notes.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		fireChange(input);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(document.getElementById("io-notice")?.textContent).toContain("diagram export");
+
+		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
+		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+		try {
+			click(document.getElementById("export-button"));
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		} finally {
+			createObjectURL.mockRestore();
+			revokeObjectURL.mockRestore();
+		}
+
+		expect(document.getElementById("io-notice")?.textContent).toBe("");
+	});
+
+	it("a successful export retry after a failure leaves the io slot empty, not a success message", async () => {
+		mountApp();
+
+		removeAllNodes();
+		const trigger = document.getElementById("diagram-export-button");
+		const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
+		click(trigger);
+		click(dialog.querySelector('[data-action="export-svg"]'));
+		expect(document.getElementById("io-notice")?.textContent).toBe(
+			"Nothing to export — the diagram is empty.",
+		);
+
+		// Restore a valid, exportable diagram via import (a complete link, so
+		// renderDiagram draws an svg — a linkless graph draws none).
+		const payload = {
+			nodes: [
+				{ id: "n1", name: "X" },
+				{ id: "n2", name: "Y" },
+			],
+			links: [{ source: "n1", target: "n2", value: 1 }],
+			settings: {},
+		};
+		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		fireChange(input);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(document.querySelector("#diagram svg")).not.toBeNull();
+
+		click(document.getElementById("diagram-export-button"));
+		click(dialog.querySelector('[data-action="export-svg"]'));
+
+		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 
 	it("opens the diagram export dialog and moves focus into its format choices", () => {

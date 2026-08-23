@@ -293,19 +293,26 @@ describe("node & link editing", () => {
 	it("invalid draft: no persist, no notice change, no redraw", async () => {
 		mountApp();
 
-		// Give #io-notice non-empty content first (an export success message,
-		// same as files.test.ts's export tests) so "the notice doesn't change"
+		// Give #io-notice non-empty content first (a repaired import's warning —
+		// export success installs no notice under the current policy, so it
+		// can't seed this the way it once did) so "the notice doesn't change"
 		// below is a real assertion rather than two empty strings.
-		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
-		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-		try {
-			click(document.getElementById("export-button"));
-			await new Promise((resolve) => setTimeout(resolve, 0));
-		} finally {
-			createObjectURL.mockRestore();
-			revokeObjectURL.mockRestore();
-		}
-		expect(document.getElementById("io-notice")?.textContent).toBe("Exported sankey.json.");
+		const payload = {
+			nodes: [
+				{ id: "n1", name: "X" },
+				{ id: "n2", name: "Y" },
+			],
+			links: [{ source: "n1", target: "gone", value: 1 }],
+			settings: {},
+		};
+		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		fireChange(input);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(document.getElementById("io-notice")?.textContent).toBe(
+			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.",
+		);
 
 		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
 		const storedBefore = localStorage.getItem(STORAGE_KEY);

@@ -38,7 +38,8 @@ export interface DiagramPanelActions {
 	setLinkColor(value: LinkColorMode): void;
 	setAlignment(value: Alignment): void;
 	setAspectRatio(value: AspectRatio): void;
-	reportExportSuccess(filename: string): void;
+	/** Starting a new export attempt clears any notice left by a previous one (PLAN.md's Notice policy). */
+	clearIoNotice(): void;
 	reportExportError(message: string): void;
 }
 
@@ -148,15 +149,16 @@ export function DiagramPanel({
 	}
 
 	function exportSvg(dialog: DialogHandle): void {
+		actions.clearIoNotice();
 		const svg = serializeVisibleDiagram(diagramEl, win, actions);
 		if (svg) {
 			download(doc, win, new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
-			actions.reportExportSuccess(EXPORT_SVG_FILENAME);
 		}
 		dialog.close();
 	}
 
 	function exportPng(dialog: DialogHandle): void {
+		actions.clearIoNotice();
 		const svg = serializeVisibleDiagram(diagramEl, win, actions);
 		if (svg) {
 			const svgElement = diagramEl.querySelector("svg") as SVGSVGElement;
@@ -169,7 +171,6 @@ export function DiagramPanel({
 					// only guards a resolve that raced destroy() in the same tick.
 					if (signal.aborted) return;
 					download(doc, win, blob, EXPORT_PNG_FILENAME);
-					actions.reportExportSuccess(EXPORT_PNG_FILENAME);
 				})
 				.catch((err) => {
 					if (signal.aborted) return;

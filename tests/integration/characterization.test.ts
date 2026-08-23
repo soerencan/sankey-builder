@@ -147,7 +147,9 @@ describe("characterization: pre-Preact-migration behavior", () => {
 		expect((svgText.match(/<rect/g) ?? []).length).toBe(rectsBefore + 1);
 		expect(svgText).toContain(oldName);
 		expect(svgText).not.toContain("Renamed For Export Test");
-		expect(document.getElementById("io-notice")?.textContent).toBe("Exported sankey.svg.");
+		// Deliberate pin change (PLAN.md's Notice policy): a successful export no
+		// longer installs a visible notice — the download itself is the feedback.
+		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 
 	it("keeps focus on a link-value input through its own committed valid keystroke, which still redraws the diagram", () => {

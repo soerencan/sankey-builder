@@ -604,15 +604,21 @@ describe("theme changes skip validation and the redraw", () => {
 	it("on a valid graph: persists, clears a seeded I/O notice, applies data-theme, and leaves the rendered SVG untouched", async () => {
 		mountApp();
 
-		// Seed #io-notice the same way files.test.ts's import tests do — a
-		// successful import sets it after its own refresh() — so "cleared by the
-		// theme change" below is a real assertion, not two empty strings.
+		// Seed #io-notice the same way files.test.ts's repair-warning import test
+		// does — a repaired import installs a notice after its own refresh() (an
+		// import without repairs installs none under the current policy) — so
+		// "cleared by the theme change" below is a real assertion, not two empty
+		// strings.
 		const payload = {
 			nodes: [
 				{ id: "n1", name: "X" },
 				{ id: "n2", name: "Y" },
 			],
 			links: [{ source: "n1", target: "n2", value: 3 }],
+			// An unrecognized palette is repaired to the default, which installs
+			// the warning — the link itself must stay complete so the diagram
+			// below still renders an svg (a linkless graph draws none).
+			settings: { palette: "not-a-real-palette" },
 		};
 		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
 		const input = document.getElementById("import-file") as HTMLInputElement;
@@ -621,7 +627,9 @@ describe("theme changes skip validation and the redraw", () => {
 		// Flush the async file.text() + parseImport chain.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		expect(document.getElementById("io-notice")?.textContent).toBe("Imported 2 nodes, 1 links.");
+		expect(document.getElementById("io-notice")?.textContent).toBe(
+			"Imported 2 nodes, 1 links. Adjustments: settings: unknown palette — using default.",
+		);
 
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();

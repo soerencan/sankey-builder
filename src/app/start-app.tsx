@@ -26,6 +26,7 @@ import {
 } from "../model/graph";
 import { validate } from "../model/validation";
 import { loadState, saveState } from "../platform/storage";
+import type { Notice } from "./notices";
 import { createLinkProjector, projectNodes, projectSettings } from "./view";
 
 export interface AppHandle {
@@ -95,6 +96,19 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 
 	applyTheme(doc, state.settings.theme);
 
+	// Presentation is still the three legacy containers this step — see
+	// PLAN.md's "Notice policy" and notices.ts's own doc comment; only the
+	// consolidated NoticeRegion (next step) reads these Notice values back.
+	function showGraphNotice(notice: Notice | null): void {
+		errorRoot.textContent = notice?.message ?? "";
+	}
+	function showStorageNotice(notice: Notice | null): void {
+		storageNoticeRoot.textContent = notice?.message ?? "";
+	}
+	function showIoNotice(notice: Notice | null): void {
+		ioNoticeRoot.textContent = notice?.message ?? "";
+	}
+
 	/**
 	 * The save/notice portion of refresh() below, factored out so the
 	 * theme-change path can reuse it without also validating or redrawing.
@@ -102,9 +116,9 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 * for the surrounding rationale):
 	 *
 	 * 1. Clear any I/O notice (import or export): it's a one-shot result of the
-	 *    last action, so the next user action retires it. importDiagram() sets
-	 *    #io-notice AFTER its own refresh() call, so its message survives that
-	 *    refresh and clears here on the following action.
+	 *    last action, so the next committed action retires it. importDiagram()
+	 *    installs its repair warning AFTER its own refresh() call, so that
+	 *    warning survives this clear and only retires on the following action.
 	 * 2. Save — regardless of validity: an invalid *topology* the user is still
 	 *    editing (e.g. a cycle) is retained in the editor and must survive a
 	 *    reload; there is no "last-good state" in storage, only the last-good
@@ -114,9 +128,9 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 *    rather than staying stuck once saves work again.
 	 */
 	function persistAndClearNotices(): void {
-		ioNoticeRoot.textContent = "";
+		showIoNotice(null);
 		const saved = saveState(win.localStorage, state);
-		storageNoticeRoot.textContent = saved ? "" : STORAGE_NOTICE;
+		showStorageNotice(saved ? null : { kind: "storage", tone: "warning", message: STORAGE_NOTICE });
 	}
 
 	/**
@@ -145,7 +159,9 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 */
 	function refresh(): void {
 		const result = validate(state);
-		errorRoot.textContent = result.ok ? "" : (result.error ?? "");
+		showGraphNotice(
+			result.ok ? null : { kind: "graph", tone: "error", message: result.error ?? "" },
+		);
 		if (result.ok) {
 			lastValidRequest = {
 				state: structuredClone({
@@ -240,30 +256,31 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	// below (SVG/PNG export), so every #io-notice message goes through one
 	// implementation regardless of which control produced it.
 	const dataPanelActions: DataPanelActions = {
+		clearIoNotice() {
+			showIoNotice(null);
+		},
 		importDiagram(imported, repairs) {
 			// theme is deliberately untouched — a per-browser preference, not
 			// diagram data, so it survives an import. No syncThemeControl call
 			// here for that reason: nothing about the theme control could go stale.
 			replaceDiagram(state, imported);
 			refresh();
-			let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
-			if (repairs.length > 0) message += ` Adjustments: ${repairs.join("; ")}.`;
+			// No notice when nothing needed adjusting — the changed data is
+			// sufficient feedback (PLAN.md's Notice policy).
+			if (repairs.length === 0) return;
 			// Set AFTER refresh() (which clears #io-notice) so this message survives
-			// the import's own refresh and only retires on the next user action.
-			// Separate from #storage-notice so it doesn't disturb that lifecycle.
-			ioNoticeRoot.textContent = message;
+			// the import's own refresh and only retires on the next committed action.
+			showIoNotice({
+				kind: "io",
+				tone: "warning",
+				message: `Imported ${state.nodes.length} nodes, ${state.links.length} links. Adjustments: ${repairs.join("; ")}.`,
+			});
 		},
 		reportImportError(message) {
-			ioNoticeRoot.textContent = message;
+			showIoNotice({ kind: "io", tone: "error", message });
 		},
 		reportExportError(message) {
-			ioNoticeRoot.textContent = message;
-		},
-		reportExportSuccess(filename) {
-			// Not preceded by refresh() (export doesn't touch state), so no risk of
-			// this being cleared before it's shown; it retires the same way import's
-			// notice does, on the next refresh()-triggering user action.
-			ioNoticeRoot.textContent = `Exported ${filename}.`;
+			showIoNotice({ kind: "io", tone: "error", message });
 		},
 	};
 
@@ -300,7 +317,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			state.settings.aspectRatio = value;
 			refresh();
 		},
-		reportExportSuccess: dataPanelActions.reportExportSuccess,
+		clearIoNotice: dataPanelActions.clearIoNotice,
 		reportExportError: dataPanelActions.reportExportError,
 	};
 
