@@ -1,6 +1,6 @@
+import { normalizeLinks, normalizeNodes, normalizeSettings } from "../../model/codec";
 import type { Link, Node, Settings, State } from "../../model/graph";
 import { isComplete } from "../../model/graph";
-import { normalizeLinks, normalizeNodes, normalizeSettings } from "../../platform/storage";
 
 /** Settings travel without theme — a per-browser preference, not diagram data. */
 export type ImportSettings = Omit<Settings, "theme">;
