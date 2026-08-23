@@ -125,3 +125,32 @@ export function moveNode(state: State, from: number, to: number): void {
 export function moveLink(state: State, from: number, to: number): void {
 	moveWithin(state.links, from, to);
 }
+
+/**
+ * Shaped structurally (not `import type { ImportState }`) so the model never
+ * depends on features/files — diagram-file.ts's ImportState is assignable
+ * here instead.
+ */
+export interface Diagram {
+	nodes: Node[];
+	links: Link[];
+	settings: Omit<Settings, "theme">;
+}
+
+/**
+ * Whole-diagram replacement, used by import. Mutates nodes/links/settings in
+ * place (array length=0+push, not reassignment) rather than replacing
+ * `state` itself, so callers that captured the State reference in closures
+ * (editors, Sortable) keep seeing live data. `settings.theme` is deliberately
+ * left untouched — a per-browser preference, not diagram data.
+ */
+export function replaceDiagram(state: State, diagram: Diagram): void {
+	state.nodes.length = 0;
+	state.nodes.push(...diagram.nodes);
+	state.links.length = 0;
+	state.links.push(...diagram.links);
+	state.settings.palette = diagram.settings.palette;
+	state.settings.linkColor = diagram.settings.linkColor;
+	state.settings.alignment = diagram.settings.alignment;
+	state.settings.aspectRatio = diagram.settings.aspectRatio;
+}

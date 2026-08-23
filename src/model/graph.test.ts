@@ -10,6 +10,7 @@ import {
 	moveLink,
 	moveNode,
 	nextNodeId,
+	replaceDiagram,
 } from "./graph";
 
 describe("defaultState", () => {
@@ -185,6 +186,55 @@ describe("moveLink", () => {
 		expect(state.links.map((l) => l.value)).toEqual([6, 14, 10]);
 		moveLink(state, 1, 1);
 		expect(state.links.map((l) => l.value)).toEqual([6, 14, 10]);
+	});
+});
+
+describe("replaceDiagram", () => {
+	function diagram() {
+		return {
+			nodes: [{ id: "n1", name: "Replaced" }],
+			links: [{ source: "n1", target: null, value: 5 }],
+			settings: {
+				palette: "tableau10" as const,
+				linkColor: "static" as const,
+				alignment: "center" as const,
+				aspectRatio: "16:9" as const,
+			},
+		};
+	}
+
+	it("preserves the top-level State object and array references", () => {
+		const state = defaultState();
+		const stateRef = state;
+		const nodesRef = state.nodes;
+		const linksRef = state.links;
+		replaceDiagram(state, diagram());
+		expect(state).toBe(stateRef);
+		expect(state.nodes).toBe(nodesRef);
+		expect(state.links).toBe(linksRef);
+	});
+
+	it("replaces nodes and links", () => {
+		const state = defaultState();
+		replaceDiagram(state, diagram());
+		expect(state.nodes).toEqual([{ id: "n1", name: "Replaced" }]);
+		expect(state.links).toEqual([{ source: "n1", target: null, value: 5 }]);
+	});
+
+	it("replaces the four diagram settings", () => {
+		const state = defaultState();
+		replaceDiagram(state, diagram());
+		expect(state.settings.palette).toBe("tableau10");
+		expect(state.settings.linkColor).toBe("static");
+		expect(state.settings.alignment).toBe("center");
+		expect(state.settings.aspectRatio).toBe("16:9");
+	});
+
+	it("leaves theme untouched", () => {
+		const state = defaultState();
+		state.settings.theme = "dark";
+		replaceDiagram(state, diagram());
+		expect(state.settings.theme).toBe("dark");
 	});
 });
 

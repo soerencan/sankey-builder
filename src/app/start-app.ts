@@ -24,6 +24,7 @@ import {
 	moveLink,
 	moveNode,
 	renameNode,
+	replaceDiagram,
 	updateLink,
 } from "../model/graph";
 import { validate } from "../model/validation";
@@ -190,19 +191,10 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 
 	const ioActions: IoActions = {
 		importDiagram(imported, repairs) {
-			// state is the stable reference every module captured — mutate in place
-			// rather than reassigning, so those captures stay live.
-			state.nodes.length = 0;
-			state.nodes.push(...imported.nodes);
-			state.links.length = 0;
-			state.links.push(...imported.links);
-			state.settings.palette = imported.settings.palette;
-			state.settings.linkColor = imported.settings.linkColor;
-			state.settings.alignment = imported.settings.alignment;
-			state.settings.aspectRatio = imported.settings.aspectRatio;
 			// theme is deliberately untouched — a per-browser preference, not
 			// diagram data, so it survives an import. No syncThemeControl call
 			// here for that reason: nothing about the theme control could go stale.
+			replaceDiagram(state, imported);
 			syncToolbar(doc, state);
 			refresh();
 			let message = `Imported ${state.nodes.length} nodes, ${state.links.length} links.`;
