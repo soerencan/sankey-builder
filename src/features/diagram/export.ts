@@ -52,11 +52,29 @@ export function serializeDiagramSvg(
 }
 
 /**
+ * Rejected by rasterizeSvg on every abort path. A caller that needs to tell
+ * this apart from a real rasterization failure can check `.name ===
+ * "AbortError"`; DiagramPanel's exportPng instead checks its own
+ * `signal.aborted` after the promise settles, which is true for the same
+ * cases and also covers a stale success racing destroy.
+ */
+function rasterizeAbortError(): DOMException {
+	return new DOMException("PNG rasterization was aborted.", "AbortError");
+}
+
+/**
  * Rasterizes a standalone svg document (as produced by serializeDiagramSvg)
  * into a PNG blob via an offscreen canvas, drawn at width*scale by
  * height*scale. `win`'s own `URL` creates/revokes the intermediate object
  * URL — not the ambient global — since `doc`/`win` may belong to a window
  * other than this module's own ambient one.
+ *
+ * `signal` is the owning application instance's AbortSignal (see
+ * PLAN.md's "Async operation ownership"). Already aborted, it settles
+ * without creating anything; aborted while the image is loading, it detaches
+ * the img's handlers, clears its `src` to stop the pending load, and revokes
+ * the object URL — so a browser completion that arrives after destroy can
+ * neither call back into this promise nor double-revoke its URL.
  */
 export function rasterizeSvg(
 	doc: Document,
@@ -65,39 +83,73 @@ export function rasterizeSvg(
 	width: number,
 	height: number,
 	scale: number,
+	signal: AbortSignal,
 ): Promise<Blob> {
+	if (signal.aborted) return Promise.reject(rasterizeAbortError());
 	return new Promise((resolve, reject) => {
 		const url = win.URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
+		// Tracked explicitly because the abort path and the img's own
+		// load/error path can both reach a revoke call once the async gap
+		// between onload firing and its canvas/toBlob work finishing lets an
+		// abort land in between — revoke must still only run once.
+		let revoked = false;
+		const revoke = () => {
+			if (revoked) return;
+			revoked = true;
+			win.URL.revokeObjectURL(url);
+		};
+
 		const img = doc.createElement("img");
+
+		// Shared by every settle path so a completion racing an abort (or vice
+		// versa) can't call back into this already-settled promise, and so the
+		// abort listener never outlives this call on the long-lived app signal.
+		const settle = () => {
+			signal.removeEventListener("abort", onAbort);
+			img.onload = null;
+			img.onerror = null;
+		};
+
+		function onAbort(): void {
+			settle();
+			img.src = ""; // standard technique to stop a pending image load
+			revoke();
+			reject(rasterizeAbortError());
+		}
+		signal.addEventListener("abort", onAbort);
+
 		img.onload = () => {
 			// drawImage and toBlob can throw synchronously (e.g. SecurityError on a
 			// tainted canvas); without the catch, that escapes as an uncaught error
 			// event — the URL leaks and the promise never settles, so the caller's
-			// error notice never shows. Double-revoke can't happen: the toBlob
-			// callback only runs when the call didn't throw.
+			// error notice never shows.
 			try {
 				const canvas = doc.createElement("canvas");
 				canvas.width = width * scale;
 				canvas.height = height * scale;
 				const ctx = canvas.getContext("2d");
 				if (!ctx) {
-					win.URL.revokeObjectURL(url);
+					settle();
+					revoke();
 					reject(new Error("Could not get a 2d canvas context to rasterize the diagram."));
 					return;
 				}
 				ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 				canvas.toBlob((blob) => {
-					win.URL.revokeObjectURL(url);
+					settle();
+					revoke();
 					if (blob) resolve(blob);
 					else reject(new Error("Rasterizing the diagram to PNG failed."));
 				}, "image/png");
 			} catch (err) {
-				win.URL.revokeObjectURL(url);
+				settle();
+				revoke();
 				reject(err);
 			}
 		};
 		img.onerror = () => {
-			win.URL.revokeObjectURL(url);
+			settle();
+			revoke();
 			reject(new Error("Could not load the diagram svg for rasterization."));
 		};
 		img.src = url;

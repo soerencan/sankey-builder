@@ -174,6 +174,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 				diagramEl={diagramRoot}
 				settings={projectSettings(state)}
 				actions={diagramPanelActions}
+				signal={signal}
 			/>,
 			diagramControlsRoot,
 		);

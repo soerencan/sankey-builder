@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 
 import Sortable from "sortablejs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { startApp } from "../../src/app/start-app";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-resizer";
 import { STORAGE_KEY } from "../../src/platform/storage";
-import { click, installMarkup, mountApp, requireElement } from "../helpers/mount-app";
+import { click, installMarkup, mountApp, requireElement, tick } from "../helpers/mount-app";
 
 // Pinned verbatim from src/app/start-app.ts's STORAGE_NOTICE — app/start-app.ts doesn't export
 // it, so this hardcodes (and thereby pins) the user-visible copy.
@@ -40,7 +40,99 @@ function makeCountingStorage(): { storage: Storage; setItemCalls: string[] } {
 	return { storage, setItemCalls };
 }
 
+/**
+ * Wraps document.createElement to capture every `<img>`/`<a>` it creates
+ * while still delegating to the real implementation — happy-dom has no
+ * network stack (an `<img>` never fires a real load event) and no canvas
+ * adapter (`getContext("2d")` always returns null), so PNG rasterization's
+ * pending state has to be driven and inspected by hand through this.
+ */
+function interceptCreateElement(): {
+	images: HTMLImageElement[];
+	anchors: HTMLAnchorElement[];
+	restore: () => void;
+} {
+	const original = document.createElement.bind(document);
+	const images: HTMLImageElement[] = [];
+	const anchors: HTMLAnchorElement[] = [];
+	const spy = vi
+		.spyOn(document, "createElement")
+		.mockImplementation((tagName: string, options?: ElementCreationOptions) => {
+			const el = original(tagName, options);
+			if (tagName === "img") images.push(el as HTMLImageElement);
+			if (tagName === "a") anchors.push(el as HTMLAnchorElement);
+			return el;
+		});
+	return { images, anchors, restore: () => spy.mockRestore() };
+}
+
+function clickPngExport(): void {
+	click(document.getElementById("display-button"));
+	click(document.querySelector('#display-dialog [data-action="export-png"]'));
+}
+
 describe("application lifecycle", () => {
+	it("destroy mid-PNG-rasterization: revokes the object URL exactly once and downloads/reports nothing", async () => {
+		const { app } = mountApp();
+		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
+		const { anchors, restore } = interceptCreateElement();
+		try {
+			clickPngExport();
+			// Destroy lands before any load/error event — this app instance's
+			// AbortController aborts synchronously, which is what rasterizeSvg's
+			// own abort handling relies on to settle without a browser event.
+			app.destroy();
+			// exportPng's .catch runs as a microtask, after this synchronous test
+			// body would otherwise return — flush it before asserting on its
+			// (absent) effects, or a removed signal.aborted guard would go unnoticed.
+			await tick();
+
+			expect(anchors).toHaveLength(0);
+			expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+			expect(document.getElementById("io-notice")?.textContent).toBe("");
+		} finally {
+			restore();
+			revokeObjectURL.mockRestore();
+		}
+	});
+
+	it("destroy then reboot: a PNG rasterization pending at destroy cannot publish into the new instance", async () => {
+		installMarkup();
+		const first = startApp(document);
+		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
+		const { images, anchors, restore } = interceptCreateElement();
+		try {
+			clickPngExport();
+			expect(images).toHaveLength(1);
+			// Captured before destroy() detaches it, so this reference still lets
+			// the test simulate a browser completion racing destroy — exactly the
+			// case rasterizeSvg's exactly-once revoke/settle guards against.
+			const pendingOnload = images[0].onload;
+			expect(pendingOnload).not.toBeNull();
+
+			first.destroy();
+			await tick();
+			expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+
+			const second = startApp(document);
+			try {
+				pendingOnload?.call(images[0], new Event("load"));
+				// See the previous test's comment: the guarded .then/.catch only
+				// runs after this microtask flush.
+				await tick();
+
+				expect(anchors).toHaveLength(0);
+				expect(document.getElementById("io-notice")?.textContent).toBe("");
+				expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+			} finally {
+				second.destroy();
+			}
+		} finally {
+			restore();
+			revokeObjectURL.mockRestore();
+		}
+	});
+
 	it("destroy() is idempotent — a second call does not throw", () => {
 		const { app } = mountApp();
 		app.destroy();

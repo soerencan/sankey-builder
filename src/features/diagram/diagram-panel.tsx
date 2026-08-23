@@ -50,6 +50,8 @@ export interface DiagramPanelProps {
 	diagramEl: HTMLElement;
 	settings: SettingsView;
 	actions: DiagramPanelActions;
+	/** The owning app instance's AbortSignal — guards PNG rasterization; see export.ts's own doc comment. */
+	signal: AbortSignal;
 }
 
 function SwatchStrip({ palette }: { palette: Palette }) {
@@ -114,7 +116,14 @@ function serializeVisibleDiagram(
  * controls/dialogs portion of the panel, so this step doesn't have to move
  * either of those roots.
  */
-export function DiagramPanel({ doc, win, diagramEl, settings, actions }: DiagramPanelProps) {
+export function DiagramPanel({
+	doc,
+	win,
+	diagramEl,
+	settings,
+	actions,
+	signal,
+}: DiagramPanelProps) {
 	const paletteDialog = useDialog();
 	const linksDialog = useDialog();
 	const aspectRatioDialog = useDialog();
@@ -152,12 +161,18 @@ export function DiagramPanel({ doc, win, diagramEl, settings, actions }: Diagram
 		if (svg) {
 			const svgElement = diagramEl.querySelector("svg") as SVGSVGElement;
 			const { width, height } = svgViewBoxSize(svgElement);
-			rasterizeSvg(doc, win, svg, width, height, PNG_EXPORT_SCALE)
+			rasterizeSvg(doc, win, svg, width, height, PNG_EXPORT_SCALE, signal)
 				.then((blob) => {
+					// A stale completion (this app instance destroyed while rasterizing)
+					// must do nothing user-visible — see PLAN.md's "Async operation
+					// ownership". rasterizeSvg itself already rejects on abort, so this
+					// only guards a resolve that raced destroy() in the same tick.
+					if (signal.aborted) return;
 					download(doc, win, blob, EXPORT_PNG_FILENAME);
 					actions.reportExportSuccess(EXPORT_PNG_FILENAME);
 				})
 				.catch((err) => {
+					if (signal.aborted) return;
 					// The notice stays generic; log the specific cause so a field report
 					// ("PNG export failed") is diagnosable from the console.
 					console.error(err);

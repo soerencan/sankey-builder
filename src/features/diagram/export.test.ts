@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
-import { beforeEach, describe, expect, it } from "vitest";
-import { serializeDiagramSvg } from "./export";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { rasterizeSvg, serializeDiagramSvg } from "./export";
 import { DIAGRAM_HEIGHT, DIAGRAM_WIDTH } from "./render";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -115,5 +115,178 @@ describe("serializeDiagramSvg", () => {
 		expect(svg.hasAttribute("height")).toBe(false);
 		expect(svg.querySelector("rect")).toBeNull();
 		expect(svg.querySelector("text")?.getAttribute("fill")).toBe("currentColor");
+	});
+});
+
+/** A settable-src, settable-onload/onerror stand-in — happy-dom's own `<img>` never fires a real load event. */
+class FakeImg {
+	onload: (() => void) | null = null;
+	onerror: (() => void) | null = null;
+	src = "";
+}
+
+class FakeCanvas {
+	width = 0;
+	height = 0;
+	getContext() {
+		return { drawImage: () => {} };
+	}
+	toBlob(callback: (blob: Blob | null) => void) {
+		callback(new Blob(["fake-png-bytes"], { type: "image/png" }));
+	}
+}
+
+/**
+ * A minimal doc/win pair satisfying only what rasterizeSvg actually calls —
+ * real `<img>`/canvas loading isn't exercisable under happy-dom (no network,
+ * no canvas adapter), so this drives the img/canvas callbacks by hand instead.
+ */
+function makeRasterizeHarness() {
+	const imgs: FakeImg[] = [];
+	const doc = {
+		createElement(tag: string) {
+			if (tag === "img") {
+				const img = new FakeImg();
+				imgs.push(img);
+				return img;
+			}
+			if (tag === "canvas") return new FakeCanvas();
+			throw new Error(`unexpected doc.createElement(${tag})`);
+		},
+	} as unknown as Document;
+	const win = {
+		URL: {
+			createObjectURL: vi.fn(() => "blob:fake-svg"),
+			revokeObjectURL: vi.fn(),
+		},
+	} as unknown as Window;
+	return { doc, win, imgs };
+}
+
+describe("rasterizeSvg", () => {
+	it("resolves with the rasterized blob and revokes the object URL exactly once", async () => {
+		const { doc, win, imgs } = makeRasterizeHarness();
+		const controller = new AbortController();
+
+		const promise = rasterizeSvg(doc, win, "<svg/>", 100, 50, 1, controller.signal);
+		imgs[0].onload?.();
+
+		const blob = await promise;
+		expect(blob.type).toBe("image/png");
+		expect(win.URL.createObjectURL).toHaveBeenCalledTimes(1);
+		expect(win.URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+		expect(win.URL.revokeObjectURL).toHaveBeenCalledWith("blob:fake-svg");
+	});
+
+	it("removes its abort listener once settled normally, so it can't leak on the long-lived app signal", async () => {
+		const { doc, win, imgs } = makeRasterizeHarness();
+		const controller = new AbortController();
+		const removeEventListener = vi.spyOn(controller.signal, "removeEventListener");
+
+		const promise = rasterizeSvg(doc, win, "<svg/>", 100, 50, 1, controller.signal);
+		imgs[0].onload?.();
+		await promise;
+
+		expect(removeEventListener).toHaveBeenCalledWith("abort", expect.any(Function));
+	});
+
+	it("rejects without creating or revoking anything when the signal is already aborted", async () => {
+		const { doc, win, imgs } = makeRasterizeHarness();
+		const controller = new AbortController();
+		controller.abort();
+
+		await expect(
+			rasterizeSvg(doc, win, "<svg/>", 100, 50, 1, controller.signal),
+		).rejects.toMatchObject({ name: "AbortError" });
+		expect(imgs).toHaveLength(0);
+		expect(win.URL.createObjectURL).not.toHaveBeenCalled();
+		expect(win.URL.revokeObjectURL).not.toHaveBeenCalled();
+	});
+
+	it("aborting while pending detaches the img handlers, stops the load, and settles abnormally", async () => {
+		const { doc, win, imgs } = makeRasterizeHarness();
+		const controller = new AbortController();
+
+		const promise = rasterizeSvg(doc, win, "<svg/>", 100, 50, 1, controller.signal);
+		controller.abort();
+
+		await expect(promise).rejects.toMatchObject({ name: "AbortError" });
+		expect(imgs[0].onload).toBeNull();
+		expect(imgs[0].onerror).toBeNull();
+		expect(imgs[0].src).toBe("");
+		expect(win.URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+	});
+
+	it("a load that arrives after abort is inert: no second revoke, no change to the settled result", async () => {
+		const { doc, win, imgs } = makeRasterizeHarness();
+		const controller = new AbortController();
+
+		const promise = rasterizeSvg(doc, win, "<svg/>", 100, 50, 1, controller.signal);
+		const onload = imgs[0].onload;
+		controller.abort();
+		await expect(promise).rejects.toMatchObject({ name: "AbortError" });
+
+		// Detached, so the app can't actually re-invoke it through `img` anymore
+		// — but a race where the browser's own load event was already about to
+		// fire (already queued the moment abort ran) must still be harmless.
+		onload?.call(imgs[0]);
+
+		expect(win.URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+	});
+
+	it("failure (image load error) still revokes exactly once and removes the abort listener", async () => {
+		const { doc, win, imgs } = makeRasterizeHarness();
+		const controller = new AbortController();
+		const removeEventListener = vi.spyOn(controller.signal, "removeEventListener");
+
+		const promise = rasterizeSvg(doc, win, "<svg/>", 100, 50, 1, controller.signal);
+		imgs[0].onerror?.();
+
+		await expect(promise).rejects.toThrow("Could not load the diagram svg for rasterization.");
+		expect(win.URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+		expect(removeEventListener).toHaveBeenCalledWith("abort", expect.any(Function));
+	});
+
+	it("clears the img's onerror before clearing src, so a browser that fires error-on-clear can't re-enter it", async () => {
+		// Unlike FakeImg above, this fake's own `src` setter mimics a real
+		// browser that synchronously fires `error` when a pending load's `src`
+		// is cleared — pinning that onAbort detaches handlers *first*.
+		class FakeImgFiresErrorOnSrcClear {
+			onload: (() => void) | null = null;
+			#onerror: (() => void) | null = null;
+			errorHandlerCalls = 0;
+			get onerror(): (() => void) | null {
+				return this.#onerror;
+			}
+			set onerror(fn: (() => void) | null) {
+				this.#onerror = fn;
+			}
+			#src = "";
+			get src(): string {
+				return this.#src;
+			}
+			set src(value: string) {
+				this.#src = value;
+				if (value === "" && this.#onerror) {
+					this.errorHandlerCalls++;
+					this.#onerror();
+				}
+			}
+		}
+		const img = new FakeImgFiresErrorOnSrcClear();
+		const doc = {
+			createElement: () => img,
+		} as unknown as Document;
+		const win = {
+			URL: { createObjectURL: vi.fn(() => "blob:fake-svg"), revokeObjectURL: vi.fn() },
+		} as unknown as Window;
+		const controller = new AbortController();
+
+		const promise = rasterizeSvg(doc, win, "<svg/>", 100, 50, 1, controller.signal);
+		controller.abort();
+
+		await expect(promise).rejects.toMatchObject({ name: "AbortError" });
+		expect(img.errorHandlerCalls).toBe(0);
+		expect(win.URL.revokeObjectURL).toHaveBeenCalledTimes(1);
 	});
 });
