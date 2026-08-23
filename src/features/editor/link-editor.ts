@@ -1,13 +1,13 @@
 import { select } from "d3";
 import type Sortable from "sortablejs";
 import type { Link, Node, State } from "../../model/graph";
+import { MAX_LINK_VALUE } from "../../model/validation";
 import {
-	MAX_LINK_VALUE,
 	exceedsFractionDigits,
 	isPlainDecimalFormat,
 	parseLinkValue,
 	truncateFractionDigits,
-} from "../../model/validation";
+} from "./link-value";
 import { attachRowSortable, setupRowReorder } from "./row-reorder";
 
 export interface LinkEditorActions {
