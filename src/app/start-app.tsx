@@ -1,5 +1,5 @@
 import { render } from "preact";
-import { setupPreviewResizer } from "../features/diagram/preview-resizer";
+import { PreviewResizer } from "../features/diagram/preview-resizer";
 import type { DiagramRenderRequest } from "../features/diagram/render";
 import { SankeyCanvas } from "../features/diagram/sankey-canvas";
 import type { LinkEditorActions } from "../features/editor/link-editor";
@@ -73,6 +73,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const nodeEditorRoot = requireRoot(doc, "node-editor");
 	const linkEditorRoot = requireRoot(doc, "link-editor");
 	const diagramRoot = requireRoot(doc, "diagram");
+	const previewResizerRoot = requireRoot(doc, "preview-resizer");
 
 	// win.AbortController, not the bare global: `doc` may belong to a window
 	// other than this module's own ambient one (e.g. a second startApp()
@@ -281,11 +282,12 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 
 	setupThemeControl(doc, state, themeControlActions, signal);
 	setupToolbar(doc, state, toolbarActions, signal);
-	// Its returned disposer resets in-progress pointer-drag state on
-	// destroy() — a resource an aborted AbortSignal alone can't unwind (see
-	// setupPreviewResizer's own docs).
-	const cancelPreviewDrag = setupPreviewResizer(doc, win, signal);
 	setupIo(doc, win, state, ioActions, signal);
+
+	// Mounted once, not by refresh(): the preview height is independent of
+	// diagram State (see PreviewResizer's own doc comment) and never gets a
+	// new `diagramEl`/`win` after boot.
+	render(<PreviewResizer diagramEl={diagramRoot} win={win} />, previewResizerRoot);
 
 	refresh();
 	// setupToolbar/setupThemeControl wire listeners only (see their own docs) —
@@ -298,7 +300,6 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		if (destroyed) return;
 		destroyed = true;
 		controller.abort();
-		cancelPreviewDrag();
 		// Must run before unmounting either editor below — see
 		// removeActiveDragClone's own doc comment for why destroying one
 		// editor's Sortable instance first would otherwise poison the other's
@@ -310,6 +311,9 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		render(null, linkEditorRoot);
 		// Unmounts SankeyCanvas, whose own layout-effect cleanup clears the SVG.
 		render(null, diagramRoot);
+		// Unmounts PreviewResizer, whose own layout-effect cleanup cancels any
+		// in-progress drag and releases pointer capture — see its own doc comment.
+		render(null, previewResizerRoot);
 	}
 
 	return { destroy };

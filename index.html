@@ -313,48 +313,7 @@
 
       <div id="diagram" aria-label="Sankey diagram"></div>
 
-      <div class="preview-resizer" aria-label="Diagram preview size controls">
-        <button
-          type="button"
-          class="preview-size-button"
-          data-action="preview-smaller"
-          aria-label="Make diagram preview smaller"
-          title="Make preview smaller"
-        >
-          <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-minus"></use></svg>
-        </button>
-        <div
-          id="preview-splitter"
-          role="separator"
-          aria-label="Resize diagram preview"
-          aria-orientation="horizontal"
-          aria-valuemin="240"
-          aria-valuemax="720"
-          aria-valuenow="360"
-          tabindex="0"
-          title="Drag vertically to resize the preview"
-        >
-          <span class="preview-grip" aria-hidden="true"></span>
-        </div>
-        <button
-          type="button"
-          class="preview-size-button"
-          data-action="preview-larger"
-          aria-label="Make diagram preview larger"
-          title="Make preview larger"
-        >
-          <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-plus"></use></svg>
-        </button>
-        <button
-          type="button"
-          class="preview-size-button preview-reset"
-          data-action="preview-reset"
-          aria-label="Reset diagram preview size"
-          title="Reset preview size"
-        >
-          <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-reset"></use></svg>
-        </button>
-      </div>
+      <div id="preview-resizer" class="preview-resizer" aria-label="Diagram preview size controls"></div>
 
       <dialog id="palette-dialog" aria-labelledby="palette-dialog-heading">
         <h3 id="palette-dialog-heading">Palette</h3>
