@@ -1,16 +1,17 @@
 /**
  * Presentation metadata for the five closed setting domains — labels, icon
- * ids, and other display strings that index.html's hand-authored dialog
- * markup is contract-tested against (tests/integration/settings.test.ts).
- * Imports types/values from model/settings but never the reverse, so the
- * model stays free of user-facing strings.
+ * ids, and other display strings DiagramPanel/ThemeControl's JSX generates
+ * their dialog rows from and tests/integration/settings.test.ts's
+ * rendered-DOM contract checks against. Imports types/values from
+ * model/settings but never the reverse, so the model stays free of
+ * user-facing strings.
  */
 
 import type { Alignment, AspectRatio, LinkColorMode, Palette, Theme } from "../../model/settings";
 
 // --- Palette ---
 
-/** Human-readable names, matching the labels index.html's palette chooser rows use. */
+/** Human-readable names, matching the labels DiagramPanel's palette chooser rows use. */
 export const PALETTE_LABELS: Record<Palette, string> = {
 	observable10: "Observable 10",
 	tableau10: "Tableau 10",
@@ -83,7 +84,7 @@ export const THEME_OPTIONS: Record<Theme, { label: string; iconId: string }> = {
 
 // --- Aspect ratio ---
 
-/** Human-readable names, matching the labels index.html's aspect-ratio picker rows use. */
+/** Human-readable names, matching the labels DiagramPanel's aspect-ratio picker rows use. */
 export const ASPECT_RATIO_LABELS: Record<AspectRatio, string> = {
 	"a-series": "A-series",
 	"3:2": "3:2",

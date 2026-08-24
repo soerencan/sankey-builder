@@ -2,16 +2,21 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { rasterizeSvg, serializeDiagramSvg } from "./export";
-import { DIAGRAM_HEIGHT, DIAGRAM_WIDTH } from "./render";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+
+// Arbitrary fixture dimensions — serializeDiagramSvg only reads whatever
+// viewBox the live svg happens to have, so these have no relationship to
+// render.ts's own aspect-ratio-derived sizes.
+const FIXTURE_WIDTH = 960;
+const FIXTURE_HEIGHT = 480;
 
 // Mirrors the shape renderDiagram produces: a viewBox-only root, a
 // currentColor label, and a link path — enough to exercise every
 // transformation without depending on d3-sankey layout.
 function buildFixture(): SVGSVGElement {
 	const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
-	svg.setAttribute("viewBox", `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
+	svg.setAttribute("viewBox", `0 0 ${FIXTURE_WIDTH} ${FIXTURE_HEIGHT}`);
 
 	const path = document.createElementNS(SVG_NS, "path");
 	path.setAttribute("d", "M0,0L10,10");
@@ -38,8 +43,8 @@ describe("serializeDiagramSvg", () => {
 
 		expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n')).toBe(true);
 		expect(xml).toContain(`xmlns="${SVG_NS}"`);
-		expect(xml).toContain(`width="${DIAGRAM_WIDTH}"`);
-		expect(xml).toContain(`height="${DIAGRAM_HEIGHT}"`);
+		expect(xml).toContain(`width="${FIXTURE_WIDTH}"`);
+		expect(xml).toContain(`height="${FIXTURE_HEIGHT}"`);
 	});
 
 	it("takes export dimensions from the live svg viewBox", () => {
@@ -63,8 +68,8 @@ describe("serializeDiagramSvg", () => {
 		const root = parsed.documentElement;
 		const firstChild = root.firstElementChild;
 		expect(firstChild?.tagName).toBe("rect");
-		expect(firstChild?.getAttribute("width")).toBe(String(DIAGRAM_WIDTH));
-		expect(firstChild?.getAttribute("height")).toBe(String(DIAGRAM_HEIGHT));
+		expect(firstChild?.getAttribute("width")).toBe(String(FIXTURE_WIDTH));
+		expect(firstChild?.getAttribute("height")).toBe(String(FIXTURE_HEIGHT));
 		expect(firstChild?.getAttribute("fill")).toBe("rgb(10, 20, 30)");
 	});
 

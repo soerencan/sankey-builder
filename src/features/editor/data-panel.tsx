@@ -1,4 +1,5 @@
 import { useRef } from "preact/hooks";
+import type { IoNoticeActions } from "../../app/notices";
 import type { LinkView, NodeView } from "../../app/view";
 import type { State } from "../../model/graph";
 import { type ImportState, parseImport, serializeState } from "../files/diagram-file";
@@ -10,15 +11,9 @@ import { NodeEditor } from "./node-editor";
 
 const EXPORT_JSON_FILENAME = "sankey.json";
 
-export interface DataPanelActions {
-	/** Starting a new import or export attempt clears any notice left by a previous one. */
-	clearIoNotice(): void;
+export interface DataPanelActions
+	extends Pick<IoNoticeActions, "clearIoNotice" | "reportImportError"> {
 	importDiagram(imported: ImportState, repairs: string[]): void;
-	reportImportError(message: string): void;
-	// Unused by this component's own JSON export (which has no failure path) but
-	// part of the shared #io-notice action object start-app.tsx also hands to
-	// DiagramPanel for SVG/PNG export failures — see start-app.tsx's ioActions.
-	reportExportError(message: string): void;
 }
 
 export interface DataPanelProps {

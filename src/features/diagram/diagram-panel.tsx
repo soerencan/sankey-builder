@@ -1,8 +1,8 @@
 import type { RefObject } from "preact";
-import { useLayoutEffect } from "preact/hooks";
+import type { IoNoticeActions } from "../../app/notices";
 import type { SettingsView } from "../../app/view";
 import type { Alignment, AspectRatio, LinkColorMode, Palette } from "../../model/settings";
-import { ASPECT_RATIO_OPTIONS, PALETTE_ORDER, aspectRatioOption } from "../../model/settings";
+import { ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../model/settings";
 import type { DialogHandle } from "../../shared/use-dialog";
 import { useDialog } from "../../shared/use-dialog";
 import { download } from "../files/download";
@@ -34,26 +34,23 @@ const LINK_COLOR_ENTRIES = Object.entries(LINK_COLOR_OPTIONS) as [
 	LinkColorOptionMeta,
 ][];
 
-export interface DiagramPanelActions {
+export interface DiagramPanelActions
+	extends Pick<IoNoticeActions, "clearIoNotice" | "reportExportError"> {
 	setPalette(value: Palette): void;
 	setLinkColor(value: LinkColorMode): void;
 	setAlignment(value: Alignment): void;
 	setAspectRatio(value: AspectRatio): void;
-	/** Starting a new export attempt clears any notice left by a previous one. */
-	clearIoNotice(): void;
-	reportExportError(message: string): void;
 }
 
 export interface DiagramPanelProps {
 	doc: Document;
 	win: Window;
 	/**
-	 * The #diagram host: SankeyCanvas's mount point, the SVG/PNG export source,
-	 * and the element style.css reads --diagram-aspect-ratio/
-	 * --diagram-aspect-number from. A ref, not the element directly: App
-	 * renders #diagram and this component as siblings in one tree, so the
-	 * element only exists once the whole tree has committed — read only from
-	 * effects and event handlers below, never during render.
+	 * The #diagram host: SankeyCanvas's mount point and the SVG/PNG export
+	 * source. A ref, not the element directly: App renders #diagram and this
+	 * component as siblings in one tree, so the element only exists once the
+	 * whole tree has committed — read only from the export handlers below,
+	 * never during render.
 	 */
 	diagramRef: RefObject<HTMLElement>;
 	settings: SettingsView;
@@ -91,18 +88,20 @@ function isSvgSvgElement(target: Element | null): target is SVGSVGElement {
  * by both the SVG and PNG export handlers below. Exports whatever is on
  * screen: when state is topologically invalid, the controller keeps the
  * last-valid diagram visible — exporting that stale render is deliberate
- * ("export what you see"), not an oversight. Returns undefined (after
+ * ("export what you see"), not an oversight. Returns the live svg alongside
+ * its serialized xml (exportPng needs the former's viewBox, the latter to
+ * rasterize) so callers never re-query or re-cast it. Returns null (after
  * reporting the error) when there's nothing to export.
  */
 function serializeVisibleDiagram(
 	diagramEl: HTMLElement,
 	win: Window,
 	actions: DiagramPanelActions,
-): string | undefined {
+): { svg: SVGSVGElement; xml: string } | null {
 	const svgEl = diagramEl.querySelector("svg");
 	if (!isSvgSvgElement(svgEl)) {
 		actions.reportExportError("Nothing to export — the diagram is empty.");
-		return undefined;
+		return null;
 	}
 	// Read resolved colors from the live page (theme-aware): currentColor's
 	// on-screen resolution for labels, and the diagram container's own
@@ -112,7 +111,7 @@ function serializeVisibleDiagram(
 	// renderDiagram appends the svg directly into it.
 	const labelColor = win.getComputedStyle(svgEl).color;
 	const background = win.getComputedStyle(svgEl.parentElement as Element).backgroundColor;
-	return serializeDiagramSvg(svgEl, { labelColor, background });
+	return { svg: svgEl, xml: serializeDiagramSvg(svgEl, { labelColor, background }) };
 }
 
 /**
@@ -137,25 +136,6 @@ export function DiagramPanel({
 	const diagramExportDialog = useDialog();
 	const displayDialog = useDialog();
 
-	// The renderer's own viewBox (render.ts) is driven directly by
-	// settings.aspectRatio; these custom properties only size the *preview*
-	// box before/around that svg (see style.css's #diagram doc comment) and
-	// must never be written from anywhere that also touches
-	// --diagram-preview-height — that property is PreviewResizer's alone.
-	// diagramRef.current is populated by the time this runs — see
-	// DiagramPanelProps.diagramRef's own doc comment.
-	useLayoutEffect(() => {
-		const ratio = aspectRatioOption(settings.aspectRatio);
-		diagramRef.current?.style.setProperty(
-			"--diagram-aspect-ratio",
-			`${ratio.width} / ${ratio.height}`,
-		);
-		diagramRef.current?.style.setProperty(
-			"--diagram-aspect-number",
-			String(ratio.width / ratio.height),
-		);
-	}, [settings.aspectRatio, diagramRef]);
-
 	function cyclePalette(step: 1 | -1): void {
 		const current = PALETTE_ORDER.indexOf(settings.palette);
 		const next = (current + step + PALETTE_ORDER.length) % PALETTE_ORDER.length;
@@ -165,10 +145,13 @@ export function DiagramPanel({
 	function exportSvg(dialog: DialogHandle): void {
 		actions.clearIoNotice();
 		const diagramEl = diagramRef.current;
-		if (!diagramEl) return;
-		const svg = serializeVisibleDiagram(diagramEl, win, actions);
-		if (svg) {
-			download(doc, win, new Blob([svg], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
+		if (!diagramEl) {
+			dialog.close();
+			return;
+		}
+		const result = serializeVisibleDiagram(diagramEl, win, actions);
+		if (result) {
+			download(doc, win, new Blob([result.xml], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
 		}
 		dialog.close();
 	}
@@ -176,12 +159,14 @@ export function DiagramPanel({
 	function exportPng(dialog: DialogHandle): void {
 		actions.clearIoNotice();
 		const diagramEl = diagramRef.current;
-		if (!diagramEl) return;
-		const svg = serializeVisibleDiagram(diagramEl, win, actions);
-		if (svg) {
-			const svgElement = diagramEl.querySelector("svg") as SVGSVGElement;
-			const { width, height } = svgViewBoxSize(svgElement);
-			rasterizeSvg(doc, win, svg, width, height, PNG_EXPORT_SCALE, signal)
+		if (!diagramEl) {
+			dialog.close();
+			return;
+		}
+		const result = serializeVisibleDiagram(diagramEl, win, actions);
+		if (result) {
+			const { width, height } = svgViewBoxSize(result.svg);
+			rasterizeSvg(doc, win, result.xml, width, height, PNG_EXPORT_SCALE, signal)
 				.then((blob) => {
 					// A stale completion (this app instance destroyed while rasterizing)
 					// must do nothing user-visible. rasterizeSvg itself already rejects
@@ -454,9 +439,11 @@ export function DiagramPanel({
 			{/* Narrow-toolbar equivalent of the wide Links button + .align-group
 			    above: same data-actions (COPIES, not new ids on the options), so
 			    the same `actions` callbacks cover both. Unlike the other dialogs,
-			    choosing an option here does NOT close the dialog — the diagram
-			    updates live behind it and the user dismisses it explicitly (Close,
-			    backdrop, Escape). */}
+			    choosing a link-color/alignment/aspect-ratio option here does NOT
+			    close the dialog — the diagram updates live behind it and the user
+			    dismisses it explicitly (Close, backdrop, Escape). Its SVG/PNG
+			    export buttons are the exception: they DO close it, matching the
+			    wide export dialog above. */}
 			<dialog id="display-dialog" ref={displayDialog.ref} aria-labelledby="display-dialog-heading">
 				<h3 id="display-dialog-heading">Diagram</h3>
 				<div

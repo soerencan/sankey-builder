@@ -243,6 +243,9 @@ describe("toolbar & settings", () => {
 		click(dialog.querySelector('[data-action="set-aspect-ratio"][data-value="3:1"]'));
 
 		expect(document.querySelector("#diagram svg")?.getAttribute("viewBox")).toBe("0 0 1440 480");
+		const diagram = document.getElementById("diagram");
+		expect(diagram?.style.getPropertyValue("--diagram-aspect-ratio")).toBe("1440 / 480");
+		expect(diagram?.style.getPropertyValue("--diagram-aspect-number")).toBe("3");
 		expect(trigger?.textContent).toContain("Aspect 3:1");
 		const stored = getStoredState();
 		expect(stored.settings.aspectRatio).toBe("3:1");
@@ -255,6 +258,27 @@ describe("toolbar & settings", () => {
 		}
 		expect(dialog.open).toBe(false);
 		expect(document.activeElement).toBe(trigger);
+	});
+
+	// Pins App's own style-prop write against PreviewResizer's imperative one
+	// (see app.tsx's #diagram style doc comment): Preact's per-render style
+	// diff only ever touches the keys present in the vnode's style object, so
+	// a later aspect-ratio-driven rerender must not clobber the height
+	// PreviewResizer wrote straight to the DOM outside that diff.
+	it("changing aspect ratio after resizing the preview leaves --diagram-preview-height untouched", () => {
+		mountApp();
+
+		const diagram = document.getElementById("diagram");
+		click(document.querySelector('[data-action="preview-larger"]'));
+		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
+
+		click(document.getElementById("aspect-ratio-button"));
+		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
+		click(dialog.querySelector('[data-action="set-aspect-ratio"][data-value="3:1"]'));
+
+		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
+		expect(diagram?.style.getPropertyValue("--diagram-aspect-ratio")).toBe("1440 / 480");
+		expect(diagram?.style.getPropertyValue("--diagram-aspect-number")).toBe("3");
 	});
 
 	it("offers every labelled aspect-ratio preset in the wide picker and narrow Diagram sheet", () => {

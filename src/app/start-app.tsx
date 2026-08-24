@@ -22,7 +22,7 @@ import {
 import { validate } from "../model/validation";
 import { loadState, saveState } from "../platform/storage";
 import { App } from "./app";
-import type { Notice } from "./notices";
+import type { IoNoticeActions, Notice } from "./notices";
 import { createLinkProjector, projectNodes, projectSettings } from "./view";
 
 export interface AppHandle {
@@ -259,14 +259,29 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		},
 	};
 
-	// Shared by both DataPanel (import/JSON export) and diagramPanelActions
-	// below (SVG/PNG export), so every #io-notice message goes through one
-	// implementation regardless of which control produced it.
-	const dataPanelActions: DataPanelActions = {
+	// Shared by DataPanel (import/JSON export) and DiagramPanel (SVG/PNG
+	// export) below, so every #io-notice message goes through one
+	// implementation regardless of which control produced it; each panel's
+	// own actions object below picks only the members its own controls call
+	// (see IoNoticeActions's own doc comment).
+	const ioNoticeActions: IoNoticeActions = {
 		clearIoNotice() {
 			showIoNotice(null);
 			renderApp();
 		},
+		reportImportError(message) {
+			showIoNotice({ kind: "io", tone: "error", message });
+			renderApp();
+		},
+		reportExportError(message) {
+			showIoNotice({ kind: "io", tone: "error", message });
+			renderApp();
+		},
+	};
+
+	const dataPanelActions: DataPanelActions = {
+		clearIoNotice: ioNoticeActions.clearIoNotice,
+		reportImportError: ioNoticeActions.reportImportError,
 		importDiagram(imported, repairs) {
 			// theme is deliberately untouched — a per-browser preference, not
 			// diagram data, so it survives an import.
@@ -284,14 +299,6 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 				tone: "warning",
 				message: `Imported ${state.nodes.length} nodes, ${state.links.length} links. Adjustments: ${repairs.join("; ")}.`,
 			});
-			renderApp();
-		},
-		reportImportError(message) {
-			showIoNotice({ kind: "io", tone: "error", message });
-			renderApp();
-		},
-		reportExportError(message) {
-			showIoNotice({ kind: "io", tone: "error", message });
 			renderApp();
 		},
 	};
@@ -331,8 +338,8 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			state.settings.aspectRatio = value;
 			refresh();
 		},
-		clearIoNotice: dataPanelActions.clearIoNotice,
-		reportExportError: dataPanelActions.reportExportError,
+		clearIoNotice: ioNoticeActions.clearIoNotice,
+		reportExportError: ioNoticeActions.reportExportError,
 	};
 
 	refresh();

@@ -11,6 +11,7 @@ import type { NodeEditorActions } from "../features/editor/node-editor";
 import type { ThemeControlActions } from "../features/settings/theme-control";
 import { ThemeControl } from "../features/settings/theme-control";
 import type { State } from "../model/graph";
+import { aspectRatioOption } from "../model/settings";
 import type { Theme } from "../model/settings";
 import { NoticeRegion } from "../shared/notice";
 import type { Notice } from "./notices";
@@ -65,6 +66,20 @@ export function App({
 }: AppProps) {
 	const diagramRef = useRef<HTMLDivElement>(null);
 
+	// The renderer's own viewBox (render.ts) is driven directly by
+	// settings.aspectRatio; these custom properties only size the *preview*
+	// box before/around that svg (see style.css's #diagram doc comment).
+	// Declared as an ordinary style prop rather than written imperatively:
+	// Preact's style diff only touches the keys present in the vnode's own
+	// style object across renders, so it never reads or clears
+	// --diagram-preview-height, which PreviewResizer writes straight to the
+	// DOM below.
+	const aspectRatio = aspectRatioOption(settings.aspectRatio);
+	const diagramStyle = {
+		"--diagram-aspect-ratio": `${aspectRatio.width} / ${aspectRatio.height}`,
+		"--diagram-aspect-number": String(aspectRatio.width / aspectRatio.height),
+	};
+
 	return (
 		<>
 			<header class="app-header">
@@ -84,7 +99,7 @@ export function App({
 						actions={diagramActions}
 						signal={signal}
 					/>
-					<div id="diagram" ref={diagramRef} aria-label="Sankey diagram">
+					<div id="diagram" ref={diagramRef} style={diagramStyle} aria-label="Sankey diagram">
 						<SankeyCanvas request={lastValidRequest} />
 					</div>
 					<div

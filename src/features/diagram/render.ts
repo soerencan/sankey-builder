@@ -18,9 +18,6 @@ import type { NodeColorResolver } from "./colors";
 // A link with both endpoints assigned — the only kind d3-sankey ever lays out.
 type CompleteLink = Link & { source: string; target: string };
 
-export const DIAGRAM_WIDTH = 960;
-export const DIAGRAM_HEIGHT = 480;
-
 /**
  * The renderer's own input contract, decoupled from the mutable domain
  * `State` — callers hand over a point-in-time view rather than a live

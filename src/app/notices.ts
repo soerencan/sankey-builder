@@ -11,3 +11,17 @@ export interface Notice {
 	readonly tone: NoticeTone;
 	readonly message: string;
 }
+
+/**
+ * The shared io-notice contract behind DataPanelActions and
+ * DiagramPanelActions: starting a new import or export attempt clears any
+ * notice left by a previous one, and each panel reports failures in its own
+ * shape of operation. One controller object (start-app.tsx's
+ * ioNoticeActions) implements every member; each panel's action object picks
+ * only the ones its own controls call.
+ */
+export interface IoNoticeActions {
+	clearIoNotice(): void;
+	reportImportError(message: string): void;
+	reportExportError(message: string): void;
+}
