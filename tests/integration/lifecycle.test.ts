@@ -162,13 +162,15 @@ describe("application lifecycle", () => {
 
 		click(document.querySelector('[data-action="add-node"]'));
 		click(document.querySelector('[data-action="palette-next"]'));
-		document
-			.getElementById("preview-splitter")
-			?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(nodeRowsBefore);
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
-		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBeNull();
+		// destroy() unmounts the whole App tree, so the splitter itself is gone —
+		// there's no element left to dispatch a keydown at. Its own listener
+		// teardown (window pointermove/pointerup/pointercancel removal,
+		// in-flight drag cancellation, released pointer capture) is unit-pinned
+		// in preview-resizer.test.tsx, not re-proven here.
+		expect(document.getElementById("preview-splitter")).toBeNull();
 	});
 
 	it("a second boot on the same document replaces the first without duplicating its callbacks", () => {

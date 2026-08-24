@@ -410,7 +410,7 @@ describe("row reordering", () => {
 		expect(Sortable.get(linkRows)).toBeNull();
 	});
 
-	it("both editors' Sortables are created exactly once under the consolidated DataPanel root, survive its rerenders with current onMove callbacks, and are each destroyed exactly once on destroy", () => {
+	it("both editors' Sortables are created exactly once under the consolidated DataPanel root, survive its rerenders and keep reordering correctly, and are each destroyed exactly once on destroy", () => {
 		const { app } = mountApp();
 
 		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
@@ -431,9 +431,12 @@ describe("row reordering", () => {
 		expect(Sortable.get(nodeRows)).toBe(nodeSortable);
 		expect(Sortable.get(linkRows)).toBe(linkSortable);
 
-		// A reorder after those rerenders still lands correctly, proving
-		// useRowSortable's onMoveRef reads the current closure rather than one
-		// captured from an earlier render of the consolidated root.
+		// A reorder after those rerenders still lands correctly. (onMoveRef's
+		// currency — that a rerender's fresh actions closure, not a stale one
+		// captured at an earlier render, is what actually runs — is pinned by
+		// use-row-sortable's own unit test, not this integration check: the
+		// controller's action objects are identity-stable across rerenders
+		// here, so a stale-closure bug wouldn't make this assertion fail.)
 		const handle = requireElement<HTMLButtonElement>('#node-editor .drag-handle[data-id="n1"]');
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));

@@ -86,8 +86,8 @@ export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 	// diagramRef.current (a sibling element this component doesn't render, so
 	// JSX alone can't reach it — populated by the time this runs, since layout
 	// effects fire only after the whole App tree has committed) and owns the
-	// window-level pointermove/pointerup listeners a drag needs even once the
-	// pointer leaves the splitter.
+	// window-level pointermove/pointerup/pointercancel listeners a drag needs
+	// even once the pointer leaves the splitter.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: diagramRef/win are stable for this component's lifetime — see the mount-once rationale above.
 	useLayoutEffect(() => {
 		apply(heightRef.current, false);
@@ -98,21 +98,31 @@ export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 			apply(drag.startHeight + event.clientY - drag.startY);
 		};
 
-		const onPointerUp = (event: PointerEvent) => {
+		// Shared by pointerup and pointercancel: both simply disarm the drag.
+		// The height already applied mid-drag (via onPointerMove above) is left
+		// as-is — a canceled gesture (e.g. an incoming call or an edge-swipe
+		// interrupting a touch drag) ends the drag at its current position
+		// exactly like a pointerup there would, it just isn't followed by one.
+		const endDrag = (pointerId: number) => {
 			if (!dragRef.current) return;
 			dragRef.current = null;
-			splitterRef.current?.releasePointerCapture?.(event.pointerId);
+			splitterRef.current?.releasePointerCapture?.(pointerId);
 		};
+
+		const onPointerUp = (event: PointerEvent) => endDrag(event.pointerId);
+		const onPointerCancel = (event: PointerEvent) => endDrag(event.pointerId);
 
 		win.addEventListener("pointermove", onPointerMove);
 		win.addEventListener("pointerup", onPointerUp);
+		win.addEventListener("pointercancel", onPointerCancel);
 
 		return () => {
 			win.removeEventListener("pointermove", onPointerMove);
 			win.removeEventListener("pointerup", onPointerUp);
+			win.removeEventListener("pointercancel", onPointerCancel);
 			// An AbortSignal-driven teardown can't unwind a drag already in
 			// flight — release capture and drop the drag state explicitly so a
-			// pointerup that arrives after unmount is inert.
+			// pointerup/pointercancel that arrives after unmount is inert.
 			const drag = dragRef.current;
 			if (drag) {
 				splitterRef.current?.releasePointerCapture?.(drag.pointerId);

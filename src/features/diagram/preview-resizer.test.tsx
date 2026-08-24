@@ -140,8 +140,10 @@ describe("PreviewResizer", () => {
 			);
 			const addedMove = addedByType.get("pointermove");
 			const addedUp = addedByType.get("pointerup");
+			const addedCancel = addedByType.get("pointercancel");
 			expect(addedMove).toBeTypeOf("function");
 			expect(addedUp).toBeTypeOf("function");
+			expect(addedCancel).toBeTypeOf("function");
 
 			render(null, container);
 
@@ -153,6 +155,7 @@ describe("PreviewResizer", () => {
 			);
 			expect(removedByType.get("pointermove")).toBe(addedMove);
 			expect(removedByType.get("pointerup")).toBe(addedUp);
+			expect(removedByType.get("pointercancel")).toBe(addedCancel);
 		} finally {
 			addSpy.mockRestore();
 			removeSpy.mockRestore();
@@ -177,5 +180,36 @@ describe("PreviewResizer", () => {
 		// — the drag was reset, not just paused.
 		expect(() => window.dispatchEvent(pointerEvent("pointermove", 600, 7))).not.toThrow();
 		expect(splitter.getAttribute("aria-valuenow")).toBe(heightDuringDrag);
+	});
+
+	// A browser-canceled gesture (incoming call, edge swipe) fires pointercancel
+	// instead of pointerup. Without handling it, the drag stays armed and a
+	// later, unrelated pointermove (e.g. from the next gesture) would jump the
+	// preview height using the stale startY/startHeight — this test fails
+	// before the fix because the second pointermove below still changes
+	// aria-valuenow instead of being a no-op.
+	it("pointercancel ends an in-progress drag and releases pointer capture, leaving the height applied mid-drag in place", () => {
+		const { container } = mount();
+		const splitter = container.querySelector("#preview-splitter") as HTMLElement;
+		const releaseSpy = vi.fn();
+		splitter.releasePointerCapture = releaseSpy;
+
+		splitter.dispatchEvent(pointerEvent("pointerdown", 500, 9));
+		window.dispatchEvent(pointerEvent("pointermove", 540, 9));
+		const heightAtCancel = splitter.getAttribute("aria-valuenow");
+		expect(heightAtCancel).not.toBe("360");
+
+		window.dispatchEvent(pointerEvent("pointercancel", 540, 9));
+
+		expect(releaseSpy).toHaveBeenCalledWith(9);
+		// The height applied mid-drag stays applied — pointercancel disarms the
+		// drag, it doesn't revert it.
+		expect(splitter.getAttribute("aria-valuenow")).toBe(heightAtCancel);
+
+		// A further pointermove is ignored — the drag was reset, not just
+		// paused, so this must not resume tracking from the canceled gesture's
+		// start position.
+		window.dispatchEvent(pointerEvent("pointermove", 700, 9));
+		expect(splitter.getAttribute("aria-valuenow")).toBe(heightAtCancel);
 	});
 });
