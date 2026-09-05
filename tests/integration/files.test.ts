@@ -98,7 +98,7 @@ describe("import & export", () => {
 			"Links: Neutral",
 		);
 
-		// Import without repairs is no longer announced — the changed data is
+		// Import without repairs isn't announced — the changed data is
 		// sufficient feedback.
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
@@ -219,6 +219,54 @@ describe("import & export", () => {
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.",
+		);
+	});
+
+	it("imports a topologically-invalid file (a cycle): state is replaced and saved, the graph notice shows the cycle message, the previous diagram stays rendered, and the io notice still reports the import", async () => {
+		mountApp();
+
+		const svgBefore = document.querySelector("#diagram svg");
+		expect(svgBefore).not.toBeNull();
+
+		const payload = {
+			nodes: [
+				{ id: "n1", name: "A" },
+				{ id: "n2", name: "B" },
+			],
+			// n1 -> n2 -> n1 closes a 2-node cycle. link 1's negative value also
+			// needs a repair, so the io notice has something to report alongside
+			// the graph error.
+			links: [
+				{ source: "n1", target: "n2", value: -3 },
+				{ source: "n2", target: "n1", value: 2 },
+			],
+			settings: {},
+		};
+		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		fireChange(input);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		// State is replaced and saved regardless of validity — there is no
+		// "last-good state" in storage, only the last-good diagram.
+		const stored = getStoredState();
+		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n1", "n2"]);
+		expect(
+			stored.links.map((l: { source: string; target: string }) => [l.source, l.target]),
+		).toEqual([
+			["n1", "n2"],
+			["n2", "n1"],
+		]);
+
+		expect(document.getElementById("error")?.textContent).toContain("cycle");
+
+		// refresh() bails before renderDiagram on an invalid graph, so the
+		// previously rendered diagram is untouched.
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+
+		expect(document.getElementById("io-notice")?.textContent).toBe(
+			"Imported 2 nodes, 2 links. Adjustments: link 1: invalid value — set to 1.",
 		);
 	});
 
@@ -369,6 +417,58 @@ describe("import & export", () => {
 		);
 		expect(dialog.open).toBe(false);
 		expect(document.activeElement).toBe(trigger);
+	});
+
+	it("SVG-exports the visible last-valid diagram while the current graph is invalid", async () => {
+		mountApp();
+
+		const rectsBefore = document.querySelectorAll("#diagram svg rect").length;
+		expect(rectsBefore).toBeGreaterThan(0);
+
+		// Retargeting the third link to n1 closes a 2-node cycle.
+		const cycleTarget = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
+		cycleTarget.value = "n1";
+		fireChange(cycleTarget);
+		expect(document.getElementById("error")?.textContent).toContain("cycle");
+
+		// A second committed edit while still invalid: state changes (n1's name),
+		// but the graph stays invalid, so the on-screen svg — and therefore the
+		// export below — must keep showing the OLD label. Node count doesn't
+		// change (rectsBefore alone can't tell stale from fresh), so this label
+		// swap is the real discriminator for "export what you see".
+		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
+		const oldName = nameInput.value;
+		nameInput.value = "Renamed For Export Test";
+		fireInput(nameInput);
+		expect(document.getElementById("error")?.textContent).toContain("cycle");
+
+		const createObjectURL = vi.spyOn(URL, "createObjectURL");
+		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+		let blob: Blob | undefined;
+		createObjectURL.mockImplementation((b) => {
+			blob = b as Blob;
+			return "blob:fake";
+		});
+		try {
+			const trigger = document.getElementById("diagram-export-button");
+			const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
+			click(trigger);
+			click(dialog.querySelector('[data-action="export-svg"]'));
+		} finally {
+			createObjectURL.mockRestore();
+			revokeObjectURL.mockRestore();
+		}
+
+		expect(blob).toBeDefined();
+		const svgText = await (blob as Blob).text();
+		// +1: serializeDiagramSvg adds one opaque background rect ahead of the
+		// node rects, not itself a node.
+		expect((svgText.match(/<rect/g) ?? []).length).toBe(rectsBefore + 1);
+		expect(svgText).toContain(oldName);
+		expect(svgText).not.toContain("Renamed For Export Test");
+		// A successful export installs no visible notice — the download itself
+		// is the feedback.
+		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 
 	it("wires both wide and narrow export choices; empty PNG closes the Diagram dialog", () => {

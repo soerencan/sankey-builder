@@ -7,8 +7,8 @@ import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-r
 import { STORAGE_KEY } from "../../src/platform/storage";
 import { click, installMarkup, mountApp, requireElement, tick } from "../helpers/mount-app";
 
-// Pinned verbatim from src/app/start-app.ts's STORAGE_NOTICE — app/start-app.ts doesn't export
-// it, so this hardcodes (and thereby pins) the user-visible copy.
+// app/start-app.ts doesn't export STORAGE_NOTICE, so this hardcodes (and
+// thereby pins) the user-visible copy.
 const STORAGE_NOTICE =
 	"Changes can't be saved in this browser right now (storage may be full or unavailable). " +
 	"The diagram keeps working, but edits won't survive closing or reloading this tab — " +
@@ -120,8 +120,7 @@ describe("application lifecycle", () => {
 			const second = startApp(document);
 			try {
 				pendingOnload?.call(images[0], new Event("load"));
-				// See the previous test's comment: the guarded .then/.catch only
-				// runs after this microtask flush.
+				// The guarded .then/.catch only runs after this microtask flush.
 				await tick();
 
 				expect(anchors).toHaveLength(0);
@@ -148,8 +147,8 @@ describe("application lifecycle", () => {
 
 		app.destroy();
 
-		// Unmounting SankeyCanvas runs its own layout-effect cleanup — see its
-		// doc comment — which is the only thing that can remove the svg here.
+		// Unmounting SankeyCanvas runs its own layout-effect cleanup
+		// (host.replaceChildren()), the only thing that can remove the svg here.
 		expect(document.querySelector("#diagram svg")).toBeNull();
 	});
 
@@ -231,9 +230,9 @@ describe("application lifecycle", () => {
 		// Simulate destroy() landing mid-drag on the link box. Sortable's own
 		// destroy() calls its internal drop handler with no event, which skips
 		// the branch that would otherwise remove the floating fallback clone
-		// from <body> (see destroySortable's doc comment in row-reorder.ts) —
-		// this pins that destroySortable's own explicit ghost/clone removal
-		// still runs for the app's own destroy() path, not just in isolation.
+		// from <body> — this pins that destroySortable's own explicit
+		// ghost/clone removal still runs for the app's own destroy() path, not
+		// just in isolation.
 		const ghost = document.createElement("div");
 		const clone = document.createElement("div");
 		document.body.append(ghost, clone);

@@ -91,7 +91,7 @@ export function DataPanel({
 				<h2 id="data-heading">Data</h2>
 				<div
 					class="data-actions"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly.
+					// biome-ignore lint/a11y/useSemanticElements: groups action buttons, not submittable form controls, so <fieldset> doesn't apply here.
 					role="group"
 					aria-label="Data file actions"
 				>

@@ -20,7 +20,7 @@ import type { LinkView, NodeView, SettingsView } from "./view";
 export interface AppProps {
 	doc: Document;
 	win: Window;
-	/** The live domain state — handed straight through to DataPanel for JSON export; see its own doc comment. */
+	/** The live domain state — handed straight through to DataPanel for JSON export. */
 	state: State;
 	theme: Theme;
 	nodes: readonly NodeView[];
@@ -68,8 +68,8 @@ export function App({
 
 	// The renderer's own viewBox (render.ts) is driven directly by
 	// settings.aspectRatio; these custom properties only size the *preview*
-	// box before/around that svg (see style.css's #diagram doc comment).
-	// Declared as an ordinary style prop rather than written imperatively:
+	// box around that svg. Declared as an ordinary style prop rather than
+	// written imperatively:
 	// Preact's style diff only touches the keys present in the vnode's own
 	// style object across renders, so it never reads or clears
 	// --diagram-preview-height, which PreviewResizer writes straight to the

@@ -75,12 +75,12 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const state: State = loadState(win.localStorage);
 	// One projector per application instance (not module-level state), so two
 	// concurrent instances (e.g. the cross-realm tests) never share link view
-	// keys — see createLinkProjector's own doc comment.
+	// keys.
 	const projectLinks = createLinkProjector();
 
 	// The last-valid diagram render request. Reassigned wholesale, never
 	// mutated in place, so SankeyCanvas can key its redraw off reference
-	// identity — see its own doc comment.
+	// identity.
 	let lastValidRequest: DiagramRenderRequest | null = null;
 
 	// At most one Notice per kind — plain local state, not Preact state, since
@@ -127,8 +127,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	}
 
 	// Assign only — no render. Every caller below is responsible for calling
-	// renderApp() itself, exactly once, after it's done assigning/mutating
-	// (see renderApp's own doc comment for why).
+	// renderApp() itself, exactly once, after it's done assigning/mutating.
 	function showGraphNotice(notice: Notice | null): void {
 		graphNotice = notice;
 	}
@@ -142,8 +141,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	/**
 	 * The save/notice portion of refresh() below, factored out so the
 	 * theme-change path can reuse it without also validating or redrawing.
-	 * Order matters and is preserved exactly (see refresh()'s own doc comment
-	 * for the surrounding rationale):
+	 * Order matters and is preserved exactly:
 	 *
 	 * 1. Clear any I/O notice (import or export): it's a one-shot result of the
 	 *    last action, so the next committed action retires it. importDiagram()
@@ -175,19 +173,19 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 *    lets SankeyCanvas treat the request as a stable historical value). An
 	 *    invalid graph leaves the previous request's reference untouched, which
 	 *    is what keeps a diagram-setting change made mid-invalid-edit from
-	 *    disturbing the visible SVG (see DiagramRenderRequest's own comment).
-	 * 2. Persist + update notices regardless of validity — see
-	 *    persistAndClearNotices's own doc comment for why.
+	 *    disturbing the visible SVG.
+	 * 2. Persist + update notices regardless of validity: there is no
+	 *    "last-good state" in storage, only the last-good diagram, which stays
+	 *    on screen without needing its own storage.
 	 * 3. Render exactly once, after every assignment above has landed, so
 	 *    `App` never sees a stale `lastValidRequest` paired with
-	 *    already-updated notices (see renderApp's own doc comment). Editors/
-	 *    DiagramPanel/SankeyCanvas all re-render as part of that one App
-	 *    render regardless of validity: the editors' rows are keyed (node id;
-	 *    the link projector's weak key), so Preact patches
-	 *    names/swatches/values/order in place — preserving focus, an
-	 *    in-progress link-value draft, and each row-sortable hook's Sortable
-	 *    instance — instead of rebuilding. SankeyCanvas only reruns D3 when
-	 *    `lastValidRequest`'s identity actually changed (its own layout
+	 *    already-updated notices. Editors/DiagramPanel/SankeyCanvas all
+	 *    re-render as part of that one App render regardless of validity: the
+	 *    editors' rows are keyed (node id; the link projector's weak key), so
+	 *    Preact patches names/swatches/values/order in place — preserving
+	 *    focus, an in-progress link-value draft, and each row-sortable hook's
+	 *    Sortable instance — instead of rebuilding. SankeyCanvas only reruns
+	 *    D3 when `lastValidRequest`'s identity actually changed (its own layout
 	 *    effect is keyed on it), so an unchanged reference on an invalid
 	 *    graph is a no-op redraw.
 	 */
@@ -262,8 +260,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	// Shared by DataPanel (import/JSON export) and DiagramPanel (SVG/PNG
 	// export) below, so every #io-notice message goes through one
 	// implementation regardless of which control produced it; each panel's
-	// own actions object below picks only the members its own controls call
-	// (see IoNoticeActions's own doc comment).
+	// own actions object below picks only the members its own controls call.
 	const ioNoticeActions: IoNoticeActions = {
 		clearIoNotice() {
 			showIoNotice(null);
@@ -322,8 +319,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			state.settings.palette = value;
 			// Node colors are palette-derived; refresh()'s render re-projects the
 			// node editor's swatches from the now-updated state.settings.palette.
-			// Neither editor's row DOM/Sortable is rebuilt — see refresh()'s own
-			// doc comment.
+			// Neither editor's row DOM/Sortable is rebuilt.
 			refresh();
 		},
 		setLinkColor(value) {
@@ -348,9 +344,8 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		if (destroyed) return;
 		destroyed = true;
 		controller.abort();
-		// Must run before unmounting App below — see removeActiveDragClone's own
-		// doc comment for why destroying one editor's Sortable instance first
-		// would otherwise poison the other's own mid-drag cleanup.
+		// Must run before unmounting App below: destroying one editor's Sortable
+		// instance first would otherwise poison the other's own mid-drag cleanup.
 		removeActiveDragClone();
 		// Unmounts the whole App tree in one pass: DataPanel's own
 		// use-row-sortable.ts cleanup tears down each editor's Sortable instance,

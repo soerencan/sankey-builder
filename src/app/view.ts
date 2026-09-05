@@ -14,8 +14,8 @@ export interface NodeView {
  * already stably identified by id, so — unlike the deferred link projector —
  * this needs no weak key registry. Rebuilds the color resolver from
  * `state.nodes`/`state.settings.palette` on every call rather than accepting
- * a shared one (see createNodeColorResolver's own doc comment for why it's
- * built fresh per caller).
+ * a shared one, since a module-level singleton would leak state across app
+ * instances.
  */
 export function projectNodes(state: State): readonly NodeView[] {
 	const nodeColor = createNodeColorResolver(state.nodes, state.settings.palette);
@@ -26,7 +26,7 @@ export function projectNodes(state: State): readonly NodeView[] {
 	}));
 }
 
-/** Immutable per-link DTO handed to LinkEditor — see createLinkProjector's own doc comment for its key. */
+/** Immutable per-link DTO handed to LinkEditor; `key` comes from createLinkProjector below, stable across reorders and fresh for a genuinely new Link object. */
 export interface LinkView {
 	readonly key: string;
 	readonly index: number;

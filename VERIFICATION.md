@@ -20,46 +20,35 @@ python3 -m http.server 8000 --directory /tmp/pages-check
 Then open `http://localhost:8000/sankey-builder/` and confirm the app loads
 and renders with no console errors about failed asset requests.
 
-This list covers only what automation cannot see: rendered visuals, live OS
-theme changes, and pointer-drag feel.
-Everything else from the original checklist — node/link editing, cycle and
-value validation, link color modes, alignment, palette switching, and
-reload persistence — was verified once by a full scripted
-acceptance pass at migration time; a subset of it (validation messages,
-persistence hydration, color resolution, render guards, the alignment
-toggle group's wiring, and the boot/invalid-edit/recovery/storage-notice
-flows) is continuously asserted by the automated suite (`make test`), but
-the rest (e.g. delete cascades, dropdown propagation, and the actual visual
-layout effect of each alignment mode) is not — don't assume `make test`
-covers it.
+This list covers only what `make test` cannot see: rendered visuals (real
+layout, media/container queries), live OS theme changes, pointer/touch drag
+feel, native `<dialog>` cancel/backdrop behavior, and cross-engine paste
+behavior. Node/link editing, cycle and value validation, import/export
+parsing and repair, persistence, and every control's click-driven wiring are
+continuously asserted by the automated suite (`make test`) and are not
+repeated here.
+
+## Cold start / served load
+
+- [ ] Load the app fresh (no prior localStorage entry) and again with a prior entry already saved: zero console errors or warnings in either case (happy-dom doesn't surface console output the way a real browser does).
 
 ## Theme
 
-- [ ] The app-header theme button and selector show the current mode's icon/label (System, Light, or Dark) and stay in sync after each choice.
-- [ ] On System (Auto), the page visually matches the OS light/dark preference — the mechanism (no `data-theme` attribute, `prefers-color-scheme` media query) is unchanged by this move.
-- [ ] With System selected, flipping the OS light/dark preference updates the page live, without reload.
+- [ ] On System (Auto), the page visually matches the OS light/dark preference, and flipping the OS preference updates the page live, without reload.
 - [ ] In dark mode, error text and the node/link delete buttons render legibly — no low-contrast red-on-dark.
 - [ ] Native form controls (selects) render dark chrome in dark mode and light chrome in light mode, matching the theme.
 - [ ] The app header (title plus theme button) stays on one line at 360px, with no wrapping or clipping.
 - [ ] At wide widths, the theme selector opens as a compact surface anchored beneath the top-right theme button and remains wholly within the viewport.
 - [ ] At 360px and 390px, the theme selector opens as a bottom sheet (full width, flush to the bottom edge, rounded top corners only) with comfortably tappable System, Light, and Dark choices.
-- [ ] The theme selector supports keyboard and touch operation: Tab/Shift+Tab reach every choice, Enter/Space activates the focused choice, touch does not depend on hover, and Escape closes it.
-- [ ] After the theme selector closes through a choice, Escape, backdrop click, or its Close control, focus visibly returns to the app-header theme button.
-
-## Cold start / served load
-
-- [ ] Load the app (via `make dev` or a served `dist/`) with no prior localStorage entry → the default diagram renders, with zero errors or warnings in the browser console.
-- [ ] With a prior localStorage entry already saved (e.g. from a previous session in the same browser profile), reloading the page restores that state with zero console errors.
+- [ ] Tab/Shift+Tab reach every choice in the theme selector, and touch operation does not depend on hover.
+- [ ] With the theme selector open, pressing Escape or clicking the backdrop closes it (native `<dialog>` behavior, not exercised by the automated suite) and focus visibly returns to the theme button.
 
 ## Layout feel
 
 - [ ] At wide widths, the diagram panel appears first and spans the available content width; the Data card follows below at the same width.
 - [ ] The actual DOM, visual, screen-reader, and keyboard order all agree: app header → diagram → Data header/actions → Nodes → Links.
-- [ ] The page contains one visually coherent **Data** card with distinct Nodes and Links sections; there are no separate input cards, detached file-actions area, empty leftover box, or stray gap.
 - [ ] When the Data card is sufficiently wide, Nodes and Links render side by side with balanced usable space; resizing through the Data-card container-query breakpoint stacks them cleanly as Nodes then Links.
-- [ ] The Data header contains Import and Export JSON controls, and both remain visually and semantically associated with the data editor at wide and narrow widths.
 - [ ] The Data header actions do not collide with or wrap the Data title into an awkward multi-line header at 360px, 390px, or 768px.
-- [ ] There is no divider/resizer, saved editor-width behavior, sticky diagram, translucent content underlay, or large compensating top scroll padding.
 - [ ] Scrolling is ordinary document scrolling: the diagram moves out of view naturally before the Data sections, without jumps or content passing beneath it.
 
 ## Responsive
@@ -68,32 +57,27 @@ Media/container queries do no real layout under happy-dom, so none of this is
 automated — verify in a real browser (resize the window and use device
 emulation).
 
-- [ ] At desktop widths (for example 1440px and 1024px), the diagram remains first at full content width, with no legacy two-column editor/diagram split or unused gutter.
+- [ ] At desktop widths (for example 1440px and 1024px), the diagram remains first at full content width.
 - [ ] At 768px, 390px, and 360px, the same diagram-first DOM order is preserved; only controls and the Data card's internal Nodes/Links layout adapt.
 - [ ] Across the Data-card container-query breakpoint, Nodes and Links switch exactly once between side-by-side and stacked layouts, with no intermediate collision, overlap, or awkward sliver column.
 - [ ] No horizontal scrollbar at 360px, 390px, and 768px widths.
 - [ ] With an EMPTY diagram (delete all links at phone width), the diagram box collapses to an appropriate placeholder rather than leaving an excessive blank block; the toolbar and Data card remain usable.
-- [ ] At phone width, Tab through the entire page and confirm focused controls scroll into view normally, with no sticky overlay obscuring them and no unexpected scroll jump.
+- [ ] At phone width, Tab through the entire page and confirm focused controls scroll into view normally, with no unexpected scroll jump.
 - [ ] Narrow the Data card until a link row wraps to two lines (source/target on top; handle, value, delete below with the handle leftmost). The wrap responds to the containing card/section width rather than an unrelated viewport breakpoint.
-- [ ] Tab order through a wrapped link row is still handle → source → target → value → delete.
 - [ ] On a real phone (coarse pointer): buttons, the drag handles, selects, and inputs are comfortably tappable (~44px), with slightly larger row spacing.
 - [ ] In dark mode, the diagram and Data surfaces match cleanly with no light seams or content visible through margins.
-- [ ] Edit node names, link endpoints/values, order, palette, link color, and alignment while the Data card is both side-by-side and stacked; every valid change updates the full-width diagram immediately without changing page order or causing overflow.
 
 ## Diagram toolbar
 
 - [ ] The toolbar renders as its own header bar above the diagram, on a visually distinct row — it never floats over or obscures the SVG at any width.
 - [ ] The palette carousel's swatches (both the preview button and the dialog's rows) visually match the actual rendered node colors in the diagram, in both light and dark theme.
-- [ ] With the palette dialog open, pressing Escape closes it (native `<dialog>` cancel behavior — not exercised by the automated suite, since happy-dom doesn't simulate a real Escape-triggered cancel).
-- [ ] After closing the palette dialog (Escape, Close button, or backdrop click), focus visibly returns to the palette preview button — a visible focus ring lands there, not somewhere else on the page.
-- [ ] The four link-color pictograms (Source, Source to target, Target, Neutral — both the Links button and the dialog rows) are visually distinguishable from each other in both light and dark theme, without relying on hover or a tooltip.
+- [ ] With the palette dialog open, pressing Escape closes it (native `<dialog>` cancel behavior, not exercised by the automated suite), and focus visibly returns to the palette preview button.
+- [ ] The four link-color pictograms (Source, Source to target, Target, Neutral) are visually distinguishable from each other in both light and dark theme, without relying on hover or a tooltip.
 - [ ] At wide widths, the toolbar (palette carousel, Links button, alignment group, and one Export diagram control) stays on a single line — no wrapping, clipping, or overlap.
-- [ ] The wide toolbar contains one Export diagram control rather than separate SVG/PNG buttons; opening it presents clearly labelled SVG and PNG actions.
-- [ ] Opening and closing the Export diagram surface does not resize or obscure the diagram, and focus returns visibly to the Export diagram control after a selection, Escape, backdrop click, or Close.
-- [ ] The Export diagram control and both format choices work with keyboard and touch input; the menu/surface never relies on hover-only affordances.
+- [ ] Opening and closing the Export diagram dialog does not resize or obscure the diagram, and focus visibly returns to the Export diagram control after a selection, Escape, or backdrop click.
 - [ ] The alignment group's pressed button (fill plus inset ring) is distinguishable from its unpressed neighbors without relying on color alone, in both light and dark theme.
 - [ ] Tabbing through the alignment group shows a complete, unclipped focus ring on each button, including the ones between two pressed-looking neighbors — the shared inner borders never cut off part of the ring.
-- [ ] Changing alignment visibly changes how nodes are packed within their columns (left/center/right/justify) — this behavioral effect isn't asserted by `make test`, only the button wiring is.
+- [ ] Changing alignment visibly changes how nodes are packed within their columns (left/center/right/justify).
 
 ## Diagram toolbar — narrow mode
 
@@ -105,26 +89,18 @@ container queries, so none of this is automated.
 - [ ] Resize the browser through the diagram toolbar's container-query breakpoint: the wide Links button + alignment group + Export diagram control and the narrow Diagram button swap cleanly at one width, with no point where controls clip, overlap, or wrap onto a second line.
 - [ ] If the swap happens too early or too late relative to where the wide row actually stops fitting, tune the 680px value in style.css rather than filing it as a bug.
 - [ ] No horizontal scrollbar appears at 360px, 390px, or 768px viewport widths with the narrow toolbar showing.
-- [ ] At 360px, 390px, and 768px, whichever toolbar representation the diagram container selects remains exactly one line tall; no control wraps, overlaps, clips, or forces horizontal page overflow.
-- [ ] On a small/phone viewport, tapping Diagram opens it as a bottom sheet (full width, flush to the bottom edge, rounded top corners only) rather than a small centered card; on a wider narrow panel it may use the appropriate compact dialog treatment.
-- [ ] The Diagram sheet contains all narrow-mode diagram actions: labelled Link color choices, labelled Alignment choices, and clearly labelled SVG and PNG export actions.
-- [ ] Choosing a link color or alignment option inside the Diagram sheet updates the diagram immediately, WITHOUT closing the sheet — repeated taps across both groups keep it open so several changes can be made in one visit.
-- [ ] Choosing SVG or PNG from the Diagram sheet performs the requested download; a successful export shows no notice, but a failure or empty-diagram error remains visible after the sheet closes.
+- [ ] On a small/phone viewport, tapping Diagram opens it as a bottom sheet (full width, flush to the bottom edge, rounded top corners only) rather than a small centered card.
 - [ ] The diagram panel's rendered height does not change while the Diagram sheet is open (the sheet is a top-layer overlay, not part of panel layout).
-- [ ] With the Diagram sheet open, pressing Escape closes it; Tab/Shift+Tab reach every interactive choice, Enter/Space activates controls, and all rows/buttons remain comfortable touch targets (~44px).
-- [ ] After closing the Diagram sheet (format choice, Close button, backdrop click, or Escape), focus visibly returns to the Diagram button.
-- [ ] Link color and alignment choices made in the Diagram sheet stay in sync with the wide toolbar's Links button/alignment group when the layout swaps back to wide (e.g. widen the window after choosing Neutral in Diagram) — both copies reflect the same state.
+- [ ] With the Diagram sheet open, pressing Escape closes it (native `<dialog>` behavior, not exercised by the automated suite); all rows/buttons remain comfortable touch targets (~44px).
+- [ ] After closing the Diagram sheet (a choice, Close button, backdrop click, or Escape), focus visibly returns to the Diagram button.
 - [ ] Coarse-pointer targets (both toolbar buttons and the Diagram sheet's option rows) are comfortably tappable (~44px) on a real touch device.
 
 ## Row reordering (drag feel)
 
-Reordering is driven by SortableJS (an npm dependency bundled into the site's
-JavaScript, `forceFallback` mode — a synthetic drag on every platform, not
-native HTML5 DnD). The
-keyboard path (focus a handle, Arrow up/down) and the resulting state/DOM
-changes are automated, as is the Sortable wiring itself (instance options,
-cross-box group separation, the `onEnd` commit); the actual drag *feel* is
-not — verify it in a real browser.
+Reordering is driven by SortableJS (`forceFallback` mode — a synthetic drag
+on every platform, not native HTML5 DnD). The keyboard path and the Sortable
+wiring itself (instance options, cross-box group separation, the `onEnd`
+commit) are automated; the actual drag *feel* is not.
 
 - [ ] Grab a node row by its ⠿ handle and drag (mouse): a floating clone of the row detaches and tracks the pointer/cursor exactly, with a raised shadow; the row's original slot in the list shows a dimmed placeholder that moves live as you drag over other rows, and the list around it animates (siblings slide) rather than jumping.
 - [ ] Releasing the drag drops the row where the placeholder was, and the diagram/dropdowns update to the new order.
@@ -152,22 +128,15 @@ pipeline), so verify per engine which behavior actually occurs.
 
 ## Export / Import
 
-The parse/serialize logic and the DOM wiring are automated (unit + integration), but
-the real browser download dialog and native file picker aren't reachable from
-happy-dom — verify those against a served app (`make dev` or a served
-`dist/`).
+The parse/serialize logic and the DOM wiring are automated (unit +
+integration), but the real browser download dialog, native file picker, and
+canvas rasterization aren't reachable from happy-dom — verify those against a
+served app (`make dev` or a served `dist/`).
 
-- [ ] The Data card header contains Import and Export JSON only; the diagram toolbar/sheet contains SVG and PNG only, keeping data-file and rendered-diagram actions in their respective contexts.
-- [ ] Export: click Export JSON in the Data header → the download lands in Downloads as `sankey.json` with no console errors about blob URLs or the object-URL lifecycle; opening it shows a pretty-printed `{nodes, links, settings}` with no `theme` key and no incomplete links.
-- [ ] Import: click Import in the Data header → the native file picker opens; choosing a previously exported file replaces the diagram, editors, and controls with zero console errors, and the theme in use does not change.
-- [ ] Import repairs: hand-edit an exported file to introduce an unknown palette and a dangling link endpoint, then import → the diagram loads and the notice lists the adjustments made.
-- [ ] Legacy manual-color import: hand-edit an exported file to add `"colorMode": "manual"` and hex `color` values on the nodes, then import → the diagram loads using the file's named palette, the per-node colors are ignored, and the notice mentions manual colors are no longer supported.
-- [ ] Import rejection: pick an unrelated `.json` file → the diagram is left untouched and the notice says it doesn't look like a diagram export.
-- [ ] Import a topologically-invalid file (e.g. a cycle A→B→A): state is replaced and saved, `#error` shows the cycle message, the previous diagram stays rendered (refresh bails before re-render on an invalid graph), and `#io-notice` still reports the import — confirm that three-way combination reads acceptably rather than confusingly.
-- [ ] Export SVG: use Export diagram → SVG on a wide layout and Diagram → SVG on a narrow layout → `sankey.svg` downloads and opens standalone in a browser with an opaque background and legible node labels matching the current theme's colors (light theme → light background with dark labels; dark theme → dark background with light labels — each theme's own text color).
-- [ ] Export SVG on an empty diagram (delete all links first): clicking Export SVG downloads nothing; `#io-notice` shows "Nothing to export — the diagram is empty."
+- [ ] Export: click Export JSON in the Data header → the download lands in Downloads as `sankey.json` with no console errors about blob URLs or the object-URL lifecycle.
+- [ ] Import: click Import in the Data header → the native file picker opens; choosing a previously exported file replaces the diagram, editors, and controls with zero console errors.
+- [ ] Export SVG: use Export diagram → SVG on a wide layout and Diagram → SVG on a narrow layout → `sankey.svg` downloads and opens standalone in a browser with an opaque background and legible node labels matching the current theme's colors (light theme → light background with dark labels; dark theme → dark background with light labels).
 - [ ] Export PNG: use Export diagram → PNG on a wide layout and Diagram → PNG on a narrow layout → `sankey.png` downloads at 1920x960 with an opaque background and legible node labels matching the current theme's colors, with no console errors about blob URLs, canvas tainting, or the object-URL lifecycle — check both light and dark theme, and both link color modes (single color and source→target gradient, which must rasterize as a real gradient, not a solid fallback).
-- [ ] Export PNG on an empty diagram (delete all links first): clicking Export PNG downloads nothing; `#io-notice` shows "Nothing to export — the diagram is empty."
 - [ ] Safari PNG export specifically: repeat the above in Safari — canvas + SVG rasterization (drawImage of an svg: URL, toBlob) is the part most likely to diverge from Chrome/Firefox; confirm the PNG downloads and its colors/dimensions match.
-- [ ] Feedback appears in the consolidated notice region: import/JSON notices and SVG/PNG failure or empty-diagram errors remain visible after menus/sheets close and do not cause overlap or horizontal overflow at 360px or 390px; a successful export or import shows no notice.
-- [ ] With a screen reader running, confirm the `aria-live="polite"` notice region announces restrainedly: typing an invalid link value repeatedly does not trigger a root announcement (it's an inline field error, not a root notice), and an unrelated action (e.g. a settings change, or a second import) while a notice is already showing doesn't re-announce unchanged notice text. This can't be automated — happy-dom doesn't simulate live-region announcement timing — so it's screen-reader-only verification.
+- [ ] Feedback in the consolidated notice region does not cause overlap or horizontal overflow at 360px or 390px.
+- [ ] With a screen reader running, confirm the `aria-live="polite"` notice region announces restrainedly: typing an invalid link value repeatedly does not trigger a root announcement (it's an inline field error, not a root notice), and an unrelated action (e.g. a settings change, or a second import) while a notice is already showing doesn't re-announce unchanged notice text.

@@ -27,8 +27,8 @@ const PNG_EXPORT_SCALE = 2;
 // truncated to keep the preview/dialog rows a consistent width.
 const SWATCH_COUNT = 5;
 
-// Runtime iteration order follows LINK_COLOR_OPTIONS's own declaration order
-// (source, source-target, target, static) — see that constant's doc comment.
+// Runtime iteration order (source, source-target, target, static) is the
+// dialog's display order, which is LINK_COLOR_OPTIONS's own declaration order.
 const LINK_COLOR_ENTRIES = Object.entries(LINK_COLOR_OPTIONS) as [
 	LinkColorMode,
 	LinkColorOptionMeta,
@@ -55,7 +55,7 @@ export interface DiagramPanelProps {
 	diagramRef: RefObject<HTMLElement>;
 	settings: SettingsView;
 	actions: DiagramPanelActions;
-	/** The owning app instance's AbortSignal — guards PNG rasterization; see export.ts's own doc comment. */
+	/** The owning app instance's AbortSignal — guards PNG rasterization. */
 	signal: AbortSignal;
 }
 
@@ -241,7 +241,7 @@ export function DiagramPanel({
 						</svg>
 					</button>
 					<div
-						// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+						// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 						role="group"
 						aria-label="Alignment"
 						class="align-group"
@@ -307,7 +307,7 @@ export function DiagramPanel({
 				<h3 id="palette-dialog-heading">Palette</h3>
 				<div
 					class="palette-options"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 					role="group"
 					aria-label="Palette"
 				>
@@ -338,7 +338,7 @@ export function DiagramPanel({
 				<h3 id="links-dialog-heading">Link colors</h3>
 				<div
 					class="choice-options"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 					role="group"
 					aria-label="Link colors"
 				>
@@ -375,7 +375,7 @@ export function DiagramPanel({
 				<h3 id="aspect-ratio-dialog-heading">Aspect ratio</h3>
 				<div
 					class="choice-options aspect-ratio-options"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 					role="group"
 					aria-label="Aspect ratio"
 				>
@@ -410,7 +410,7 @@ export function DiagramPanel({
 				<h3 id="diagram-export-dialog-heading">Export diagram</h3>
 				<div
 					class="export-options"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 					role="group"
 					aria-label="Export diagram format"
 				>
@@ -447,7 +447,7 @@ export function DiagramPanel({
 			<dialog id="display-dialog" ref={displayDialog.ref} aria-labelledby="display-dialog-heading">
 				<h3 id="display-dialog-heading">Diagram</h3>
 				<div
-					// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 					role="group"
 					aria-labelledby="display-link-colors-heading"
 				>
@@ -472,7 +472,7 @@ export function DiagramPanel({
 					</div>
 				</div>
 				<div
-					// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 					role="group"
 					aria-labelledby="display-alignment-heading"
 				>
@@ -497,14 +497,14 @@ export function DiagramPanel({
 					</div>
 				</div>
 				<div
-					// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 					role="group"
 					aria-labelledby="display-aspect-ratio-heading"
 				>
 					<h4 id="display-aspect-ratio-heading">Aspect ratio</h4>
 					<div
 						class="choice-options aspect-ratio-options"
-						// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+						// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 						role="group"
 						aria-labelledby="display-aspect-ratio-heading"
 					>
@@ -525,7 +525,7 @@ export function DiagramPanel({
 					</div>
 				</div>
 				<div
-					// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 					role="group"
 					aria-labelledby="display-export-heading"
 				>

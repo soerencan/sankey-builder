@@ -114,6 +114,6 @@ export function useRowSortable(
 		};
 		// rowClass is a stable literal for the lifetime of one mounted editor —
 		// this dependency array is effectively mount-once, not a signal that the
-		// effect is meant to react to it changing. See the doc comment above.
+		// effect is meant to react to it changing.
 	}, [rowClass]);
 }

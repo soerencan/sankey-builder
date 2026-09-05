@@ -125,7 +125,7 @@ describe("aspectRatioOption", () => {
 });
 
 describe("DEFAULT_SETTINGS", () => {
-	it("matches the pre-consolidation defaults", () => {
+	it("has the expected default value for every setting", () => {
 		expect(DEFAULT_SETTINGS).toEqual({
 			palette: "observable10",
 			linkColor: "source-target",

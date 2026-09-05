@@ -72,20 +72,20 @@ describe("row reordering", () => {
 		expect(document.activeElement).toBe(moved);
 	});
 
-	// Pointer/touch dragging is now delegated to SortableJS (src/features/editor/use-row-sortable.ts),
-	// which happy-dom can construct but can't be driven through a realistic
-	// pointer/touch gesture (no real layout, no native drag/touch pipeline) —
-	// see VERIFICATION.md for what still needs a real browser. These tests
-	// instead cover the wiring: a real Sortable instance is attached to each
-	// rows container with the intended options, the two boxes can never share
-	// a drop target, and invoking the registered onEnd (as Sortable itself
-	// would once a real drag completes) commits the same state/DOM/storage
-	// change the old pointer-drag tests asserted.
+	// Pointer/touch dragging is delegated to SortableJS
+	// (src/features/editor/use-row-sortable.ts), which happy-dom can construct
+	// but can't be driven through a realistic pointer/touch gesture (no real
+	// layout, no native drag/touch pipeline) — see VERIFICATION.md for what
+	// still needs a real browser. These tests instead cover the wiring: a real
+	// Sortable instance is attached to each rows container with the intended
+	// options, the two boxes can never share a drop target, and invoking the
+	// registered onEnd (as Sortable itself would once a real drag completes)
+	// commits the same state/DOM/storage change a keyboard reorder does.
 	//
-	// use-row-sortable.ts's onEnd handler also reads `item` (to restore
-	// pre-drag DOM order before dispatch — see its own doc comment), so the
-	// no-op-guard tests below that only exercise oldIndex/newIndex omit it;
-	// fakeSortableEvent casts past that rather than constructing a full Event.
+	// use-row-sortable.ts's onEnd handler also reads `item` to restore pre-drag
+	// DOM order before dispatching the move, so the no-op-guard tests below
+	// that only exercise oldIndex/newIndex omit it; fakeSortableEvent casts
+	// past that rather than constructing a full Event.
 	const fakeSortableEvent = (
 		event: Partial<Pick<Sortable.SortableEvent, "oldIndex" | "newIndex">>,
 	): Sortable.SortableEvent => event as unknown as Sortable.SortableEvent;
@@ -155,12 +155,6 @@ describe("row reordering", () => {
 		expect(nodeNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
 		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n3", "n1", "n4"]);
-
-		// Unlike the pre-Preact editors, the controller's move re-render keeps
-		// the same rows container and Sortable instance — use-row-sortable.ts's
-		// hook owns them for the life of the mounted editor, not per-rebuild.
-		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRows);
-		expect(Sortable.get(nodeRows)).toBe(nodeSortable);
 	});
 
 	it("onEnd restores the DOM to pre-drag order before dispatching the move, then ends in model order after Preact's re-render, with focus kept on the dragged row's handle", () => {
@@ -200,8 +194,8 @@ describe("row reordering", () => {
 		// happened to Sortable's own earlier drag-tracking DOM edits.
 		draggedRow.querySelector<HTMLButtonElement>(".drag-handle")?.focus();
 
-		// fakeSortableEvent only carries oldIndex/newIndex (see its own comment
-		// above) — this test needs `item` too, so it builds the event directly.
+		// fakeSortableEvent only carries oldIndex/newIndex, and this test needs
+		// `item` too, so it builds the event directly.
 		onEnd({ item: draggedRow, oldIndex: 0, newIndex: 2 } as unknown as Sortable.SortableEvent);
 
 		// The move (n1 to index 2) landed, but by DOM identity, not just value —
@@ -220,7 +214,7 @@ describe("row reordering", () => {
 		);
 	});
 
-	it("committing a link row's Sortable onEnd reorders it: order, storage, and container/Sortable identity all follow", () => {
+	it("committing a link row's Sortable onEnd reorders it: order and storage follow", () => {
 		mountApp();
 
 		const linkValues = () =>
@@ -248,12 +242,6 @@ describe("row reordering", () => {
 		expect(linkValues()).toEqual(["6", "10", "14"]);
 		const stored = getStoredState();
 		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([6, 10, 14]);
-
-		// Unlike the pre-Preact editor, the controller's move re-render keeps
-		// the same rows container and Sortable instance — use-row-sortable.ts's
-		// hook owns them for the life of the mounted editor, not per-rebuild.
-		expect(requireElement<HTMLElement>("#link-editor .link-rows")).toBe(linkRows);
-		expect(Sortable.get(linkRows)).toBe(linkSortable);
 	});
 
 	it("an invalid link-value draft follows its link through a keyboard reorder, not its array position", async () => {
@@ -361,25 +349,6 @@ describe("row reordering", () => {
 		expect(Sortable.get(nodeRows)).toBe(instance);
 	});
 
-	it("adding a node re-renders the node editor in place: the rows container and its Sortable instance survive", () => {
-		mountApp();
-
-		const before = requireElement<HTMLElement>("#node-editor .node-rows");
-		const instanceBefore = Sortable.get(before);
-		expect(instanceBefore).toBeTruthy();
-
-		// Unlike the pre-Preact editor (and unlike the still-imperative link
-		// editor below), a committed node mutation is a keyed Preact re-render,
-		// not a rebuild — use-row-sortable.ts's hook owns the container/Sortable
-		// for the life of the mounted editor, so add-node must not replace or
-		// recreate either.
-		click(document.querySelector('[data-action="add-node"]'));
-
-		const after = requireElement<HTMLElement>("#node-editor .node-rows");
-		expect(after).toBe(before);
-		expect(Sortable.get(after)).toBe(instanceBefore);
-	});
-
 	it("destroying the app tears down the node editor's Sortable instance exactly once", () => {
 		const { app } = mountApp();
 
@@ -410,7 +379,7 @@ describe("row reordering", () => {
 		expect(Sortable.get(linkRows)).toBeNull();
 	});
 
-	it("both editors' Sortables are created exactly once under the consolidated DataPanel root, survive its rerenders and keep reordering correctly, and are each destroyed exactly once on destroy", () => {
+	it("the rows container and Sortable instance of each editor survive a re-render, keep reordering correctly, and are each destroyed exactly once on destroy", () => {
 		const { app } = mountApp();
 
 		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
@@ -424,10 +393,13 @@ describe("row reordering", () => {
 		const linkDestroySpy = vi.spyOn(linkSortable, "destroy");
 
 		// DataPanel's single root re-renders both editors together on every
-		// committed action; neither editor's Sortable instance is recreated by
-		// that (use-row-sortable.ts's effect is mount-once per rows container).
+		// committed action; neither editor's rows container nor Sortable
+		// instance is recreated by that (use-row-sortable.ts's effect is
+		// mount-once per rows container).
 		click(document.querySelector('[data-action="add-node"]'));
 		click(document.querySelector('[data-action="add-link"]'));
+		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRows);
+		expect(requireElement<HTMLElement>("#link-editor .link-rows")).toBe(linkRows);
 		expect(Sortable.get(nodeRows)).toBe(nodeSortable);
 		expect(Sortable.get(linkRows)).toBe(linkSortable);
 
@@ -453,25 +425,6 @@ describe("row reordering", () => {
 		expect(Sortable.get(linkRows)).toBeNull();
 	});
 
-	it("adding a link re-renders the link editor in place: the rows container and its Sortable instance survive", () => {
-		mountApp();
-
-		const before = requireElement<HTMLElement>("#link-editor .link-rows");
-		const instanceBefore = Sortable.get(before);
-		expect(instanceBefore).toBeTruthy();
-
-		// Unlike the pre-Preact editor, a committed link mutation is a keyed
-		// Preact re-render, not a rebuild — use-row-sortable.ts's hook owns the
-		// container/Sortable for the life of the mounted editor, so add-link
-		// must not replace or recreate either — mirrors the node-row
-		// equivalent above.
-		click(document.querySelector('[data-action="add-link"]'));
-
-		const after = requireElement<HTMLElement>("#link-editor .link-rows");
-		expect(after).toBe(before);
-		expect(Sortable.get(after)).toBe(instanceBefore);
-	});
-
 	it("boundary keyboard move is a no-op (ArrowUp on the first node row)", () => {
 		mountApp();
 
@@ -494,71 +447,20 @@ describe("row reordering", () => {
 // Link add/delete/endpoint-change/reorder invalidate only the link editor —
 // none of them touch the node editor's rows or its Sortable instance.
 describe("link actions leave the node editor untouched", () => {
-	function nodeSortableOrThrow(): Sortable {
-		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
-		const instance = Sortable.get(nodeRows);
-		if (!instance) throw new Error("unreachable");
-		return instance;
-	}
-
-	it("add link does not destroy/recreate the node Sortable or its row DOM", () => {
+	it("add, delete, and endpoint-change link actions never destroy/recreate the node Sortable or its row DOM", () => {
 		mountApp();
 
 		const nodeRowsBefore = requireElement<HTMLElement>("#node-editor .node-rows");
 		const nodeRowBefore = requireElement<HTMLElement>("#node-editor .node-row");
-		const nodeSortableBefore = nodeSortableOrThrow();
+		const nodeSortableBefore = Sortable.get(nodeRowsBefore);
+		if (!nodeSortableBefore) throw new Error("unreachable");
 		const destroySpy = vi.spyOn(nodeSortableBefore, "destroy");
 
 		click(document.querySelector('[data-action="add-link"]'));
-
-		expect(destroySpy).not.toHaveBeenCalled();
-		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRowsBefore);
-		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(nodeRowBefore);
-		expect(Sortable.get(nodeRowsBefore)).toBe(nodeSortableBefore);
-	});
-
-	it("delete link does not destroy/recreate the node Sortable or its row DOM", () => {
-		mountApp();
-
-		const nodeRowsBefore = requireElement<HTMLElement>("#node-editor .node-rows");
-		const nodeRowBefore = requireElement<HTMLElement>("#node-editor .node-row");
-		const nodeSortableBefore = nodeSortableOrThrow();
-		const destroySpy = vi.spyOn(nodeSortableBefore, "destroy");
-
 		click(document.querySelector('.link-delete[data-index="0"]'));
-
-		expect(destroySpy).not.toHaveBeenCalled();
-		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRowsBefore);
-		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(nodeRowBefore);
-		expect(Sortable.get(nodeRowsBefore)).toBe(nodeSortableBefore);
-	});
-
-	it("changing a link's source endpoint does not destroy/recreate the node Sortable or its row DOM", () => {
-		mountApp();
-
-		const nodeRowsBefore = requireElement<HTMLElement>("#node-editor .node-rows");
-		const nodeRowBefore = requireElement<HTMLElement>("#node-editor .node-row");
-		const nodeSortableBefore = nodeSortableOrThrow();
-		const destroySpy = vi.spyOn(nodeSortableBefore, "destroy");
-
 		const source = requireElement<HTMLSelectElement>('.link-source[data-index="0"]');
 		source.value = "n2";
 		fireChange(source);
-
-		expect(destroySpy).not.toHaveBeenCalled();
-		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRowsBefore);
-		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(nodeRowBefore);
-		expect(Sortable.get(nodeRowsBefore)).toBe(nodeSortableBefore);
-	});
-
-	it("changing a link's target endpoint does not destroy/recreate the node Sortable or its row DOM", () => {
-		mountApp();
-
-		const nodeRowsBefore = requireElement<HTMLElement>("#node-editor .node-rows");
-		const nodeRowBefore = requireElement<HTMLElement>("#node-editor .node-row");
-		const nodeSortableBefore = nodeSortableOrThrow();
-		const destroySpy = vi.spyOn(nodeSortableBefore, "destroy");
-
 		const target = requireElement<HTMLSelectElement>('.link-target[data-index="0"]');
 		target.value = "n4";
 		fireChange(target);

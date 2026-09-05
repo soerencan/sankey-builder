@@ -19,7 +19,7 @@ describe("application boot", () => {
 		expect(document.querySelector(".data-card")).toBeNull();
 	});
 
-	it("places the diagram before the data editor and has no obsolete resize control", () => {
+	it("places the diagram before the data editor", () => {
 		mountApp();
 
 		const diagramPanel = document.querySelector(".diagram-panel");
@@ -31,7 +31,6 @@ describe("application boot", () => {
 				? diagramPanel.compareDocumentPosition(dataCard) & Node.DOCUMENT_POSITION_FOLLOWING
 				: 0,
 		).toBeTruthy();
-		expect(document.getElementById("resizer")).toBeNull();
 	});
 
 	it("resizes only the preview through the splitter controls", () => {

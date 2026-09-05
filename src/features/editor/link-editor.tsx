@@ -19,12 +19,11 @@ export interface LinkEditorProps {
 }
 
 /**
- * Rows are keyed by the view projector's per-Link weak key (see
- * app/view.ts's createLinkProjector), not array index, so a value/endpoint
- * edit or a reorder patches the existing DOM in place — preserving an
- * in-progress draft, focus, and the Sortable-owned rows container (see
- * use-row-sortable.ts) — while an import's fresh Link objects correctly
- * reset every row (see link-row.tsx's own doc comment).
+ * Rows are keyed by the view projector's per-Link weak key, not array index,
+ * so a value/endpoint edit or a reorder patches the existing DOM in
+ * place — preserving an in-progress draft, focus, and the Sortable-owned
+ * rows container — while an import's fresh Link objects get fresh keys and
+ * so correctly reset every row.
  */
 export function LinkEditor({ links, nodes, actions }: LinkEditorProps) {
 	const rowsRef = useRef<HTMLDivElement>(null);

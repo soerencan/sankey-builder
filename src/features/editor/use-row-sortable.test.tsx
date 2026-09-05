@@ -37,8 +37,9 @@ describe("useRowSortable", () => {
 		const instance = Sortable.get(rows);
 		expect(instance).toBeTruthy();
 
-		// A rerender must not recreate the instance — see the hook's own doc
-		// comment for why it's mount-once rather than per-render.
+		// A rerender must not recreate the instance: the effect that creates it
+		// is keyed on `rowClass`, a stable literal for the life of this render,
+		// so it never re-runs after mount.
 		render(<Rows ids={["a", "b"]} onMove={() => {}} />, container);
 		expect(Sortable.get(rows)).toBe(instance);
 

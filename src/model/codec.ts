@@ -24,10 +24,10 @@ export function normalizeSettings(settings: unknown, repairs?: string[]): Settin
 	if (isPaletteKey(s.palette)) palette = s.palette;
 	else if (s.palette !== undefined) repairs?.push("settings: unknown palette — using default");
 
-	// Manual per-node colors were removed; a legacy export/localStorage entry
-	// carrying colorMode: "manual" now just falls back to the saved palette.
-	// Any other stray colorMode value is ignored silently — it was never a
-	// real setting from the app's own perspective post-removal.
+	// colorMode: "manual" isn't a supported setting — manual per-node colors
+	// don't exist — so an export/localStorage entry carrying it falls back to
+	// the saved palette. Any other stray colorMode value is ignored silently,
+	// since none of them is a real setting either.
 	if (s.colorMode === "manual") {
 		repairs?.push("settings: manual colors are no longer supported — using the saved palette");
 	}
@@ -74,8 +74,8 @@ function isRawLink(value: unknown): value is Record<string, unknown> {
 
 /**
  * Normalizes raw nodes, dropping malformed rows (missing id/name). Any other
- * field — including a legacy `color` from the removed manual-color feature —
- * is ignored silently by construction: only id/name are copied over.
+ * field — including a stray `color` from a manual-color export — is ignored
+ * silently by construction: only id/name are copied over.
  */
 export function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] {
 	const nodes: Node[] = [];

@@ -101,9 +101,9 @@ describe("removeActiveDragClone", () => {
 	/**
 	 * The scenario removeActiveDragClone exists for: destroying an unrelated,
 	 * idle Sortable instance first would otherwise null the shared
-	 * Sortable.active/ghost/clone statics (see its own doc comment) before a
-	 * later destroySortable() call for the actually-active instance can find
-	 * them — this proves calling it first avoids exactly that.
+	 * Sortable.active/ghost/clone statics before a later destroySortable() call
+	 * for the actually-active instance can find them — this proves calling it
+	 * first avoids exactly that.
 	 */
 	it("lets a later destroySortable() no-op safely once its own ghost/clone were already removed", () => {
 		const activeContainer = document.getElementById("rows") as HTMLElement;

@@ -95,7 +95,6 @@ export function aspectRatioOption(value: AspectRatio): AspectRatioOption {
 
 // --- Defaults ---
 
-/** Byte-identical to the pre-consolidation defaults in graph.ts's defaultState() and storage.ts's fallbacks. */
 export const DEFAULT_SETTINGS: {
 	palette: Palette;
 	linkColor: LinkColorMode;

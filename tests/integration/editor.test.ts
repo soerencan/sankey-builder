@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 
-import Sortable from "sortablejs";
 import { describe, expect, it, vi } from "vitest";
 import { STORAGE_KEY } from "../../src/platform/storage";
 import {
@@ -54,8 +53,8 @@ describe("node & link editing", () => {
 		fireInput(valueInput);
 		// The row-local draft's aria-invalid marker is set by a Preact render,
 		// which — unlike a committed action's controller refresh() — is only
-		// scheduled, not run synchronously within this event (see tick()'s doc
-		// comment in tests/helpers/mount-app.ts).
+		// scheduled on the next microtask, not run synchronously within this
+		// event, hence the await below.
 		await tick();
 
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
@@ -143,7 +142,7 @@ describe("node & link editing", () => {
 		expect(errorEl.textContent).toBe("");
 	});
 
-	it("pins the exact error message for other ambiguous link-value inputs, ahead of a parser refactor", async () => {
+	it("pins the exact error message for other ambiguous link-value inputs", async () => {
 		mountApp();
 
 		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
@@ -248,7 +247,8 @@ describe("node & link editing", () => {
 		// The truncated value/caret are synchronous DOM writes the beforeinput
 		// handler must make itself (having just prevented the browser's own
 		// insertion) — but the invalid draft's aria-invalid marker is a Preact
-		// render, scheduled rather than run inline; see tick()'s doc comment.
+		// render, scheduled on the next microtask rather than run inline, hence
+		// the await below.
 		expect(valueInput.value).toBe("0.0000");
 		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
@@ -265,7 +265,7 @@ describe("node & link editing", () => {
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 	});
 
-	it("invalid committed state (link-endpoint cycle) persists to storage while the diagram keeps the last valid SVG", () => {
+	it("invalid committed state (link-endpoint cycle) persists to storage while the diagram keeps the last valid SVG, then redraws once the cycle is fixed", () => {
 		mountApp();
 
 		const svgBefore = document.querySelector("#diagram svg");
@@ -288,15 +288,84 @@ describe("node & link editing", () => {
 
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
+
+		target.value = "n4";
+		fireChange(target);
+
+		expect(document.getElementById("error")?.textContent).toBe("");
+		const svgAfter = document.querySelector("#diagram svg");
+		expect(svgAfter).not.toBeNull();
+		expect(svgAfter).not.toBe(svgBefore);
+	});
+
+	it("keeps focus on a link-value input through its own committed valid keystroke, which still redraws the diagram", () => {
+		mountApp();
+
+		const svgBefore = document.querySelector("#diagram svg");
+		expect(svgBefore).not.toBeNull();
+
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		valueInput.focus();
+		expect(document.activeElement).toBe(valueInput);
+
+		valueInput.value = "20";
+		fireInput(valueInput);
+
+		expect(document.activeElement).toBe(valueInput);
+		const svgAfter = document.querySelector("#diagram svg");
+		expect(svgAfter).not.toBeNull();
+		expect(svgAfter).not.toBe(svgBefore);
+		expect(getStoredState().links[0].value).toBe(20);
+	});
+
+	it("leaves an invalid link-value draft untouched by an unrelated committed rename", async () => {
+		mountApp();
+
+		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const describedbyId = valueInput.getAttribute("aria-describedby");
+		const errorEl = describedbyId ? document.getElementById(describedbyId) : null;
+		expect(errorEl).not.toBeNull();
+		if (!errorEl) throw new Error("unreachable");
+
+		valueInput.value = "abc";
+		fireInput(valueInput);
+		await tick();
+
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
+
+		// The link row's draft is row-local state, keyed by the link's view key
+		// rather than array index — an unrelated rename's re-render patches this
+		// row's DOM in place instead of rebuilding it, so the draft/error state
+		// must survive intact.
+		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
+		nameInput.value = "Lignite";
+		fireInput(nameInput);
+
+		// Identity, not just value/attribute equality: if the link row were ever
+		// rebuilt instead of patched, the rebuilt row would carry the same
+		// default value/attributes on a *detached* node and these assertions
+		// would pass while the visible draft was actually lost.
+		expect(requireElement<HTMLInputElement>('.link-value[data-index="0"]')).toBe(valueInput);
+		expect(valueInput.value).toBe("abc");
+		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
+		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
+
+		// Confirms the rename itself actually reached the app (and the link
+		// editor's re-projected node options picked it up) rather than the
+		// assertions above merely tolerating a no-op rename.
+		const n1Option = requireElement<HTMLOptionElement>(
+			'#link-editor option.node-option[value="n1"]',
+		);
+		expect(n1Option.textContent).toBe("Lignite");
 	});
 
 	it("invalid draft: no persist, no notice change, no redraw", async () => {
 		mountApp();
 
-		// Give #io-notice non-empty content first (a repaired import's warning —
-		// export success installs no notice under the current policy, so it
-		// can't seed this the way it once did) so "the notice doesn't change"
-		// below is a real assertion rather than two empty strings.
+		// Give #io-notice non-empty content first (a repaired import's warning,
+		// since a successful export installs no notice) so "the notice doesn't
+		// change" below is a real assertion rather than two empty strings.
 		const payload = {
 			nodes: [
 				{ id: "n1", name: "X" },
@@ -425,17 +494,13 @@ describe("node & link editing", () => {
 		expect(getStoredState().links[3].source).toBeNull();
 	});
 
-	it("renaming a node keeps the input's focus/identity, patches link-option labels, and leaves the link editor's rows/Sortable untouched", () => {
+	it("renaming a node keeps the input's focus/identity and patches link-option labels without rebuilding link rows", () => {
 		mountApp();
 
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
 
-		const linkEditorRoot = requireElement<HTMLElement>("#link-editor");
-		const linkRowsBefore = requireElement<HTMLElement>("#link-editor .link-rows");
 		const linkRowElsBefore = Array.from(document.querySelectorAll("#link-editor .link-row"));
-		const sortableBefore = Sortable.get(linkRowsBefore);
-		expect(sortableBefore).toBeTruthy();
 
 		// Snapshot order + selected/disabled attributes of every node-option
 		// across every source/target select — renaming must leave all of this
@@ -479,16 +544,12 @@ describe("node & link editing", () => {
 			expect(option.textContent).toBe("Lignite");
 		}
 
-		// (c) the link editor's container/rows/Sortable instance survive: rows
-		// are keyed by link (see app/view.ts's createLinkProjector), so the
-		// rename's re-render patches existing DOM in place rather than
-		// rebuilding.
-		expect(document.getElementById("link-editor")).toBe(linkEditorRoot);
-		expect(document.querySelector("#link-editor .link-rows")).toBe(linkRowsBefore);
+		// (c) each link row keeps its own DOM identity: rows are keyed by the
+		// link's view key, so the rename's re-render patches existing DOM in
+		// place rather than rebuilding.
 		const linkRowElsAfter = Array.from(document.querySelectorAll("#link-editor .link-row"));
 		expect(linkRowElsAfter.length).toBe(linkRowElsBefore.length);
 		linkRowElsAfter.forEach((row, i) => expect(row).toBe(linkRowElsBefore[i]));
-		expect(Sortable.get(linkRowsBefore)).toBe(sortableBefore);
 
 		// (e) option order and selected/disabled attributes are exactly as
 		// before — only textContent changed.

@@ -45,7 +45,7 @@ export function ThemeControl({ theme, actions }: ThemeControlProps) {
 				<h3 id="theme-dialog-heading">Theme</h3>
 				<div
 					class="choice-options"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" (not <fieldset>) matches index.html's original markup exactly, pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
+					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
 					role="group"
 					aria-label="Theme"
 				>

@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 
-import Sortable from "sortablejs";
 import { describe, expect, it } from "vitest";
 import { paletteColors } from "../../src/features/diagram/colors";
 import {
@@ -260,11 +259,11 @@ describe("toolbar & settings", () => {
 		expect(document.activeElement).toBe(trigger);
 	});
 
-	// Pins App's own style-prop write against PreviewResizer's imperative one
-	// (see app.tsx's #diagram style doc comment): Preact's per-render style
-	// diff only ever touches the keys present in the vnode's style object, so
-	// a later aspect-ratio-driven rerender must not clobber the height
-	// PreviewResizer wrote straight to the DOM outside that diff.
+	// Pins App's own style-prop write against PreviewResizer's imperative one:
+	// Preact's per-render style diff only ever touches the keys present in the
+	// vnode's style object, so a later aspect-ratio-driven rerender must not
+	// clobber the height PreviewResizer wrote straight to the DOM outside that
+	// diff.
 	it("changing aspect ratio after resizing the preview leaves --diagram-preview-height untouched", () => {
 		mountApp();
 
@@ -471,53 +470,26 @@ describe("toolbar & settings", () => {
 });
 
 // Link color, alignment, and aspect ratio are diagram-only settings — they
-// redraw the diagram but must not rebuild either editor or destroy/recreate
-// either Sortable instance.
-describe("diagram-only settings leave both editors and both Sortables untouched", () => {
-	function captureEditorState() {
-		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
-		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
-		const nodeSortable = Sortable.get(nodeRows);
-		const linkSortable = Sortable.get(linkRows);
-		if (!nodeSortable || !linkSortable) throw new Error("unreachable");
-		return {
-			nodeRows,
-			linkRows,
-			nodeSortable,
-			linkSortable,
-			nodeRow: requireElement<HTMLElement>("#node-editor .node-row"),
-			linkRow: requireElement<HTMLElement>("#link-editor .link-row"),
-		};
-	}
-
-	function expectEditorsUntouched(before: ReturnType<typeof captureEditorState>): void {
-		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(before.nodeRows);
-		expect(requireElement<HTMLElement>("#link-editor .link-rows")).toBe(before.linkRows);
-		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(before.nodeRow);
-		expect(requireElement<HTMLElement>("#link-editor .link-row")).toBe(before.linkRow);
-		expect(Sortable.get(before.nodeRows)).toBe(before.nodeSortable);
-		expect(Sortable.get(before.linkRows)).toBe(before.linkSortable);
-	}
-
-	it("changing link color redraws the diagram and persists without rebuilding either editor or Sortable", () => {
+// redraw the diagram and persist without touching either editor. (The rows
+// container/Sortable-instance survival invariant itself is asserted once, in
+// reorder.test.ts.)
+describe("diagram-only settings redraw and persist", () => {
+	it("changing link color redraws the diagram and persists", () => {
 		mountApp();
 
-		const before = captureEditorState();
 		const svgBefore = document.querySelector("#diagram svg");
 
 		click(document.getElementById("links-button"));
 		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
 		click(dialog.querySelector('[data-value="static"]'));
 
-		expectEditorsUntouched(before);
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.linkColor).toBe("static");
 	});
 
-	it("changing alignment redraws the diagram and persists without rebuilding either editor or Sortable", () => {
+	it("changing alignment redraws the diagram and persists", () => {
 		mountApp();
 
-		const before = captureEditorState();
 		const svgBefore = document.querySelector("#diagram svg");
 
 		const leftOption = Array.from(
@@ -525,22 +497,19 @@ describe("diagram-only settings leave both editors and both Sortables untouched"
 		).find((option) => option.closest(".align-group") && option.dataset.value === "left");
 		click(leftOption);
 
-		expectEditorsUntouched(before);
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.alignment).toBe("left");
 	});
 
-	it("changing aspect ratio redraws the diagram and persists without rebuilding either editor or Sortable", () => {
+	it("changing aspect ratio redraws the diagram and persists", () => {
 		mountApp();
 
-		const before = captureEditorState();
 		const svgBefore = document.querySelector("#diagram svg");
 
 		click(document.getElementById("aspect-ratio-button"));
 		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
 		click(dialog.querySelector('[data-action="set-aspect-ratio"][data-value="3:1"]'));
 
-		expectEditorsUntouched(before);
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.aspectRatio).toBe("3:1");
 	});
@@ -582,20 +551,11 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 
 // Unlike the diagram-only settings above, palette changes DO affect the node
 // editor — its swatches must show the new colors — but that's a style patch
-// on the existing `.node-swatch` elements, not a rebuild: row/container DOM
-// identity and both Sortable instances must survive exactly like the
-// diagram-only settings do.
-describe("palette changes patch node-editor swatches without rebuilding either editor", () => {
-	it("choosing a palette from the dialog updates swatch colors, replaces the SVG, and preserves editor/Sortable identity", () => {
+// on the existing `.node-swatch` elements, not a rebuild.
+describe("palette changes patch node-editor swatches", () => {
+	it("choosing a palette from the dialog updates swatch colors, replaces the SVG, and persists", () => {
 		mountApp();
 
-		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
-		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
-		const nodeSortable = Sortable.get(nodeRows);
-		const linkSortable = Sortable.get(linkRows);
-		if (!nodeSortable || !linkSortable) throw new Error("unreachable");
-		const nodeRow = requireElement<HTMLElement>("#node-editor .node-row");
-		const linkRow = requireElement<HTMLElement>("#link-editor .link-row");
 		const svgBefore = document.querySelector("#diagram svg");
 
 		click(document.getElementById("palette-preview"));
@@ -607,13 +567,6 @@ describe("palette changes patch node-editor swatches without rebuilding either e
 		);
 		const expectedColors = paletteColors("tableau10").slice(0, swatches.length);
 		expect(swatches.map((s) => s.style.backgroundColor)).toEqual(expectedColors);
-
-		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRows);
-		expect(requireElement<HTMLElement>("#link-editor .link-rows")).toBe(linkRows);
-		expect(requireElement<HTMLElement>("#node-editor .node-row")).toBe(nodeRow);
-		expect(requireElement<HTMLElement>("#link-editor .link-row")).toBe(linkRow);
-		expect(Sortable.get(nodeRows)).toBe(nodeSortable);
-		expect(Sortable.get(linkRows)).toBe(linkSortable);
 
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.palette).toBe("tableau10");
@@ -707,7 +660,7 @@ describe("theme changes skip validation and the redraw", () => {
 // against each other. The alignment value-set check is the exception: it
 // still compares the rendered DOM against model/settings.ts's ALIGNMENTS
 // directly, since options.ts's own ALIGNMENT_OPTIONS deliberately reorders
-// that set (see its doc comment) and could still drift from it.
+// that set for the dialog's display order and could still drift from it.
 // The tests above already exercise behavior around a handful of these rows
 // in passing; this block is the exhaustive, dedicated contract.
 describe("dialog markup vs settings metadata contract", () => {

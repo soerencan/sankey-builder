@@ -11,8 +11,7 @@ export interface SankeyCanvasProps {
  * renderDiagram exclusively creates, replaces, and clears its descendants.
  * The effect is keyed on `request` identity, not on unrelated application
  * rerenders, so a redraw happens only when the controller has actually
- * replaced the last-valid diagram snapshot (see render.ts's
- * DiagramRenderRequest doc comment).
+ * replaced the last-valid diagram snapshot.
  */
 export function SankeyCanvas({ request }: SankeyCanvasProps) {
 	const hostRef = useRef<HTMLDivElement>(null);

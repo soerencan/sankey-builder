@@ -33,7 +33,7 @@ export function NoticeRegion({ notices }: NoticeRegionProps) {
 					<div
 						key={kind}
 						id={NOTICE_ID[kind]}
-						// biome-ignore lint/a11y/useSemanticElements: role="status" on a <div> (not <output>) matches index.html's original markup exactly.
+						// biome-ignore lint/a11y/useSemanticElements: <output> represents the result of a form calculation, not an arbitrary status message, so role="status" on a plain <div> is the correct match here.
 						role="status"
 						aria-live="polite"
 						class={notice ? `notice-${notice.tone}` : undefined}

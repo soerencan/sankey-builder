@@ -165,7 +165,7 @@ export function LinkRow({ link, nodes, actions }: LinkRowProps) {
 	// commitDraft's other effects, restoration here is a synchronous DOM write
 	// (in addition to the draft state) rather than left to Preact's async
 	// render — this is the one path callers observe as already resolved
-	// immediately after the event, matching the pre-Preact editor.
+	// immediately after the event.
 	function handleChange(event: JSX.TargetedEvent<HTMLInputElement>): void {
 		const target = event.currentTarget;
 		const parsed = parseLinkValue(target.value);
