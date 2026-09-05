@@ -10,12 +10,12 @@ import type { LinkEditorActions } from "../features/editor/link-editor";
 import type { NodeEditorActions } from "../features/editor/node-editor";
 import type { ThemeControlActions } from "../features/settings/theme-control";
 import { ThemeControl } from "../features/settings/theme-control";
-import type { State } from "../model/graph";
+import type { Link, State } from "../model/graph";
 import { aspectRatioOption } from "../model/settings";
-import type { Theme } from "../model/settings";
+import type { Settings, Theme } from "../model/settings";
 import { NoticeRegion } from "../shared/notice";
 import type { Notice } from "./notices";
-import type { LinkView, NodeView, SettingsView } from "./view";
+import type { NodeView } from "./view";
 
 export interface AppProps {
 	doc: Document;
@@ -24,8 +24,8 @@ export interface AppProps {
 	state: State;
 	theme: Theme;
 	nodes: readonly NodeView[];
-	links: readonly LinkView[];
-	settings: SettingsView;
+	links: readonly Readonly<Link>[];
+	settings: Readonly<Settings>;
 	/** At most one per NoticeKind, in the display order NoticeRegion itself fixes. */
 	notices: readonly Notice[];
 	lastValidRequest: DiagramRenderRequest | null;

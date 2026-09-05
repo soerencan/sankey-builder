@@ -1,6 +1,7 @@
 import type { JSX } from "preact";
 import { useState } from "preact/hooks";
-import type { LinkView, NodeView } from "../../app/view";
+import type { NodeView } from "../../app/view";
+import type { Link } from "../../model/graph";
 import { MAX_LINK_VALUE } from "../../model/validation";
 import type { LinkEditorActions } from "./link-editor";
 import {
@@ -10,8 +11,8 @@ import {
 	truncateFractionDigits,
 } from "./link-value";
 
-function linkValueErrorId(index: number): string {
-	return `link-value-error-${index}`;
+function linkValueErrorId(id: string): string {
+	return `link-value-error-${id}`;
 }
 
 /**
@@ -88,7 +89,9 @@ interface LinkValueDraft {
 }
 
 export interface LinkRowProps {
-	link: LinkView;
+	link: Readonly<Link>;
+	/** The row's current position — display numbering and data-index only; actions below take the link's id. */
+	index: number;
 	nodes: readonly NodeView[];
 	actions: LinkEditorActions;
 }
@@ -98,13 +101,12 @@ export interface LinkRowProps {
  * invalid or empty keystroke never reaches `actions.updateLinkValue`, and
  * this draft — not the committed `link.value` prop — is what the field
  * displays, so a controller re-render triggered by an unrelated action never
- * clobbers text the user is still typing. Keyed by `link.key` (see
- * app/view.ts's createLinkProjector) rather than array index, so the draft
+ * clobbers text the user is still typing. Keyed by `link.id`, drawn from a
+ * monotonic per-instance sequence, rather than array index, so the draft
  * follows its link across a reorder and resets only when this is genuinely a
  * different Link object (e.g. import).
  */
-export function LinkRow({ link, nodes, actions }: LinkRowProps) {
-	const { index } = link;
+export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 	const [draft, setDraft] = useState<LinkValueDraft>(() => ({
 		text: String(link.value),
 		invalid: false,
@@ -115,7 +117,7 @@ export function LinkRow({ link, nodes, actions }: LinkRowProps) {
 		const parsed = parseLinkValue(text);
 		if (parsed.kind === "valid") {
 			setDraft({ text, invalid: false, message: "" });
-			actions.updateLinkValue(index, parsed.value);
+			actions.updateLinkValue(link.id, parsed.value);
 		} else if (parsed.kind === "empty") {
 			// Mid-edit blank — leave state untouched rather than writing NaN.
 			setDraft({ text, invalid: false, message: "" });
@@ -173,7 +175,7 @@ export function LinkRow({ link, nodes, actions }: LinkRowProps) {
 		const restored = String(link.value);
 		target.value = restored;
 		target.removeAttribute("aria-invalid");
-		const errorEl = target.ownerDocument.getElementById(linkValueErrorId(index));
+		const errorEl = target.ownerDocument.getElementById(linkValueErrorId(link.id));
 		if (errorEl) errorEl.textContent = "";
 		setDraft({ text: restored, invalid: false, message: "" });
 	}
@@ -194,7 +196,7 @@ export function LinkRow({ link, nodes, actions }: LinkRowProps) {
 				data-index={index}
 				aria-label={`Source for link ${index + 1}`}
 				value={link.source ?? ""}
-				onChange={(event) => actions.updateLinkSource(index, event.currentTarget.value || null)}
+				onChange={(event) => actions.updateLinkSource(link.id, event.currentTarget.value || null)}
 			>
 				{renderLinkOptions(nodes, link.source, link.target)}
 			</select>
@@ -204,7 +206,7 @@ export function LinkRow({ link, nodes, actions }: LinkRowProps) {
 				data-index={index}
 				aria-label={`Target for link ${index + 1}`}
 				value={link.target ?? ""}
-				onChange={(event) => actions.updateLinkTarget(index, event.currentTarget.value || null)}
+				onChange={(event) => actions.updateLinkTarget(link.id, event.currentTarget.value || null)}
 			>
 				{renderLinkOptions(nodes, link.target, link.source)}
 			</select>
@@ -215,7 +217,7 @@ export function LinkRow({ link, nodes, actions }: LinkRowProps) {
 				data-action="update-link-value"
 				data-index={index}
 				aria-label={`Value for link ${index + 1}`}
-				aria-describedby={linkValueErrorId(index)}
+				aria-describedby={linkValueErrorId(link.id)}
 				aria-invalid={draft.invalid ? "true" : undefined}
 				value={draft.text}
 				// Mirrors node-editor.tsx's rename input: Sortable's cloneNode drag
@@ -231,7 +233,7 @@ export function LinkRow({ link, nodes, actions }: LinkRowProps) {
 				data-action="delete-link"
 				data-index={index}
 				aria-label={`Delete link ${index + 1}`}
-				onClick={() => actions.deleteLink(index)}
+				onClick={() => actions.deleteLink(link.id)}
 			>
 				Delete
 			</button>
@@ -242,7 +244,7 @@ export function LinkRow({ link, nodes, actions }: LinkRowProps) {
 				error shows. Always present (empty when valid) so aria-describedby
 				has a stable target; empty is visually hidden via CSS (:empty).
 			*/}
-			<span class="field-error" id={linkValueErrorId(index)}>
+			<span class="field-error" id={linkValueErrorId(link.id)}>
 				{draft.message}
 			</span>
 		</div>

@@ -93,15 +93,22 @@ export function aspectRatioOption(value: AspectRatio): AspectRatioOption {
 	);
 }
 
-// --- Defaults ---
+// --- Settings ---
 
-export const DEFAULT_SETTINGS: {
+export interface Settings {
 	palette: Palette;
 	linkColor: LinkColorMode;
 	alignment: Alignment;
 	aspectRatio: AspectRatio;
 	theme: Theme;
-} = {
+}
+
+/** Excludes theme, a per-browser preference rather than diagram data. */
+export type DiagramSettings = Omit<Settings, "theme">;
+
+// --- Defaults ---
+
+export const DEFAULT_SETTINGS: Settings = {
 	palette: "observable10",
 	linkColor: "source-target",
 	alignment: "justify",

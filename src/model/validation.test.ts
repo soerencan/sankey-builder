@@ -25,7 +25,7 @@ describe("validate", () => {
 
 		it("uses the row number to disambiguate duplicate links between the same pair", () => {
 			const state = defaultState();
-			state.links.push({ source: "n1", target: "n3", value: -1 });
+			state.links.push({ id: "l4", source: "n1", target: "n3", value: -1 });
 			expect(validate(state)).toEqual({
 				ok: false,
 				error: "Link 4 (Coal to Electricity) needs a value greater than 0.",
@@ -64,7 +64,7 @@ describe("validate", () => {
 	describe("incomplete links", () => {
 		it("skips a link with a null endpoint entirely — never an error", () => {
 			const state = defaultState();
-			state.links.push({ source: "n1", target: null, value: 1 });
+			state.links.push({ id: "l4", source: "n1", target: null, value: 1 });
 			expect(validate(state)).toEqual({ ok: true });
 		});
 
@@ -74,7 +74,7 @@ describe("validate", () => {
 					{ id: "n1", name: "A" },
 					{ id: "n2", name: "B" },
 				],
-				links: [{ source: null, target: null, value: 1 }],
+				links: [{ id: "l1", source: null, target: null, value: 1 }],
 				settings: defaultState().settings,
 			};
 			expect(validate(state)).toEqual({ ok: true });
@@ -82,7 +82,7 @@ describe("validate", () => {
 
 		it("ignores an incomplete link's value even when it would otherwise be invalid", () => {
 			const state = defaultState();
-			state.links.push({ source: null, target: "n2", value: 0 });
+			state.links.push({ id: "l4", source: null, target: "n2", value: 0 });
 			expect(validate(state)).toEqual({ ok: true });
 		});
 
@@ -93,10 +93,10 @@ describe("validate", () => {
 					{ id: "n2", name: "B" },
 				],
 				links: [
-					{ source: "n1", target: "n2", value: 1 },
+					{ id: "l1", source: "n1", target: "n2", value: 1 },
 					// A completing edge back to n1 would close a cycle, but it's
 					// incomplete (null source) so it's ignored.
-					{ source: null, target: "n1", value: 1 },
+					{ id: "l2", source: null, target: "n1", value: 1 },
 				],
 				settings: defaultState().settings,
 			};
@@ -112,8 +112,8 @@ describe("validate", () => {
 					{ id: "n2", name: "B" },
 				],
 				links: [
-					{ source: "n1", target: "n2", value: 1 },
-					{ source: "n2", target: "n1", value: 1 },
+					{ id: "l1", source: "n1", target: "n2", value: 1 },
+					{ id: "l2", source: "n2", target: "n1", value: 1 },
 				],
 				settings: defaultState().settings,
 			};
@@ -132,10 +132,10 @@ describe("validate", () => {
 					{ id: "n4", name: "D" },
 				],
 				links: [
-					{ source: "n1", target: "n2", value: 1 },
-					{ source: "n2", target: "n3", value: 1 },
-					{ source: "n3", target: "n4", value: 1 },
-					{ source: "n4", target: "n1", value: 1 },
+					{ id: "l1", source: "n1", target: "n2", value: 1 },
+					{ id: "l2", source: "n2", target: "n3", value: 1 },
+					{ id: "l3", source: "n3", target: "n4", value: 1 },
+					{ id: "l4", source: "n4", target: "n1", value: 1 },
 				],
 				settings: defaultState().settings,
 			};
@@ -153,7 +153,7 @@ describe("validate", () => {
 			// itself.
 			const state: State = {
 				nodes: [{ id: "n1", name: "A" }],
-				links: [{ source: "n1", target: "missing", value: 1 }],
+				links: [{ id: "l1", source: "n1", target: "missing", value: 1 }],
 				settings: defaultState().settings,
 			};
 			expect(validate(state)).toEqual({ ok: true });
@@ -162,7 +162,7 @@ describe("validate", () => {
 		it("falls back to the raw id when a dangling link also has a bad value", () => {
 			const state: State = {
 				nodes: [{ id: "n1", name: "A" }],
-				links: [{ source: "n1", target: "missing", value: 0 }],
+				links: [{ id: "l1", source: "n1", target: "missing", value: 0 }],
 				settings: defaultState().settings,
 			};
 			expect(validate(state)).toEqual({
@@ -190,8 +190,8 @@ describe("validate", () => {
 					{ id: "n2", name: "B" },
 				],
 				links: [
-					{ source: "n1", target: "n2", value: 1 },
-					{ source: "n2", target: "n1", value: -1 },
+					{ id: "l1", source: "n1", target: "n2", value: 1 },
+					{ id: "l2", source: "n2", target: "n1", value: -1 },
 				],
 				settings: defaultState().settings,
 			};

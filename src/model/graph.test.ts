@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
+	type Link,
 	type Node,
 	type State,
 	addLink,
 	addNode,
 	defaultState,
+	deleteLink,
 	deleteNode,
 	isComplete,
 	moveLink,
 	moveNode,
+	nextLinkId,
 	nextNodeId,
 	replaceDiagram,
+	updateLink,
+	withoutLinkId,
 } from "./graph";
 
 describe("defaultState", () => {
@@ -25,6 +30,21 @@ describe("defaultState", () => {
 			aspectRatio: "2:1",
 			theme: "auto",
 		});
+	});
+
+	it("gives every link a non-empty, distinct id", () => {
+		const state = defaultState();
+		const ids = state.links.map((l) => l.id);
+		expect(ids.every((id) => typeof id === "string" && id.length > 0)).toBe(true);
+		expect(new Set(ids).size).toBe(ids.length);
+	});
+});
+
+describe("nextLinkId", () => {
+	it("never returns the same id twice", () => {
+		const first = nextLinkId();
+		const second = nextLinkId();
+		expect(first).not.toBe(second);
 	});
 });
 
@@ -75,7 +95,7 @@ describe("deleteNode", () => {
 	it("keeps links that don't reference the deleted node", () => {
 		const state = defaultState();
 		deleteNode(state, "n4");
-		expect(state.links).toEqual([
+		expect(state.links.map(withoutLinkId)).toEqual([
 			{ source: "n1", target: "n3", value: 10 },
 			{ source: "n2", target: "n3", value: 6 },
 		]);
@@ -88,22 +108,22 @@ describe("deleteNode", () => {
 				{ id: "n2", name: "B" },
 			],
 			links: [
-				{ source: "n1", target: null, value: 1 },
-				{ source: "n2", target: null, value: 2 },
-				{ source: null, target: null, value: 3 },
+				{ id: "l1", source: "n1", target: null, value: 1 },
+				{ id: "l2", source: "n2", target: null, value: 2 },
+				{ id: "l3", source: null, target: null, value: 3 },
 			],
 			settings: defaultState().settings,
 		};
 		deleteNode(state, "n1");
 		expect(state.links).toEqual([
-			{ source: "n2", target: null, value: 2 },
-			{ source: null, target: null, value: 3 },
+			{ id: "l2", source: "n2", target: null, value: 2 },
+			{ id: "l3", source: null, target: null, value: 3 },
 		]);
 	});
 });
 
 describe("addLink", () => {
-	it("creates an unassigned null/null/value-1 link", () => {
+	it("creates an unassigned null/null/value-1 link with a fresh id", () => {
 		const state: State = {
 			nodes: [
 				{ id: "n1", name: "A" },
@@ -113,13 +133,72 @@ describe("addLink", () => {
 			settings: defaultState().settings,
 		};
 		addLink(state);
-		expect(state.links).toEqual([{ source: null, target: null, value: 1 }]);
+		expect(state.links).toHaveLength(1);
+		const [link] = state.links;
+		expect(link.source).toBeNull();
+		expect(link.target).toBeNull();
+		expect(link.value).toBe(1);
+		expect(typeof link.id).toBe("string");
 	});
 
 	it("works at any node count, including zero nodes", () => {
 		const state: State = { nodes: [], links: [], settings: defaultState().settings };
 		addLink(state);
-		expect(state.links).toEqual([{ source: null, target: null, value: 1 }]);
+		expect(state.links).toHaveLength(1);
+	});
+
+	it("assigns each added link a distinct id", () => {
+		const state: State = { nodes: [], links: [], settings: defaultState().settings };
+		addLink(state);
+		addLink(state);
+		const [first, second] = state.links;
+		expect(first.id).not.toBe(second.id);
+	});
+});
+
+describe("updateLink", () => {
+	function twoLinkState(): State {
+		const state: State = { nodes: [], links: [], settings: defaultState().settings };
+		addLink(state);
+		addLink(state);
+		return state;
+	}
+
+	it("updates only the link matching the given id", () => {
+		const state = twoLinkState();
+		const [first, second] = state.links;
+		updateLink(state, second.id, { value: 42 });
+		expect(first.value).toBe(1);
+		expect(second.value).toBe(42);
+	});
+
+	it("is a no-op for an unknown id", () => {
+		const state = twoLinkState();
+		const before = state.links.map((l) => l.value);
+		updateLink(state, "no-such-id", { value: 42 });
+		expect(state.links.map((l) => l.value)).toEqual(before);
+	});
+});
+
+describe("deleteLink", () => {
+	function twoLinkState(): State {
+		const state: State = { nodes: [], links: [], settings: defaultState().settings };
+		addLink(state);
+		addLink(state);
+		return state;
+	}
+
+	it("removes only the link matching the given id", () => {
+		const state = twoLinkState();
+		const [first, second] = state.links;
+		deleteLink(state, first.id);
+		expect(state.links).toEqual([second]);
+	});
+
+	it("is a no-op for an unknown id", () => {
+		const state = twoLinkState();
+		deleteLink(state, "no-such-id");
+		expect(state.links).toHaveLength(2);
 	});
 });
 
@@ -193,7 +272,7 @@ describe("replaceDiagram", () => {
 	function diagram() {
 		return {
 			nodes: [{ id: "n1", name: "Replaced" }],
-			links: [{ source: "n1", target: null, value: 5 }],
+			links: [{ id: "l1", source: "n1", target: null, value: 5 }],
 			settings: {
 				palette: "tableau10" as const,
 				linkColor: "static" as const,
@@ -218,7 +297,7 @@ describe("replaceDiagram", () => {
 		const state = defaultState();
 		replaceDiagram(state, diagram());
 		expect(state.nodes).toEqual([{ id: "n1", name: "Replaced" }]);
-		expect(state.links).toEqual([{ source: "n1", target: null, value: 5 }]);
+		expect(state.links).toEqual([{ id: "l1", source: "n1", target: null, value: 5 }]);
 	});
 
 	it("replaces the four diagram settings", () => {
@@ -239,16 +318,33 @@ describe("replaceDiagram", () => {
 });
 
 describe("isComplete", () => {
-	it.each<[string, Parameters<typeof isComplete>[0], boolean]>([
+	it.each<[string, Link, boolean]>([
 		[
 			"is true only when both endpoints are assigned",
-			{ source: "n1", target: "n2", value: 1 },
+			{ id: "l1", source: "n1", target: "n2", value: 1 },
 			true,
 		],
-		["is false when the source is null", { source: null, target: "n2", value: 1 }, false],
-		["is false when the target is null", { source: "n1", target: null, value: 1 }, false],
-		["is false when both endpoints are null", { source: null, target: null, value: 1 }, false],
+		["is false when the source is null", { id: "l1", source: null, target: "n2", value: 1 }, false],
+		["is false when the target is null", { id: "l1", source: "n1", target: null, value: 1 }, false],
+		[
+			"is false when both endpoints are null",
+			{ id: "l1", source: null, target: null, value: 1 },
+			false,
+		],
 	])("%s", (_label, link, expected) => {
 		expect(isComplete(link)).toBe(expected);
+	});
+});
+
+describe("withoutLinkId", () => {
+	it("drops the id, keeping source/target/value", () => {
+		const link: Link = { id: "l1", source: "n1", target: "n2", value: 5 };
+		expect(withoutLinkId(link)).toEqual({ source: "n1", target: "n2", value: 5 });
+	});
+
+	it("does not mutate the original link", () => {
+		const link: Link = { id: "l1", source: "n1", target: "n2", value: 5 };
+		withoutLinkId(link);
+		expect(link.id).toBe("l1");
 	});
 });

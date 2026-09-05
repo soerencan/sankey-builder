@@ -60,7 +60,7 @@ describe("renderDiagram", () => {
 	it("plots only complete links when the graph mixes complete and incomplete ones", () => {
 		const state = defaultState();
 		// One extra row the user hasn't finished assigning.
-		state.links.push({ source: "n1", target: null, value: 1 });
+		state.links.push({ id: "l4", source: "n1", target: null, value: 1 });
 		const diagram = document.getElementById("diagram") as HTMLElement;
 
 		renderDiagram(diagram, snapshotOf(state));
@@ -74,8 +74,8 @@ describe("renderDiagram", () => {
 	it("linkless guard: renders nothing when every link is incomplete", () => {
 		const state = defaultState();
 		state.links = [
-			{ source: "n1", target: null, value: 1 },
-			{ source: null, target: null, value: 1 },
+			{ id: "l1", source: "n1", target: null, value: 1 },
+			{ id: "l2", source: null, target: null, value: 1 },
 		];
 		const diagram = document.getElementById("diagram") as HTMLElement;
 		diagram.innerHTML = "<p>stale content</p>";

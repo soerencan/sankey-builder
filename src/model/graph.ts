@@ -1,4 +1,4 @@
-import type { Alignment, AspectRatio, LinkColorMode, Palette, Theme } from "./settings";
+import type { DiagramSettings, Settings } from "./settings";
 import { DEFAULT_SETTINGS } from "./settings";
 
 export interface Node {
@@ -6,7 +6,13 @@ export interface Node {
 	name: string;
 }
 
+/**
+ * `id` is in-memory identity, not data: nothing else references it, the
+ * codec assigns a fresh one to every link it normalizes (ignoring any `id`
+ * in the input), and export/storage omit it. See nextLinkId.
+ */
 export interface Link {
+	id: string;
 	source: string | null;
 	target: string | null;
 	value: number;
@@ -22,18 +28,31 @@ export function isComplete(link: Link): link is Link & { source: string; target:
 	return link.source !== null && link.target !== null;
 }
 
-export interface Settings {
-	palette: Palette;
-	linkColor: LinkColorMode;
-	alignment: Alignment;
-	aspectRatio: AspectRatio;
-	theme: Theme;
+/** Sheds the in-memory-only link id before code that treats a Link as data (export, storage). */
+export function withoutLinkId(link: Readonly<Link>): Omit<Link, "id"> {
+	const { source, target, value } = link;
+	return { source, target, value };
 }
 
 export interface State {
 	nodes: Node[];
 	links: Link[];
 	settings: Settings;
+}
+
+let linkIdSequence = 0;
+
+/**
+ * Fresh link id, drawn from a module-level counter that only ever
+ * increments — not derived from `state.links` like nextNodeId's "max
+ * existing + 1". A link id is in-memory identity, not data, so a replaced
+ * diagram (import, storage load) must never reuse an id that a still-mounted
+ * LinkRow already holds; this counter runs for the lifetime of the app
+ * instance regardless of how many links have since been deleted.
+ */
+export function nextLinkId(): string {
+	linkIdSequence += 1;
+	return `link-${linkIdSequence}`;
 }
 
 export function defaultState(): State {
@@ -45,9 +64,9 @@ export function defaultState(): State {
 			{ id: "n4", name: "Homes" },
 		],
 		links: [
-			{ source: "n1", target: "n3", value: 10 },
-			{ source: "n2", target: "n3", value: 6 },
-			{ source: "n3", target: "n4", value: 14 },
+			{ id: nextLinkId(), source: "n1", target: "n3", value: 10 },
+			{ id: nextLinkId(), source: "n2", target: "n3", value: 6 },
+			{ id: nextLinkId(), source: "n3", target: "n4", value: 14 },
 		],
 		settings: { ...DEFAULT_SETTINGS },
 	};
@@ -84,8 +103,8 @@ export function deleteNode(state: State, id: string): void {
 	state.links = state.links.filter((l) => l.source !== id && l.target !== id);
 }
 
-export function updateLink(state: State, index: number, patch: Partial<Link>): void {
-	const link = state.links[index];
+export function updateLink(state: State, id: string, patch: Partial<Link>): void {
+	const link = state.links.find((l) => l.id === id);
 	if (link) Object.assign(link, patch);
 }
 
@@ -95,11 +114,11 @@ export function updateLink(state: State, index: number, patch: Partial<Link>): v
  * incomplete and inert, so this works at any node count (including zero).
  */
 export function addLink(state: State): void {
-	state.links.push({ source: null, target: null, value: 1 });
+	state.links.push({ id: nextLinkId(), source: null, target: null, value: 1 });
 }
 
-export function deleteLink(state: State, index: number): void {
-	state.links.splice(index, 1);
+export function deleteLink(state: State, id: string): void {
+	state.links = state.links.filter((l) => l.id !== id);
 }
 
 /**
@@ -126,15 +145,11 @@ export function moveLink(state: State, from: number, to: number): void {
 	moveWithin(state.links, from, to);
 }
 
-/**
- * Shaped structurally (not `import type { ImportState }`) so the model never
- * depends on features/files — diagram-file.ts's ImportState is assignable
- * here instead.
- */
+/** The one shape for import and replaceDiagram; settings exclude theme, a per-browser preference rather than diagram data. */
 export interface Diagram {
 	nodes: Node[];
 	links: Link[];
-	settings: Omit<Settings, "theme">;
+	settings: DiagramSettings;
 }
 
 /**

@@ -8,9 +8,9 @@ import {
 	sankeyRight,
 } from "d3-sankey";
 import type { SankeyLink, SankeyNode } from "d3-sankey";
-import type { Link, Node, Settings } from "../../model/graph";
+import type { Link, Node } from "../../model/graph";
 import { isComplete } from "../../model/graph";
-import type { Alignment, LinkColorMode } from "../../model/settings";
+import type { Alignment, LinkColorMode, Settings } from "../../model/settings";
 import { aspectRatioOption } from "../../model/settings";
 import { createNodeColorResolver } from "./colors";
 import type { NodeColorResolver } from "./colors";

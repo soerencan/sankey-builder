@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type State, defaultState, moveLink, moveNode } from "../../model/graph";
+import { type State, defaultState, moveLink, moveNode, withoutLinkId } from "../../model/graph";
 import { parseImport, serializeState } from "./diagram-file";
 
 function sampleState(): State {
@@ -8,7 +8,7 @@ function sampleState(): State {
 			{ id: "n1", name: "A" },
 			{ id: "n2", name: "B" },
 		],
-		links: [{ source: "n1", target: "n2", value: 5 }],
+		links: [{ id: "l1", source: "n1", target: "n2", value: 5 }],
 		settings: {
 			palette: "dark2",
 			linkColor: "static",
@@ -41,10 +41,16 @@ describe("serializeState", () => {
 		expect("colorMode" in parsed.settings).toBe(false);
 	});
 
+	it("omits link ids — in-memory identity, not data", () => {
+		const parsed = JSON.parse(serializeState(sampleState()));
+		expect(parsed.links).toEqual([{ source: "n1", target: "n2", value: 5 }]);
+		expect(parsed.links.some((l: Record<string, unknown>) => "id" in l)).toBe(false);
+	});
+
 	it("exports complete links only, skipping incomplete rows", () => {
 		const state = sampleState();
-		state.links.push({ source: "n1", target: null, value: 1 });
-		state.links.push({ source: null, target: null, value: 2 });
+		state.links.push({ id: "l2", source: "n1", target: null, value: 1 });
+		state.links.push({ id: "l3", source: null, target: null, value: 2 });
 		const parsed = JSON.parse(serializeState(state));
 		expect(parsed.links).toEqual([{ source: "n1", target: "n2", value: 5 }]);
 	});
@@ -70,22 +76,38 @@ describe("serializeState", () => {
 });
 
 describe("parseImport round-trip", () => {
-	it("round-trips a valid state losslessly (sans theme)", () => {
+	it("round-trips a valid state losslessly (sans theme and link ids)", () => {
 		const state = sampleState();
 		const result = parseImport(serializeState(state));
 		expect(result.ok).toBe(true);
 		if (!result.ok) throw new Error("unreachable");
 		expect(result.repairs).toEqual([]);
-		expect(result.state).toEqual({
-			nodes: state.nodes,
-			links: state.links,
-			settings: {
-				palette: "dark2",
-				linkColor: "static",
-				alignment: "center",
-				aspectRatio: "16:9",
-			},
+		expect(result.diagram.nodes).toEqual(state.nodes);
+		expect(result.diagram.links.map(withoutLinkId)).toEqual([
+			{ source: "n1", target: "n2", value: 5 },
+		]);
+		expect(result.diagram.settings).toEqual({
+			palette: "dark2",
+			linkColor: "static",
+			alignment: "center",
+			aspectRatio: "16:9",
 		});
+	});
+
+	it("assigns every imported link a fresh id, ignoring any id in the file", () => {
+		const result = parseImport(
+			JSON.stringify({
+				nodes: [
+					{ id: "n1", name: "A" },
+					{ id: "n2", name: "B" },
+				],
+				links: [{ id: "stray-id", source: "n1", target: "n2", value: 1 }],
+			}),
+		);
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("unreachable");
+		expect(result.diagram.links[0].id).not.toBe("stray-id");
+		expect(typeof result.diagram.links[0].id).toBe("string");
 	});
 });
 
@@ -110,8 +132,8 @@ describe("parseImport empty graph", () => {
 		const result = parseImport(JSON.stringify({ nodes: [], links: [] }));
 		expect(result.ok).toBe(true);
 		if (!result.ok) throw new Error("unreachable");
-		expect(result.state.nodes).toEqual([]);
-		expect(result.state.links).toEqual([]);
+		expect(result.diagram.nodes).toEqual([]);
+		expect(result.diagram.links).toEqual([]);
 		expect(result.repairs).toEqual([]);
 	});
 });
@@ -132,11 +154,11 @@ describe("parseImport repairs", () => {
 			links: [],
 			settings: { colorMode: "manual", palette: "set2" },
 		});
-		expect(result.state.nodes).toEqual([
+		expect(result.diagram.nodes).toEqual([
 			{ id: "n1", name: "A" },
 			{ id: "n2", name: "B" },
 		]);
-		expect(result.state.settings.palette).toBe("set2");
+		expect(result.diagram.settings.palette).toBe("set2");
 		expect(result.repairs).toEqual([
 			"settings: manual colors are no longer supported — using the saved palette",
 		]);
@@ -157,13 +179,13 @@ describe("parseImport repairs", () => {
 			links: [],
 			settings: {},
 		});
-		expect(result.state.nodes).toEqual([{ id: "n1", name: "A" }]);
+		expect(result.diagram.nodes).toEqual([{ id: "n1", name: "A" }]);
 		expect(result.repairs).toEqual([]);
 	});
 
 	it("falls back to the default palette and reports an unknown one", () => {
 		const result = importPayload({ nodes: [], links: [], settings: { palette: "rainbow" } });
-		expect(result.state.settings.palette).toBe("observable10");
+		expect(result.diagram.settings.palette).toBe("observable10");
 		expect(result.repairs).toContain("settings: unknown palette — using default");
 	});
 
@@ -173,7 +195,9 @@ describe("parseImport repairs", () => {
 			links: [{ source: "n1", target: "gone", value: 1 }],
 			settings: {},
 		});
-		expect(result.state.links).toEqual([{ source: "n1", target: null, value: 1 }]);
+		expect(result.diagram.links.map(withoutLinkId)).toEqual([
+			{ source: "n1", target: null, value: 1 },
+		]);
 		expect(result.repairs).toContain("link 1: unknown target — left unassigned");
 	});
 
@@ -186,13 +210,15 @@ describe("parseImport repairs", () => {
 			links: [{ source: "n1", target: "n2", value: -4 }],
 			settings: {},
 		});
-		expect(result.state.links).toEqual([{ source: "n1", target: "n2", value: 1 }]);
+		expect(result.diagram.links.map(withoutLinkId)).toEqual([
+			{ source: "n1", target: "n2", value: 1 },
+		]);
 		expect(result.repairs).toContain("link 1: invalid value — set to 1");
 	});
 
 	it("ignores a theme key in the file — never applied, never a repair", () => {
 		const result = importPayload({ nodes: [], links: [], settings: { theme: "dark" } });
-		expect("theme" in result.state.settings).toBe(false);
+		expect("theme" in result.diagram.settings).toBe(false);
 		expect(result.repairs).toEqual([]);
 	});
 
@@ -203,8 +229,8 @@ describe("parseImport repairs", () => {
 			settings: { palette: "set2" },
 			meta: { author: "someone" },
 		});
-		expect(result.state.nodes).toEqual([{ id: "n1", name: "A" }]);
-		expect(result.state.settings.palette).toBe("set2");
+		expect(result.diagram.nodes).toEqual([{ id: "n1", name: "A" }]);
+		expect(result.diagram.settings.palette).toBe("set2");
 		expect(result.repairs).toEqual([]);
 	});
 

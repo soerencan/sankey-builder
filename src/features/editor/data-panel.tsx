@@ -1,8 +1,8 @@
 import { useRef } from "preact/hooks";
 import type { IoNoticeActions } from "../../app/notices";
-import type { LinkView, NodeView } from "../../app/view";
-import type { State } from "../../model/graph";
-import { type ImportState, parseImport, serializeState } from "../files/diagram-file";
+import type { NodeView } from "../../app/view";
+import type { Diagram, Link, State } from "../../model/graph";
+import { parseImport, serializeState } from "../files/diagram-file";
 import { download } from "../files/download";
 import type { LinkEditorActions } from "./link-editor";
 import { LinkEditor } from "./link-editor";
@@ -13,7 +13,7 @@ const EXPORT_JSON_FILENAME = "sankey.json";
 
 export interface DataPanelActions
 	extends Pick<IoNoticeActions, "clearIoNotice" | "reportImportError"> {
-	importDiagram(imported: ImportState, repairs: string[]): void;
+	importDiagram(imported: Diagram, repairs: string[]): void;
 }
 
 export interface DataPanelProps {
@@ -22,7 +22,7 @@ export interface DataPanelProps {
 	/** The live domain state — read directly (not a projected view) so JSON export serializes exactly what diagram-file.ts's serializeState already defines. */
 	state: State;
 	nodes: readonly NodeView[];
-	links: readonly LinkView[];
+	links: readonly Readonly<Link>[];
 	nodeActions: NodeEditorActions;
 	linkActions: LinkEditorActions;
 	actions: DataPanelActions;
@@ -81,7 +81,7 @@ export function DataPanel({
 
 		const result = parseImport(text);
 		if (signal.aborted) return;
-		if (result.ok) actions.importDiagram(result.state, result.repairs);
+		if (result.ok) actions.importDiagram(result.diagram, result.repairs);
 		else actions.reportImportError(result.error);
 	}
 

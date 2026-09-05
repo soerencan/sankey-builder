@@ -1,7 +1,12 @@
 import type { RefObject } from "preact";
 import type { IoNoticeActions } from "../../app/notices";
-import type { SettingsView } from "../../app/view";
-import type { Alignment, AspectRatio, LinkColorMode, Palette } from "../../model/settings";
+import type {
+	Alignment,
+	AspectRatio,
+	LinkColorMode,
+	Palette,
+	Settings,
+} from "../../model/settings";
 import { ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../model/settings";
 import type { DialogHandle } from "../../shared/use-dialog";
 import { useDialog } from "../../shared/use-dialog";
@@ -53,7 +58,7 @@ export interface DiagramPanelProps {
 	 * never during render.
 	 */
 	diagramRef: RefObject<HTMLElement>;
-	settings: SettingsView;
+	settings: Readonly<Settings>;
 	actions: DiagramPanelActions;
 	/** The owning app instance's AbortSignal — guards PNG rasterization. */
 	signal: AbortSignal;

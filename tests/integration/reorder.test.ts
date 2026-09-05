@@ -257,8 +257,8 @@ describe("row reordering", () => {
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
-		// Same element, now at row 1: the draft is keyed by link (see
-		// app/view.ts's createLinkProjector), not the row's array index.
+		// Same element, now at row 1: the draft is keyed by link.id, drawn from
+		// a monotonic per-instance sequence, not the row's array index.
 		const movedValueInput = requireElement<HTMLInputElement>('.link-value[data-index="1"]');
 		expect(movedValueInput).toBe(valueInput);
 		expect(movedValueInput.value).toBe("abc");

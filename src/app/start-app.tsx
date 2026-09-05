@@ -23,7 +23,7 @@ import { validate } from "../model/validation";
 import { loadState, saveState } from "../platform/storage";
 import { App } from "./app";
 import type { IoNoticeActions, Notice } from "./notices";
-import { createLinkProjector, projectNodes, projectSettings } from "./view";
+import { projectNodes } from "./view";
 
 export interface AppHandle {
 	/** Idempotent — safe to call more than once. */
@@ -73,10 +73,6 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	let destroyed = false;
 
 	const state: State = loadState(win.localStorage);
-	// One projector per application instance (not module-level state), so two
-	// concurrent instances (e.g. the cross-realm tests) never share link view
-	// keys.
-	const projectLinks = createLinkProjector();
 
 	// The last-valid diagram render request. Reassigned wholesale, never
 	// mutated in place, so SankeyCanvas can key its redraw off reference
@@ -109,8 +105,8 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 				state={state}
 				theme={state.settings.theme}
 				nodes={projectNodes(state)}
-				links={projectLinks(state)}
-				settings={projectSettings(state)}
+				links={state.links}
+				settings={state.settings}
 				notices={[graphNotice, storageNotice, ioNotice].filter(
 					(notice): notice is Notice => notice !== null,
 				)}
@@ -149,8 +145,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 *    warning survives this clear and only retires on the following action.
 	 * 2. Save — regardless of validity: an invalid *topology* the user is still
 	 *    editing (e.g. a cycle) is retained in the editor and must survive a
-	 *    reload; there is no "last-good state" in storage, only the last-good
-	 *    *diagram*, which stays on screen without needing its own storage.
+	 *    reload, so this always persists the current editor state as-is.
 	 * 3. Update the storage notice from the save result — storage may recover
 	 *    (e.g. quota freed up elsewhere), so a previously shown notice clears
 	 *    rather than staying stuck once saves work again.
@@ -174,14 +169,13 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 *    invalid graph leaves the previous request's reference untouched, which
 	 *    is what keeps a diagram-setting change made mid-invalid-edit from
 	 *    disturbing the visible SVG.
-	 * 2. Persist + update notices regardless of validity: there is no
-	 *    "last-good state" in storage, only the last-good diagram, which stays
-	 *    on screen without needing its own storage.
+	 * 2. Persist + update notices regardless of validity — it's step 1 above,
+	 *    not storage, that keeps the last-good diagram on screen.
 	 * 3. Render exactly once, after every assignment above has landed, so
 	 *    `App` never sees a stale `lastValidRequest` paired with
 	 *    already-updated notices. Editors/DiagramPanel/SankeyCanvas all
 	 *    re-render as part of that one App render regardless of validity: the
-	 *    editors' rows are keyed (node id; the link projector's weak key), so
+	 *    editors' rows are keyed (node id; link id), so
 	 *    Preact patches names/swatches/values/order in place — preserving
 	 *    focus, an in-progress link-value draft, and each row-sortable hook's
 	 *    Sortable instance — instead of rebuilding. SankeyCanvas only reruns
@@ -235,20 +229,20 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			addLink(state);
 			refresh();
 		},
-		deleteLink(index) {
-			deleteLink(state, index);
+		deleteLink(id) {
+			deleteLink(state, id);
 			refresh();
 		},
-		updateLinkSource(index, id) {
-			updateLink(state, index, { source: id });
+		updateLinkSource(id, source) {
+			updateLink(state, id, { source });
 			refresh();
 		},
-		updateLinkTarget(index, id) {
-			updateLink(state, index, { target: id });
+		updateLinkTarget(id, target) {
+			updateLink(state, id, { target });
 			refresh();
 		},
-		updateLinkValue(index, value) {
-			updateLink(state, index, { value });
+		updateLinkValue(id, value) {
+			updateLink(state, id, { value });
 			refresh();
 		},
 		moveLink(from, to) {

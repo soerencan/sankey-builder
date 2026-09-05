@@ -150,7 +150,7 @@ describe("import & export", () => {
 		expect(notice()).toBe("");
 	});
 
-	it("import replaces a link's row entirely, resetting an in-progress draft (fresh Link objects get fresh view keys)", async () => {
+	it("import over a row holding an invalid draft shows the imported value with no error (rows remount because ids are fresh)", async () => {
 		mountApp();
 
 		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');

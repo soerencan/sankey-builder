@@ -1,6 +1,6 @@
-import type { Link, Node, Settings, State } from "./graph";
-import { defaultState } from "./graph";
-import type { Alignment, LinkColorMode, Palette, Theme } from "./settings";
+import type { Link, Node, State } from "./graph";
+import { defaultState, nextLinkId } from "./graph";
+import type { Alignment, LinkColorMode, Palette, Settings, Theme } from "./settings";
 import {
 	DEFAULT_SETTINGS,
 	isAlignment,
@@ -95,7 +95,9 @@ export function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] 
  * incomplete, inert row) rather than dropping the whole link — no data loss
  * from typo'd or hand-edited storage. A malformed value (legacy `null`,
  * negative, zero, out of range, non-number) is coerced to 1. Reports each
- * coercion when `repairs` is provided.
+ * coercion when `repairs` is provided. Every link gets a fresh id from
+ * nextLinkId(); any `id` present in the input is ignored — it's in-memory
+ * identity, not data, so there's nothing to repair or report.
  */
 export function normalizeLinks(
 	rawLinks: unknown[],
@@ -119,7 +121,7 @@ export function normalizeLinks(
 		if (value.value !== undefined && !isValidLinkValue(value.value)) {
 			repairs?.push(`link ${index + 1}: invalid value — set to 1`);
 		}
-		links.push({ source, target, value: normalizeLinkValue(value.value) });
+		links.push({ id: nextLinkId(), source, target, value: normalizeLinkValue(value.value) });
 	});
 	return links;
 }

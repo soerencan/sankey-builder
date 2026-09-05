@@ -1,29 +1,21 @@
 import { normalizeLinks, normalizeNodes, normalizeSettings } from "../../model/codec";
-import type { Link, Node, Settings, State } from "../../model/graph";
-import { isComplete } from "../../model/graph";
-
-/** Settings travel without theme — a per-browser preference, not diagram data. */
-export type ImportSettings = Omit<Settings, "theme">;
-
-export interface ImportState {
-	nodes: Node[];
-	links: Link[];
-	settings: ImportSettings;
-}
+import type { Diagram, State } from "../../model/graph";
+import { isComplete, withoutLinkId } from "../../model/graph";
 
 export type ImportResult =
-	| { ok: true; state: ImportState; repairs: string[] }
+	| { ok: true; diagram: Diagram; repairs: string[] }
 	| { ok: false; error: string };
 
 /**
  * Serializes to the bare {nodes, links, settings} export schema: complete links
- * only (incomplete rows are local working state and never travel), settings
- * without theme, pretty-printed for hand-editability.
+ * only (incomplete rows are local working state and never travel), link ids
+ * omitted (in-memory identity, not data), settings without theme,
+ * pretty-printed for hand-editability.
  */
 export function serializeState(state: State): string {
 	const exported = {
 		nodes: state.nodes,
-		links: state.links.filter(isComplete),
+		links: state.links.filter(isComplete).map(withoutLinkId),
 		settings: {
 			palette: state.settings.palette,
 			linkColor: state.settings.linkColor,
@@ -65,11 +57,15 @@ export function parseImport(text: string): ImportResult {
 	const nodeIds = new Set(nodes.map((n) => n.id));
 	const links = normalizeLinks(obj.links, nodeIds, repairs);
 	const normalized = normalizeSettings(obj.settings, repairs);
-	const settings: ImportSettings = {
-		palette: normalized.palette,
-		linkColor: normalized.linkColor,
-		alignment: normalized.alignment,
-		aspectRatio: normalized.aspectRatio,
+	const diagram: Diagram = {
+		nodes,
+		links,
+		settings: {
+			palette: normalized.palette,
+			linkColor: normalized.linkColor,
+			alignment: normalized.alignment,
+			aspectRatio: normalized.aspectRatio,
+		},
 	};
-	return { ok: true, state: { nodes, links, settings }, repairs };
+	return { ok: true, diagram, repairs };
 }

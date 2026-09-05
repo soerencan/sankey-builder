@@ -1,23 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { normalizeState } from "./codec";
 import type { State } from "./graph";
-import { defaultState } from "./graph";
+import { defaultState, withoutLinkId } from "./graph";
 
 // No import from features/diagram/colors.ts (or anything importing it) in this file — proves
 // codec.ts (and its model/settings.ts dependency, isPaletteKey) stay d3-free at
 // both module-eval and call time.
 
+/** For comparing two independently-produced States whose link ids necessarily differ (nextLinkId never repeats). */
+function stripLinkIds(state: State) {
+	return { ...state, links: state.links.map(withoutLinkId) };
+}
+
 describe("normalizeState", () => {
 	it("returns the default state when the parsed payload is null", () => {
-		expect(normalizeState(null)).toEqual(defaultState());
+		expect(stripLinkIds(normalizeState(null))).toEqual(stripLinkIds(defaultState()));
 	});
 
 	it("returns the default state when the parsed payload is a non-object", () => {
-		expect(normalizeState(42)).toEqual(defaultState());
+		expect(stripLinkIds(normalizeState(42))).toEqual(stripLinkIds(defaultState()));
 	});
 
 	it("returns the default state when nodes/links are missing", () => {
-		expect(normalizeState({ settings: {} })).toEqual(defaultState());
+		expect(stripLinkIds(normalizeState({ settings: {} }))).toEqual(stripLinkIds(defaultState()));
 	});
 
 	it("coerces a dangling endpoint to null instead of dropping the link", () => {
@@ -29,7 +34,7 @@ describe("normalizeState", () => {
 			],
 			settings: {},
 		};
-		expect(normalizeState(payload).links).toEqual([
+		expect(normalizeState(payload).links.map(withoutLinkId)).toEqual([
 			{ source: "n1", target: null, value: 1 },
 			{ source: null, target: "n1", value: 1 },
 		]);
@@ -41,7 +46,9 @@ describe("normalizeState", () => {
 			links: [{ source: "n1", target: 42, value: 1 }],
 			settings: {},
 		};
-		expect(normalizeState(payload).links).toEqual([{ source: "n1", target: null, value: 1 }]);
+		expect(normalizeState(payload).links.map(withoutLinkId)).toEqual([
+			{ source: "n1", target: null, value: 1 },
+		]);
 	});
 
 	it("round-trips null endpoints (an unassigned link)", () => {
@@ -50,7 +57,9 @@ describe("normalizeState", () => {
 			links: [{ source: null, target: null, value: 1 }],
 			settings: {},
 		};
-		expect(normalizeState(payload).links).toEqual([{ source: null, target: null, value: 1 }]);
+		expect(normalizeState(payload).links.map(withoutLinkId)).toEqual([
+			{ source: null, target: null, value: 1 },
+		]);
 	});
 
 	it("normalizes a bare {} raw link to a fully unassigned row", () => {
@@ -59,7 +68,9 @@ describe("normalizeState", () => {
 			links: [{}],
 			settings: {},
 		};
-		expect(normalizeState(payload).links).toEqual([{ source: null, target: null, value: 1 }]);
+		expect(normalizeState(payload).links.map(withoutLinkId)).toEqual([
+			{ source: null, target: null, value: 1 },
+		]);
 	});
 
 	it("drops individual malformed nodes rather than failing the whole hydration", () => {
@@ -79,7 +90,7 @@ describe("normalizeState", () => {
 		};
 		const state = normalizeState(payload);
 		expect(state.nodes).toEqual([{ id: "n1", name: "A" }]);
-		expect(state.links).toEqual([{ source: "n1", target: "n1", value: 1 }]);
+		expect(state.links.map(withoutLinkId)).toEqual([{ source: "n1", target: "n1", value: 1 }]);
 	});
 
 	it("loads a stored node carrying a legacy color without a color key", () => {
@@ -89,6 +100,38 @@ describe("normalizeState", () => {
 			settings: {},
 		};
 		expect(normalizeState(payload).nodes[0]).toEqual({ id: "n1", name: "A" });
+	});
+
+	describe("link ids", () => {
+		function payloadWithLinks(links: unknown[]) {
+			return {
+				nodes: [
+					{ id: "n1", name: "A" },
+					{ id: "n2", name: "B" },
+				],
+				links,
+				settings: {},
+			};
+		}
+
+		it("assigns every normalized link a non-empty, distinct id", () => {
+			const state = normalizeState(
+				payloadWithLinks([
+					{ source: "n1", target: "n2", value: 1 },
+					{ source: "n2", target: "n1", value: 2 },
+				]),
+			);
+			const ids = state.links.map((l) => l.id);
+			expect(ids.every((id) => typeof id === "string" && id.length > 0)).toBe(true);
+			expect(new Set(ids).size).toBe(2);
+		});
+
+		it("ignores a stray id in the input, minting a fresh one instead", () => {
+			const state = normalizeState(
+				payloadWithLinks([{ id: "stray-id", source: "n1", target: "n2", value: 1 }]),
+			);
+			expect(state.links[0].id).not.toBe("stray-id");
+		});
 	});
 
 	describe("link value coercion", () => {

@@ -334,7 +334,7 @@ describe("node & link editing", () => {
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
-		// The link row's draft is row-local state, keyed by the link's view key
+		// The link row's draft is row-local state, keyed by the link's id
 		// rather than array index — an unrelated rename's re-render patches this
 		// row's DOM in place instead of rebuilding it, so the draft/error state
 		// must survive intact.
@@ -429,7 +429,7 @@ describe("node & link editing", () => {
 
 		// Deleting n2 cascades to remove the n2->n3 link at index 1 (see
 		// model/graph.ts's deleteNode), leaving the edited n3->n4 link — same
-		// Link object, same view key — as the new row 1.
+		// Link object, same id — as the new row 1.
 		click(requireElement<HTMLButtonElement>('.node-delete[data-id="n2"]'));
 
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(2);
@@ -545,7 +545,7 @@ describe("node & link editing", () => {
 		}
 
 		// (c) each link row keeps its own DOM identity: rows are keyed by the
-		// link's view key, so the rename's re-render patches existing DOM in
+		// link's id, so the rename's re-render patches existing DOM in
 		// place rather than rebuilding.
 		const linkRowElsAfter = Array.from(document.querySelectorAll("#link-editor .link-row"));
 		expect(linkRowElsAfter.length).toBe(linkRowElsBefore.length);
