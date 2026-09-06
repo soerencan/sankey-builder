@@ -15,10 +15,11 @@ which browsers block from `file://` origins for security reasons.
 
 ## Dependencies
 
-d3 7.9.0, d3-sankey 0.12.3, Preact 10.29.8, and SortableJS 1.15.7 are real
-npm dependencies, bundled by `bun build`. `style.css` also defines a handful
-of design-token custom properties whose values are copied from Open Props
-1.7.14; the package itself isn't vendored or shipped.
+d3-selection 3.0.0, d3-scale 4.0.2, d3-scale-chromatic 3.1.0, d3-sankey
+0.12.3, Preact 10.29.8, and SortableJS 1.15.7 are real npm dependencies,
+bundled by `bun build`. `style.css` also defines a handful of design-token
+custom properties whose values are copied from Open Props 1.7.14; the
+package itself isn't vendored or shipped.
 
 ## Architecture
 
@@ -59,7 +60,6 @@ Available `make` targets:
 | `lint` | Check formatting and lint rules (no fixes) |
 | `format` | Fix formatting and lint issues |
 | `typecheck` | Type-check with `tsc --noEmit` |
-| `check` | Typecheck (alias, for CI parity) |
 | `test` | Run all tests, including the dist build/boot smoke test |
 | `test-unit` | Run tests except the dist smoke test — fast local loop |
 | `test-dist` | Run only the dist smoke test (builds `dist/` from scratch, then boots it) |
@@ -72,14 +72,16 @@ build script (`bun run build`) itself, then boots the actual emitted `dist/`
 bundle, asserting its asset URLs are relative (so the site works from any
 subpath) and the default diagram renders.
 
-CI runs four jobs in parallel on every PR and push to `main`: lint, typecheck, tests
-(`make test-unit`), and an artifact job (`make test-dist`, which builds and
-boots the real `dist/` output) — split that way so `dist/` isn't built twice
-per run.
-
-A separate workflow, `.github/workflows/pages.yml`, deploys the site: on
-every push to `main`, it reruns lint, typecheck, and the test suite, builds
-`dist/`, and publishes it to GitHub Pages via `actions/deploy-pages`. This
+One workflow, `.github/workflows/ci.yml`, runs four jobs in parallel on every
+PR and push to `main`: lint, typecheck, tests (`make test-unit`), and an
+artifact job (`make test-dist`, which builds and boots the real `dist/`
+output, then uploads it as a Pages artifact) — split that way so `dist/`
+isn't built twice per run. A fifth job, `deploy`, needs all four; it runs on
+a push to `main` or a manually triggered `workflow_dispatch` run (still
+gated to `main` and to every check job passing), publishing the artifact
+job's `dist/` to GitHub Pages via `actions/deploy-pages`, so a commit whose
+checks fail can't reach Pages and nothing rebuilds what the artifact job
+already boot-tested. This
 requires the repository's Pages source to be set to "GitHub Actions" once
 (Settings → Pages) — after that, pushes to `main` deploy automatically.
 

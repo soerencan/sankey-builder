@@ -1,4 +1,3 @@
-import { select } from "d3";
 import {
 	sankey,
 	sankeyCenter,
@@ -8,6 +7,7 @@ import {
 	sankeyRight,
 } from "d3-sankey";
 import type { SankeyLink, SankeyNode } from "d3-sankey";
+import { select } from "d3-selection";
 import type { Link, Node } from "../../model/graph";
 import { isComplete } from "../../model/graph";
 import type { Alignment, LinkColorMode, Settings } from "../../model/settings";
@@ -86,10 +86,11 @@ function alignFn(name: Alignment): typeof sankeyJustify {
 
 /**
  * Runs d3-sankey layout on a copy of the graph, since d3-sankey mutates
- * whatever it's given. `structuredClone` deep-copies `nodes`/`sourceLinks`
- * into an entirely new object graph; the cast below only types that copy as
- * mutable for d3-sankey's in-place layout — it never mutates the readonly
- * snapshot the caller passed in.
+ * whatever it's given: it rewrites each link's `source`/`target` to point at
+ * the node objects themselves and adds layout fields (x0/x1/y0/y1/etc.)
+ * directly onto the objects it's handed. `Node` and `Link` are flat, so
+ * copying each one with a spread is enough — a deep clone would copy nothing
+ * a spread doesn't already, since neither type nests objects or arrays.
  */
 function layout(
 	nodes: readonly Readonly<Node>[],
@@ -98,9 +99,9 @@ function layout(
 	width: number,
 	height: number,
 ): { nodes: LayoutNode[]; links: LayoutLink[] } {
-	const working = structuredClone({ nodes, links: sourceLinks }) as {
-		nodes: Node[];
-		links: CompleteLink[];
+	const working = {
+		nodes: nodes.map((n) => ({ ...n })),
+		links: sourceLinks.map((l) => ({ ...l })),
 	};
 	const graph = sankey<Node, LinkExtra>()
 		.nodeId((d) => d.id)

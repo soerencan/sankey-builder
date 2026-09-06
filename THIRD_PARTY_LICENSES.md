@@ -1,14 +1,19 @@
 # Third-Party Licenses
 
 This file attributes every third-party package in the production dependency
-closure of the site as shipped. `d3`, `d3-sankey`, `sortablejs`, and `preact`
-are real npm dependencies, imported from source and bundled (tree-shaken and
-minified) into the site's JavaScript by `bun build`; this file nonetheless
-attributes the full `d3@7.9.0` dependency closure — every constituent `d3-*`
-module, not just the ones tree-shaking keeps — so every module's license
-notice applies whether or not the emitted bundle happens to still contain
-that module's code. The same reasoning covers `d3-sankey`, `sortablejs`, and
-`preact`. Over-attribution here is safe; under-attribution is not.
+closure of the site as shipped. `d3-selection`, `d3-scale`,
+`d3-scale-chromatic`, `d3-sankey`, `sortablejs`, and `preact` are real npm
+dependencies, imported from source and bundled (tree-shaken and minified)
+into the site's JavaScript by `bun build`; this file nonetheless attributes
+each package's full transitive dependency closure — every module npm
+installs alongside it, not just the parts tree-shaking keeps — so every
+module's license notice applies whether or not the emitted bundle happens to
+still contain that module's code. `d3-scale` pulls in `d3-array`,
+`d3-format`, `d3-interpolate` (which pulls in `d3-color`), `d3-time`, and
+`d3-time-format`; `d3-scale-chromatic` pulls in `d3-color` and
+`d3-interpolate`; `d3-sankey` pulls in `d3-array` and `d3-shape` (which pulls
+in `d3-path`); `d3-array` pulls in `internmap`. Over-attribution here is
+safe; under-attribution is not.
 
 Open Props is no longer vendored or shipped as a stylesheet; `style.css`
 instead defines a handful of design-token custom properties (color steps,
@@ -16,25 +21,33 @@ font stack, radii, an easing curve, two shadow presets) whose values are
 copied from Open Props 1.7.14. Its license and copyright are included below,
 since the derived values still originate from that package.
 
-## D3 (7.9.0)
+## D3 modules
 
-The `d3` package is a metapackage: installing it pulls in ~30 `d3-*` modules
-as dependencies, all published under the ISC License by Mike Bostock /
-Observable, Inc., except `d3-scale-chromatic` (see below) and `d3-array`'s
-own dependency on `internmap` (see below).
+Direct dependencies (`d3-selection` 3.0.0, `d3-scale` 4.0.2,
+`d3-scale-chromatic` 3.1.0) plus their full transitive closure and
+`d3-sankey`'s own (0.12.3): `d3-array` 2.12.1, `d3-color` 3.1.0, `d3-format`
+3.1.2, `d3-interpolate` 3.0.1, `d3-path` 1.0.9, `d3-shape` 1.3.7, `d3-time`
+3.1.0, `d3-time-format` 4.1.0, and `internmap` 1.0.1. All are published by
+Mike Bostock, split across two license families plus one embedded
+ColorBrewer notice.
 
-Modules in the `d3@7.9.0` dependency closure:
+### ISC License
 
-d3-array, d3-axis, d3-brush, d3-chord, d3-color, d3-contour, d3-delaunay,
-d3-dispatch, d3-drag, d3-dsv, d3-ease, d3-fetch, d3-force, d3-format, d3-geo,
-d3-hierarchy, d3-interpolate, d3-path, d3-polygon, d3-quadtree, d3-random,
-d3-scale, d3-scale-chromatic, d3-selection, d3-shape, d3-time,
-d3-time-format, d3-timer, d3-transition, d3-zoom
-
-### ISC License (D3 and most `d3-*` modules)
+`d3-color`, `d3-format`, `d3-interpolate`, `d3-scale`, `d3-scale-chromatic`
+(see also the ColorBrewer notice below), `d3-selection`, `d3-time`,
+`d3-time-format`, and `internmap` (a dependency of `d3-array`) are each
+ISC-licensed, with only the copyright year differing per package:
 
 ```
-Copyright 2010-2023 Mike Bostock
+d3-color:           Copyright 2010-2022 Mike Bostock
+d3-format:          Copyright 2010-2026 Mike Bostock
+d3-interpolate:     Copyright 2010-2021 Mike Bostock
+d3-scale:           Copyright 2010-2021 Mike Bostock
+d3-scale-chromatic: Copyright 2010-2024 Mike Bostock
+d3-selection:       Copyright 2010-2021 Mike Bostock
+d3-time:            Copyright 2010-2022 Mike Bostock
+d3-time-format:     Copyright 2010-2021 Mike Bostock
+internmap:          Copyright 2021 Mike Bostock
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -49,50 +62,15 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
 
-### internmap 2.0.3 (dependency of d3-array)
+### d3-scale-chromatic's embedded ColorBrewer notice (Apache License 2.0)
 
-`d3-array` depends on `internmap`, also ISC-licensed and copyright Mike
-Bostock:
-
-```
-Copyright 2021 Mike Bostock
-
-Permission to use, copy, modify, and/or distribute this software for any purpose
-with or without fee is hereby granted, provided that the above copyright notice
-and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
-OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
-TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
-THIS SOFTWARE.
-```
-
-### d3-scale-chromatic 3.1.0 (ISC, plus embedded ColorBrewer notice)
-
-`d3-scale-chromatic` is ISC-licensed like the rest of D3, but its `LICENSE`
-file additionally embeds an Apache License 2.0 notice for the ColorBrewer
-color schemes it ships, some of which the app uses directly (the "Set 2" and
-"Dark 2" palettes are `d3.schemeSet2` / `d3.schemeDark2`, both ColorBrewer
-schemes). Both notices are reproduced here as they appear upstream:
+`d3-scale-chromatic`'s `LICENSE` file additionally embeds an Apache License
+2.0 notice for the ColorBrewer color schemes it ships, some of which the app
+uses directly (the "Set 2" and "Dark 2" palettes are `schemeSet2` /
+`schemeDark2`, both ColorBrewer schemes). It is reproduced here as it
+appears upstream:
 
 ```
-Copyright 2010-2024 Mike Bostock
-
-Permission to use, copy, modify, and/or distribute this software for any purpose
-with or without fee is hereby granted, provided that the above copyright notice
-and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
-OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
-TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
-THIS SOFTWARE.
-
 Apache-Style Software License for ColorBrewer software and ColorBrewer Color Schemes
 
 Copyright 2002 Cynthia Brewer, Mark Harrower, and The Pennsylvania State University
@@ -109,12 +87,17 @@ CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 ```
 
-## d3-sankey (0.12.3)
+### BSD 3-Clause License
 
-BSD 3-Clause License, Copyright 2015, Mike Bostock:
+`d3-sankey`, `d3-array`, `d3-path`, and `d3-shape` are each BSD-3-Clause
+licensed, with only the copyright year differing per package:
 
 ```
-Copyright 2015, Mike Bostock
+d3-sankey: Copyright 2015, Mike Bostock
+d3-array:  Copyright 2010-2020 Mike Bostock
+d3-path:   Copyright 2015-2016 Mike Bostock
+d3-shape:  Copyright 2010-2015 Mike Bostock
+
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,

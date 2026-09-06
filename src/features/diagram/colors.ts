@@ -1,38 +1,27 @@
+import { scaleOrdinal } from "d3-scale";
 import {
-	scaleOrdinal,
 	schemeCategory10,
 	schemeDark2,
 	schemeObservable10,
 	schemeSet2,
 	schemeTableau10,
-} from "d3";
+} from "d3-scale-chromatic";
 import type { Node } from "../../model/graph";
-import { DEFAULT_SETTINGS, isPaletteKey } from "../../model/settings";
 import type { Palette } from "../../model/settings";
 
-// Values are thunks, not the scheme arrays themselves, so a lookup by an
-// unresolved palette key never evaluates the wrong scheme. Palette value
-// metadata (isPaletteKey, PALETTE_ORDER) lives in ../../model/settings instead,
-// so platform/storage.ts's pure-node palette validation never pulls this module — or
-// the `d3` it imports — into its module graph. Display labels live in
-// ../settings/options.ts's PALETTE_LABELS.
-const PALETTES: Record<Palette, () => readonly string[]> = {
-	observable10: () => schemeObservable10,
-	tableau10: () => schemeTableau10,
-	category10: () => schemeCategory10,
-	set2: () => schemeSet2,
-	dark2: () => schemeDark2,
+const PALETTES: Record<Palette, readonly string[]> = {
+	observable10: schemeObservable10,
+	tableau10: schemeTableau10,
+	category10: schemeCategory10,
+	set2: schemeSet2,
+	dark2: schemeDark2,
 };
-
-function activePalette(key: string): readonly string[] {
-	return (isPaletteKey(key) ? PALETTES[key] : PALETTES[DEFAULT_SETTINGS.palette])();
-}
 
 /**
  * The raw scheme array for a given palette, for building swatch strips.
  */
 export function paletteColors(key: Palette): readonly string[] {
-	return PALETTES[key]();
+	return PALETTES[key];
 }
 
 export type NodeColorResolver = (node: Node) => string;
@@ -55,7 +44,7 @@ export function createNodeColorResolver(
 	// don't reshuffle as nodes are added/removed/renamed.
 	const scale = scaleOrdinal(
 		nodes.map((n) => n.id),
-		activePalette(palette),
+		PALETTES[palette],
 	);
 	// Single seam for palette switching — everything else calls the resolver
 	// instead of touching a scale/palette directly.

@@ -1,4 +1,4 @@
-.PHONY: dev build test test-unit test-dist lint format typecheck check
+.PHONY: dev build test test-unit test-dist lint format typecheck
 
 # Serve the app locally with Bun's dev server (HMR, on-the-fly TS/bundling)
 dev:
@@ -34,5 +34,3 @@ format:
 # Type-check code
 typecheck:
 	bun run check
-
-check: typecheck

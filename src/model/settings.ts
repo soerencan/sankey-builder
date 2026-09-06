@@ -87,10 +87,8 @@ export function isAspectRatio(value: unknown): value is AspectRatio {
 }
 
 export function aspectRatioOption(value: AspectRatio): AspectRatioOption {
-	return (
-		ASPECT_RATIO_OPTIONS_BY_VALUE.get(value) ??
-		(ASPECT_RATIO_OPTIONS_BY_VALUE.get(DEFAULT_SETTINGS.aspectRatio) as AspectRatioOption)
-	);
+	// Every AspectRatio member has an entry, built from the same array above.
+	return ASPECT_RATIO_OPTIONS_BY_VALUE.get(value) as AspectRatioOption;
 }
 
 // --- Settings ---

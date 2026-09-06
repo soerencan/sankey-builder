@@ -1,4 +1,10 @@
-import { schemeCategory10, schemeDark2, schemeObservable10, schemeSet2, schemeTableau10 } from "d3";
+import {
+	schemeCategory10,
+	schemeDark2,
+	schemeObservable10,
+	schemeSet2,
+	schemeTableau10,
+} from "d3-scale-chromatic";
 import { describe, expect, it } from "vitest";
 import { defaultState } from "../../model/graph";
 import { createNodeColorResolver, paletteColors } from "./colors";

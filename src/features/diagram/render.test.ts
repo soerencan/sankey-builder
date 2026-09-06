@@ -120,4 +120,15 @@ describe("renderDiagram", () => {
 		expect(document.getElementById("diagram")).toBe(diagram);
 		expect(diagram.getAttribute("aria-label")).toBe("Sankey diagram");
 	});
+
+	it("leaves the request it was given deep-unchanged, since d3-sankey mutates its input in place", () => {
+		const state = defaultState();
+		const request = snapshotOf(state);
+		const before = structuredClone(request);
+		const diagram = document.getElementById("diagram") as HTMLElement;
+
+		renderDiagram(diagram, request);
+
+		expect(request).toStrictEqual(before);
+	});
 });
