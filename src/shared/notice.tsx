@@ -2,7 +2,6 @@ export type NoticeKind = "graph" | "storage" | "io";
 export type NoticeTone = "warning" | "error";
 
 export interface Notice {
-	readonly kind: NoticeKind;
 	readonly tone: NoticeTone;
 	readonly message: string;
 }
@@ -22,7 +21,7 @@ const NOTICE_ID: Record<NoticeKind, string> = {
 };
 
 export interface NoticeRegionProps {
-	notices: readonly Notice[];
+	notices: Partial<Record<NoticeKind, Notice>>;
 }
 
 /**
@@ -34,7 +33,7 @@ export function NoticeRegion({ notices }: NoticeRegionProps) {
 	return (
 		<div class="notice-region">
 			{NOTICE_ORDER.map((kind) => {
-				const notice = notices.find((candidate) => candidate.kind === kind);
+				const notice = notices[kind];
 				return (
 					<div
 						key={kind}

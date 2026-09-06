@@ -1,6 +1,5 @@
 import type { JSX } from "preact";
 import { useRef } from "preact/hooks";
-import type { NodeView } from "../../app/view";
 import type { Diagram, State } from "../../model/graph";
 import { Icon } from "../../shared/icon";
 import type { IoNoticeActions } from "../../shared/notice";
@@ -8,7 +7,7 @@ import { parseImport, serializeState } from "../files/diagram-file";
 import { download } from "../files/download";
 import type { LinkEditorActions } from "./link-editor";
 import { LinkEditor } from "./link-editor";
-import type { NodeEditorActions } from "./node-editor";
+import type { NodeEditorActions, NodeView } from "./node-editor";
 import { NodeEditor } from "./node-editor";
 
 const EXPORT_JSON_FILENAME = "sankey.json";

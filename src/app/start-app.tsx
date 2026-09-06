@@ -74,7 +74,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			<App
 				state={state}
 				nodes={projectNodes(state)}
-				notices={Object.values(notices).filter((notice): notice is Notice => notice !== undefined)}
+				notices={notices}
 				lastValidRequest={lastValidRequest}
 				themeActions={themeControlActions}
 				diagramActions={diagramPanelActions}
@@ -90,9 +90,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	function persist(io?: Notice): void {
 		notices.io = io;
 		const saved = saveState(localStorage, state);
-		notices.storage = saved
-			? undefined
-			: { kind: "storage", tone: "warning", message: STORAGE_NOTICE };
+		notices.storage = saved ? undefined : { tone: "warning", message: STORAGE_NOTICE };
 	}
 
 	/** The one path for every diagram-changing action. `io` is the caller's own outcome notice, e.g. an import's repair summary. */
@@ -100,7 +98,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		mutation(state);
 
 		const result = validate(state);
-		notices.graph = result.ok ? undefined : { kind: "graph", tone: "error", message: result.error };
+		notices.graph = result.ok ? undefined : { tone: "error", message: result.error };
 		if (result.ok) {
 			lastValidRequest = {
 				state: structuredClone({
@@ -156,7 +154,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			setIoNotice(undefined);
 		},
 		reportIoError(message) {
-			setIoNotice({ kind: "io", tone: "error", message });
+			setIoNotice({ tone: "error", message });
 		},
 	};
 
@@ -168,7 +166,6 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 				repairs.length === 0
 					? undefined
 					: {
-							kind: "io",
 							tone: "warning",
 							message: `Imported ${imported.nodes.length} nodes, ${imported.links.length} links. Adjustments: ${repairs.join("; ")}.`,
 						},

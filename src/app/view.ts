@@ -1,11 +1,6 @@
 import { createNodeColorResolver } from "../features/diagram/colors";
+import type { NodeView } from "../features/editor/node-editor";
 import type { State } from "../model/graph";
-
-export interface NodeView {
-	readonly id: string;
-	readonly name: string;
-	readonly swatchColor: string;
-}
 
 /** Unlike links, which LinkEditor takes as plain `State.links`, nodes need a DTO to carry the derived swatch color. */
 export function projectNodes(state: State): readonly NodeView[] {

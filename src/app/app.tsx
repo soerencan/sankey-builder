@@ -7,19 +7,18 @@ import { SankeyCanvas } from "../features/diagram/sankey-canvas";
 import type { DataPanelActions } from "../features/editor/data-panel";
 import { DataPanel } from "../features/editor/data-panel";
 import type { LinkEditorActions } from "../features/editor/link-editor";
-import type { NodeEditorActions } from "../features/editor/node-editor";
+import type { NodeEditorActions, NodeView } from "../features/editor/node-editor";
 import type { ThemeControlActions } from "../features/settings/theme-control";
 import { ThemeControl } from "../features/settings/theme-control";
 import type { State } from "../model/graph";
 import { aspectRatioOption } from "../model/settings";
-import type { Notice } from "../shared/notice";
+import type { Notice, NoticeKind } from "../shared/notice";
 import { NoticeRegion } from "../shared/notice";
-import type { NodeView } from "./view";
 
 export interface AppProps {
 	state: State;
 	nodes: readonly NodeView[];
-	notices: readonly Notice[];
+	notices: Partial<Record<NoticeKind, Notice>>;
 	lastValidRequest: DiagramRenderRequest | null;
 	themeActions: ThemeControlActions;
 	diagramActions: DiagramPanelActions;

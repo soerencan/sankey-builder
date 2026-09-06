@@ -1,6 +1,11 @@
 import { useRef } from "preact/hooks";
-import type { NodeView } from "../../app/view";
 import { useRowSortable } from "./use-row-sortable";
+
+export interface NodeView {
+	readonly id: string;
+	readonly name: string;
+	readonly swatchColor: string;
+}
 
 export interface NodeEditorActions {
 	addNode(): void;

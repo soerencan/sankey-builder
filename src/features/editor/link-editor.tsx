@@ -1,7 +1,7 @@
 import { useRef } from "preact/hooks";
-import type { NodeView } from "../../app/view";
 import type { Link } from "../../model/graph";
 import { LinkRow } from "./link-row";
+import type { NodeView } from "./node-editor";
 import { useRowSortable } from "./use-row-sortable";
 
 export interface LinkEditorActions {

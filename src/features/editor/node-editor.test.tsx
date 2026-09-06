@@ -3,8 +3,7 @@
 import { render } from "preact";
 import { describe, expect, it, vi } from "vitest";
 import { byRole } from "../../../tests/helpers/dom-queries";
-import type { NodeView } from "../../app/view";
-import type { NodeEditorActions } from "./node-editor";
+import type { NodeEditorActions, NodeView } from "./node-editor";
 import { NodeEditor } from "./node-editor";
 
 function mount(nodes: NodeView[], actions: NodeEditorActions) {

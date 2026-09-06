@@ -1,6 +1,5 @@
 import type { JSX } from "preact";
 import { useState } from "preact/hooks";
-import type { NodeView } from "../../app/view";
 import type { Link } from "../../model/graph";
 import { MAX_LINK_VALUE } from "../../model/validation";
 import type { LinkEditorActions } from "./link-editor";
@@ -10,6 +9,7 @@ import {
 	parseLinkValue,
 	truncateFractionDigits,
 } from "./link-value";
+import type { NodeView } from "./node-editor";
 
 function linkValueErrorId(id: string): string {
 	return `link-value-error-${id}`;
