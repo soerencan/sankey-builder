@@ -15,9 +15,10 @@ which browsers block from `file://` origins for security reasons.
 
 ## Dependencies
 
-d3-selection 3.0.0, d3-scale 4.0.2, d3-scale-chromatic 3.1.0, d3-sankey
-0.12.3, Preact 10.29.8, and SortableJS 1.15.7 are real npm dependencies,
-bundled by `bun build`.
+The runtime dependencies are D3 (`d3-selection`, `d3-scale`,
+`d3-scale-chromatic`, `d3-sankey`), Preact, and SortableJS, all bundled by
+`bun build`. `package.json` and `bun.lock` are the source of truth for
+versions.
 
 ## Architecture
 
@@ -46,8 +47,8 @@ The app is written in TypeScript under `src/`, entered via `src/main.ts` and
 loaded straight from `index.html` as an ES module — there's no committed
 bundle. `make dev` runs Bun's own dev server (HMR, on-the-fly TS/bundling)
 for local work. `make build` produces the canonical, clean production build:
-a hashed, minified JS/CSS bundle plus `THIRD_PARTY_LICENSES.md` in `dist/`,
-ready to host statically.
+a hashed, minified JS/CSS bundle plus a generated `THIRD_PARTY_LICENSES.md`
+in `dist/`, ready to host statically.
 
 Available `make` targets:
 
@@ -62,7 +63,7 @@ Available `make` targets:
 | `test-unit` | Run tests except the dist smoke test — fast local loop |
 | `test-dist` | Run only the dist smoke test (builds `dist/` from scratch, then boots it) |
 
-Unit tests live next to the module they cover, in `src/`. `tests/integration/`
+Unit tests live next to the module they cover (`src/`, `scripts/`). `tests/integration/`
 suites are broader: they boot the application through `startApp()`
 (`src/app/start-app.tsx`) against the real `index.html` markup with the real
 d3/SortableJS. `tests/build/dist.test.ts` goes one step further: it runs the
@@ -94,11 +95,10 @@ requires the repository's Pages source to be set to "GitHub Actions" once
 
 ## License
 
-Except for the third-party components listed below, this project is licensed
-under the [MIT License](LICENSE).
+Except for its third-party dependencies, this project is licensed under the
+[MIT License](LICENSE).
 
-[`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) is the authoritative
-notice list: it attributes the full production dependency closure of the
-bundled site (`d3-sankey`, `d3-scale`, `d3-scale-chromatic`, `d3-selection`,
-Preact, and SortableJS). None of these are relicensed under the MIT License
-above.
+The bundle strips the dependencies' license comments, so `make build`
+generates `dist/THIRD_PARTY_LICENSES.md` (`scripts/third-party-licenses.ts`)
+from the installed production dependency closure and ships it alongside the
+site. None of those packages are relicensed under the MIT License above.

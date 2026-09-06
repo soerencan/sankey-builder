@@ -54,8 +54,18 @@ describe("production build (dist/)", () => {
 		}
 	});
 
-	it("includes THIRD_PARTY_LICENSES.md", () => {
-		expect(existsSync(join(DIST_DIR, "THIRD_PARTY_LICENSES.md"))).toBe(true);
+	it("includes the generated THIRD_PARTY_LICENSES.md", () => {
+		const notices = readFileSync(join(DIST_DIR, "THIRD_PARTY_LICENSES.md"), "utf8");
+		for (const name of [
+			"d3-sankey",
+			"d3-scale",
+			"d3-scale-chromatic",
+			"d3-selection",
+			"preact",
+			"sortablejs",
+		]) {
+			expect(notices).toContain(`## ${name} `);
+		}
 	});
 
 	it("boots the emitted entry against the built markup and renders the default diagram", async () => {
