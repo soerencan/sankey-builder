@@ -9,9 +9,6 @@ import {
 	pickDiagramSettings,
 } from "./settings";
 
-// Deliberately imports nothing from features/: proves settings.ts stays
-// d3-free at module-eval and call time.
-
 const SETTING_KEYS = Object.keys(SETTING_DOMAINS) as (keyof typeof SETTING_DOMAINS)[];
 
 describe.each(SETTING_KEYS)("isSettingValue(%j, value)", (key) => {
@@ -34,9 +31,8 @@ describe.each(SETTING_KEYS)("isSettingValue(%j, value)", (key) => {
 		expect(isSettingValue(key, value)).toBe(false);
 	});
 
-	// A value from another setting's domain must not pass here, unless it also
-	// happens to be one of this key's own values (none do today; the filter
-	// keeps the assertion correct if that ever changes).
+	// Filtered against this key's own domain so the assertion stays correct
+	// should two settings ever share a value.
 	const foreignValues = SETTING_KEYS.filter((otherKey) => otherKey !== key)
 		.flatMap((otherKey): readonly string[] => SETTING_DOMAINS[otherKey])
 		.filter((value) => !ownValues.has(value));

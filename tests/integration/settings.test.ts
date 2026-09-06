@@ -84,7 +84,6 @@ describe("toolbar & settings", () => {
 
 		expect(dialog.open).toBe(true);
 
-		// Pinned against PALETTE_CHOICES so the two can't drift apart.
 		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
 		expect(options.map((option) => accessibleName(option))).toEqual(
 			PALETTE_CHOICES.map((option) => option.label),
@@ -124,7 +123,6 @@ describe("toolbar & settings", () => {
 
 		expect(dialog.open).toBe(true);
 
-		// Pinned against LINK_COLOR_CHOICES so the two can't drift apart.
 		for (const option of LINK_COLOR_CHOICES) {
 			byRole(dialog, "button", option.label);
 		}
@@ -242,7 +240,6 @@ describe("toolbar & settings", () => {
 			}
 		}
 
-		// Changed markup is the redraw evidence.
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
 		expect(svgAfter?.outerHTML).not.toBe(svgHtmlBefore);
@@ -535,7 +532,6 @@ describe("diagram-only settings redraw and persist", () => {
 	});
 });
 
-// The last-valid diagram is only replaced when the graph validates.
 describe("a diagram-setting change made while the graph is invalid", () => {
 	it("persists and updates controls but leaves the last-valid SVG element and markup untouched", () => {
 		mountApp();
@@ -557,9 +553,7 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 		expect(leftOption.getAttribute("aria-pressed")).toBe("true");
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
-		// Markup equality is the evidence that nothing was redrawn; identity
-		// only adds that the svg was never unmounted. The diagram reference is
-		// unchanged while the graph is invalid.
+		// Identity alone can't tell no redraw from an identical one; markup can.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 	});
@@ -588,8 +582,6 @@ describe("palette changes patch node-editor swatches", () => {
 	});
 });
 
-// Theme is not diagram data: a change applies and persists, but leaves the
-// graph notice, the I/O notice, and the rendered SVG unchanged.
 describe("theme changes leave the diagram and its notices unchanged", () => {
 	it("on a valid graph: persists, applies data-theme, and leaves a seeded I/O notice and the rendered SVG untouched", async () => {
 		mountApp();
@@ -627,12 +619,9 @@ describe("theme changes leave the diagram and its notices unchanged", () => {
 
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 		expect(getStoredState().settings.theme).toBe("light");
-		// The import summary still describes the current diagram.
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Imported 2 nodes, 1 links. Adjustments: settings: unknown palette — using default.",
 		);
-		// The rendered diagram — element and markup alike — is untouched by
-		// the theme change.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 	});
@@ -655,8 +644,6 @@ describe("theme changes leave the diagram and its notices unchanged", () => {
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
 		click(byRole(dialog, "button", SETTING_LABELS.theme.light));
 
-		// Same error verbatim, and the rendered diagram — element and markup
-		// alike — is untouched.
 		expect(document.getElementById("error")?.textContent).toBe(errorBefore);
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
@@ -666,8 +653,6 @@ describe("theme changes leave the diagram and its notices unchanged", () => {
 	});
 });
 
-// The dialogs render from the options.ts choice arrays, so these pin that
-// every table entry is wired into the DOM.
 describe("dialog markup vs settings metadata contract", () => {
 	it("palette dialog: rendered option order and labels match PALETTE_CHOICES", () => {
 		mountApp();

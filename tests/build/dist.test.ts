@@ -62,9 +62,8 @@ describe("production build (dist/)", () => {
 			expect(notices).toContain(`<h2>${name} `);
 		}
 
-		// Guards against the ordinal scale (and its d3 dependents) creeping back
-		// in now that colors.ts uses a plain index lookup instead, and against
-		// d3-selection now that SankeySvg draws with Preact instead of D3.
+		// Removed dependencies: the ordinal scale with its d3 dependents, and
+		// d3-selection now that SankeySvg draws with Preact.
 		for (const name of ["d3-scale", "d3-format", "d3-time", "d3-time-format", "d3-selection"]) {
 			expect(notices).not.toContain(`<h2>${name} `);
 		}

@@ -161,7 +161,6 @@ describe("application lifecycle", () => {
 
 		app.destroy();
 
-		// Only unmounting the Preact tree can remove the svg.
 		expect(document.querySelector("#diagram svg")).toBeNull();
 	});
 

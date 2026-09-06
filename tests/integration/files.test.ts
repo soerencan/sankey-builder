@@ -276,9 +276,7 @@ describe("import & export", () => {
 
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
-		// Markup equality is the evidence that nothing was redrawn; identity
-		// only adds that the svg was never unmounted. The diagram reference is
-		// unchanged on an invalid graph.
+		// Identity alone can't tell no redraw from an identical one; markup can.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 

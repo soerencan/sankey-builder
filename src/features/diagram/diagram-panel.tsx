@@ -97,12 +97,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 		actions.setDiagramSetting("palette", palettes[next]);
 	}
 
-	/**
-	 * The shared prologue of both export handlers: clear the I/O notice, read
-	 * the live diagram element, and serialize what is on screen. `fn` runs
-	 * only when there is something to export; the dialog closes in every
-	 * case, including when there is nothing to export.
-	 */
+	/** `fn` runs only when there is something to export; the dialog closes either way. */
 	function withVisibleDiagram(
 		dialog: DialogHandle,
 		fn: (diagramEl: HTMLElement, result: SerializedDiagram) => void,

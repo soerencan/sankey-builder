@@ -45,8 +45,6 @@ export const SETTING_LABELS: { [K in keyof Settings]: Record<Settings[K], string
 	},
 };
 
-// --- Link color mode: icons and the narrow sheet's short labels ---
-
 export const LINK_COLOR_ICONS: Record<LinkColorMode, string> = {
 	source: "icon-link-source",
 	"source-target": "icon-link-gradient",
@@ -54,15 +52,12 @@ export const LINK_COLOR_ICONS: Record<LinkColorMode, string> = {
 	static: "icon-link-neutral",
 };
 
-/** For the narrow display sheet. */
 export const LINK_COLOR_SHORT_LABELS: Record<LinkColorMode, string> = {
 	source: "Source",
 	"source-target": "Gradient",
 	target: "Target",
 	static: "Neutral",
 };
-
-// --- Alignment: icons for the icon-only segmented control ---
 
 const ALIGNMENT_ICONS: Record<Alignment, string> = {
 	left: "icon-align-left",
@@ -71,15 +66,11 @@ const ALIGNMENT_ICONS: Record<Alignment, string> = {
 	justify: "icon-align-justify",
 };
 
-// --- Theme: icons ---
-
 export const THEME_ICONS: Record<Theme, string> = {
 	auto: "icon-theme-system",
 	light: "icon-theme-light",
 	dark: "icon-theme-dark",
 };
-
-// --- Choice arrays, one per setting, in SETTING_DOMAINS order ---
 
 export interface PaletteChoice {
 	value: Settings["palette"];

@@ -102,9 +102,8 @@ function normalizeLinks(rawLinks: unknown[], nodeIds: Set<string>, repairs?: str
 }
 
 /**
- * The whole nodes → ids → links → settings pipeline. The storage load path
- * (`normalizeState`) calls this silently; the import path calls it with a
- * repair collector after its own structural gate.
+ * The storage load path (`normalizeState`) calls this silently; the import
+ * path passes a repair collector after its own structural gate.
  */
 export function normalizeDiagram(raw: RawDiagram, repairs?: string[]): Diagram {
 	const nodes = normalizeNodes(raw.nodes, repairs);

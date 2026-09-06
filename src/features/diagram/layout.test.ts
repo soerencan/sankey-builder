@@ -61,9 +61,7 @@ describe("layoutDiagram", () => {
 		for (const link of links) {
 			expect(link.width).toBeGreaterThan(0);
 		}
-		// n2->n3 (value 6) is the second link; n3->n4 (value 14) is the third.
-		// A single shared scale factor turns value into width, so the ratio
-		// of the two widths should match the ratio of the two values.
+		// One scale factor maps value to width; links 1 and 2 carry 6 and 14.
 		expect(links[2].width / links[1].width).toBeCloseTo(14 / 6, 5);
 	});
 

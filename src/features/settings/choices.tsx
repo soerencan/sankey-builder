@@ -1,9 +1,7 @@
 /**
- * One component per setting, wrapping ChoiceGroup with that setting's choice
- * array and label rendering. The wide toolbar, the per-setting dialogs, and
- * the narrow "Diagram" sheet all render these, so every option set is one
- * component rendered where needed instead of a `ChoiceGroup` with a
- * bespoke `renderLabel` per surface.
+ * One component per setting, so the wide toolbar, the per-setting dialogs,
+ * and the narrow "Diagram" sheet share each option set's label rendering
+ * instead of passing ChoiceGroup a bespoke `renderLabel` per surface.
  */
 
 import type { Alignment, AspectRatio, LinkColorMode, Palette, Theme } from "../../model/settings";

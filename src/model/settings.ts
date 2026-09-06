@@ -4,8 +4,7 @@
  * storage validation never pulls d3 in.
  */
 
-// The one table for every setting: its allowed values, and their display
-// order. There is no second ordering anywhere else.
+// Tuple order is display order; nothing else orders the choices.
 export const SETTING_DOMAINS = {
 	palette: ["observable10", "tableau10", "category10", "set2", "dark2"],
 	linkColor: ["source", "source-target", "target", "static"],
