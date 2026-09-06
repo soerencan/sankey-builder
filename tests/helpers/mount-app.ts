@@ -4,6 +4,8 @@ import { startApp } from "../../src/app/start-app";
 import { STORAGE_KEY } from "../../src/platform/storage";
 import { bodyMarkup } from "./fixture";
 
+export { tick } from "./tick";
+
 export interface AppFixture {
 	app: AppHandle;
 }
@@ -54,19 +56,6 @@ export function fireInput(target: Element | null | undefined): void {
 
 export function fireChange(target: Element | null | undefined): void {
 	target?.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-/**
- * Awaits one microtask. A row-local `useState` update (e.g. a link-value
- * draft's aria-invalid/error text — see link-row.tsx) is *stored*
- * synchronously but only *rendered* on Preact's next microtask-scheduled
- * flush, unlike a committed action's controller-driven `commit()`, which
- * calls Preact's `render()` synchronously. Tests asserting a draft-only
- * effect immediately after firing an event that has no other synchronous
- * side effect must await this first.
- */
-export async function tick(): Promise<void> {
-	await Promise.resolve();
 }
 
 /** Queries `root` and throws if nothing matches — for elements a test needs to exist. */

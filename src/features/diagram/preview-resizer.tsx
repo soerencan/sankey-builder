@@ -55,43 +55,46 @@ interface DragState {
  * The desktop preview splitter. The preference is intentionally kept outside
  * diagram State: it changes only the displayed viewport, never D3's logical
  * extent or exported JSON/SVG/PNG dimensions — which is also why applying a
- * height writes directly to `diagramRef`/the DOM below rather than flowing
- * back through the controller's `state`/commit().
+ * height writes directly to `diagramRef` below rather than flowing back
+ * through the controller's `state`/commit().
  *
- * Height and aria-valuenow are written directly to the DOM through refs
- * inside the event handlers below, not through useState, so a click or
- * keydown is reflected synchronously (existing tests assert immediately
- * after dispatching the event, with no microtask/render flush in between).
- * `initialHeight` only seeds the first render's markup.
+ * `height` is render state: `aria-valuenow`/`aria-valuetext` are JSX
+ * expressions derived from it, and the CSS custom-property write on
+ * `diagramRef` happens in the layout effect below, keyed on `height` — so
+ * both land on the DOM together, on the next render, after any apply().
+ * `heightRef` is a separate, synchronously-updated mirror of the same value:
+ * a click, keydown, or pointermove computes its next height from "the last
+ * height apply() was called with", and Preact's state updates are batched
+ * into a microtask, so reading `height` itself inside apply() would see a
+ * stale value for a second interaction landing before that microtask flush
+ * (e.g. two quick clicks, or successive pointermoves during one drag).
  */
 export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 	const splitterRef = useRef<HTMLDivElement>(null);
-	const [initialHeight] = useState(() => loadPreviewHeight(win.localStorage));
-	const heightRef = useRef(initialHeight);
+	const [height, setHeight] = useState(() => loadPreviewHeight(win.localStorage));
+	const heightRef = useRef(height);
 	const dragRef = useRef<DragState | null>(null);
 
-	function apply(next: number, persist = true): void {
-		const height = clampPreviewHeight(next);
-		heightRef.current = height;
-		diagramRef.current?.style.setProperty("--diagram-preview-height", `${height}px`);
-		const splitter = splitterRef.current;
-		if (splitter) {
-			splitter.setAttribute("aria-valuenow", String(height));
-			splitter.setAttribute("aria-valuetext", `${height} pixels`);
-		}
-		if (persist) persistPreviewHeight(win.localStorage, height);
+	function apply(next: number): void {
+		const clamped = clampPreviewHeight(next);
+		heightRef.current = clamped;
+		setHeight(clamped);
+		persistPreviewHeight(win.localStorage, clamped);
 	}
 
-	// Mount-once effect (empty dependency array): applies the loaded height to
-	// diagramRef.current (a sibling element this component doesn't render, so
-	// JSX alone can't reach it — populated by the time this runs, since layout
-	// effects fire only after the whole App tree has committed) and owns the
-	// window-level pointermove/pointerup/pointercancel listeners a drag needs
-	// even once the pointer leaves the splitter.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: diagramRef/win are stable for this component's lifetime — see the mount-once rationale above.
+	// Keyed on height (and the stable diagramRef), so it also covers the
+	// initial render: diagramRef is a sibling element this component doesn't
+	// render, so JSX alone can't reach it, but by the time any layout effect
+	// runs the whole App tree — including that sibling — has committed.
 	useLayoutEffect(() => {
-		apply(heightRef.current, false);
+		diagramRef.current?.style.setProperty("--diagram-preview-height", `${height}px`);
+	}, [height, diagramRef]);
 
+	// Mount-once effect (empty dependency array): owns the window-level
+	// pointermove/pointerup/pointercancel listeners a drag needs even once the
+	// pointer leaves the splitter.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: win is a per-instance prop that never changes.
+	useLayoutEffect(() => {
 		const onPointerMove = (event: PointerEvent) => {
 			const drag = dragRef.current;
 			if (!drag) return;
@@ -175,7 +178,8 @@ export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 				aria-orientation="horizontal"
 				aria-valuemin={MIN_PREVIEW_HEIGHT}
 				aria-valuemax={MAX_PREVIEW_HEIGHT}
-				aria-valuenow={initialHeight}
+				aria-valuenow={height}
+				aria-valuetext={`${height} pixels`}
 				tabIndex={0}
 				title="Drag vertically to resize the preview"
 				onKeyDown={onSplitterKeyDown}

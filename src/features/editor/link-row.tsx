@@ -163,21 +163,13 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 		}
 	}
 
-	// Native "change" (fires on blur/commit, not per keystroke). Unlike
-	// commitDraft's other effects, restoration here is a synchronous DOM write
-	// (in addition to the draft state) rather than left to Preact's async
-	// render — this is the one path callers observe as already resolved
-	// immediately after the event.
+	// Native "change" (fires on blur/commit, not per keystroke). Restoration
+	// is draft state, like every other path here — the field's `value` prop
+	// (below) is what actually rewrites the DOM, on the next render.
 	function handleChange(event: JSX.TargetedEvent<HTMLInputElement>): void {
-		const target = event.currentTarget;
-		const parsed = parseLinkValue(target.value);
+		const parsed = parseLinkValue(event.currentTarget.value);
 		if (parsed.kind === "valid") return;
-		const restored = String(link.value);
-		target.value = restored;
-		target.removeAttribute("aria-invalid");
-		const errorEl = target.ownerDocument.getElementById(linkValueErrorId(link.id));
-		if (errorEl) errorEl.textContent = "";
-		setDraft({ text: restored, invalid: false, message: "" });
+		setDraft({ text: String(link.value), invalid: false, message: "" });
 	}
 
 	return (
@@ -220,8 +212,9 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 				aria-describedby={linkValueErrorId(link.id)}
 				aria-invalid={draft.invalid ? "true" : undefined}
 				value={draft.text}
-				// Mirrors node-editor.tsx's rename input: Sortable's cloneNode drag
-				// ghost copies attributes only, not the live `value` property.
+				// Sortable builds its drag ghost with cloneNode, which copies
+				// attributes but not the live value property; mirror it so the
+				// ghost is not a blank field mid-drag.
 				ref={(el) => el?.setAttribute("value", draft.text)}
 				onInput={handleInput}
 				onBeforeInput={handleBeforeInput}

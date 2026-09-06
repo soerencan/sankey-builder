@@ -2,6 +2,7 @@
 
 import { render } from "preact";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { tick } from "../../../tests/helpers/tick";
 import {
 	DEFAULT_PREVIEW_HEIGHT,
 	MAX_PREVIEW_HEIGHT,
@@ -77,26 +78,31 @@ describe("PreviewResizer", () => {
 		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("360");
 	});
 
-	it("supports keyboard adjustment and range endpoints", () => {
+	it("supports keyboard adjustment and range endpoints", async () => {
 		const { container } = mount();
 		const splitter = container.querySelector("#preview-splitter");
 		splitter?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+		await tick();
 		expect(splitter?.getAttribute("aria-valuenow")).toBe("400");
 		splitter?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+		await tick();
 		expect(splitter?.getAttribute("aria-valuenow")).toBe("360");
 		splitter?.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+		await tick();
 		expect(splitter?.getAttribute("aria-valuenow")).toBe(String(MAX_PREVIEW_HEIGHT));
 		splitter?.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+		await tick();
 		expect(splitter?.getAttribute("aria-valuenow")).toBe(String(MIN_PREVIEW_HEIGHT));
 	});
 
-	it("tracks vertical pointer movement continuously", () => {
+	it("tracks vertical pointer movement continuously", async () => {
 		const { container } = mount();
 		const splitter = container.querySelector("#preview-splitter");
 
 		splitter?.dispatchEvent(pointerEvent("pointerdown", 500));
 		window.dispatchEvent(pointerEvent("pointermove", 537));
 		window.dispatchEvent(pointerEvent("pointerup", 537));
+		await tick();
 
 		expect(splitter?.getAttribute("aria-valuenow")).toBe("397");
 		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("397");
@@ -162,7 +168,7 @@ describe("PreviewResizer", () => {
 		}
 	});
 
-	it("unmount cancels an in-progress drag and releases pointer capture", () => {
+	it("unmount cancels an in-progress drag and releases pointer capture", async () => {
 		const { container } = mount();
 		const splitter = container.querySelector("#preview-splitter") as HTMLElement;
 		const releaseSpy = vi.fn();
@@ -170,7 +176,9 @@ describe("PreviewResizer", () => {
 
 		splitter.dispatchEvent(pointerEvent("pointerdown", 500, 7));
 		window.dispatchEvent(pointerEvent("pointermove", 540, 7));
+		await tick();
 		const heightDuringDrag = splitter.getAttribute("aria-valuenow");
+		const storedDuringDrag = localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY);
 
 		render(null, container);
 
@@ -180,6 +188,7 @@ describe("PreviewResizer", () => {
 		// — the drag was reset, not just paused.
 		expect(() => window.dispatchEvent(pointerEvent("pointermove", 600, 7))).not.toThrow();
 		expect(splitter.getAttribute("aria-valuenow")).toBe(heightDuringDrag);
+		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe(storedDuringDrag);
 	});
 
 	// A browser-canceled gesture (incoming call, edge swipe) fires pointercancel
@@ -188,7 +197,7 @@ describe("PreviewResizer", () => {
 	// preview height using the stale startY/startHeight — this test fails
 	// before the fix because the second pointermove below still changes
 	// aria-valuenow instead of being a no-op.
-	it("pointercancel ends an in-progress drag and releases pointer capture, leaving the height applied mid-drag in place", () => {
+	it("pointercancel ends an in-progress drag and releases pointer capture, leaving the height applied mid-drag in place", async () => {
 		const { container } = mount();
 		const splitter = container.querySelector("#preview-splitter") as HTMLElement;
 		const releaseSpy = vi.fn();
@@ -196,7 +205,9 @@ describe("PreviewResizer", () => {
 
 		splitter.dispatchEvent(pointerEvent("pointerdown", 500, 9));
 		window.dispatchEvent(pointerEvent("pointermove", 540, 9));
+		await tick();
 		const heightAtCancel = splitter.getAttribute("aria-valuenow");
+		const storedAtCancel = localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY);
 		expect(heightAtCancel).not.toBe("360");
 
 		window.dispatchEvent(pointerEvent("pointercancel", 540, 9));
@@ -208,8 +219,12 @@ describe("PreviewResizer", () => {
 
 		// A further pointermove is ignored — the drag was reset, not just
 		// paused, so this must not resume tracking from the canceled gesture's
-		// start position.
+		// start position. Persistence is synchronous, so it's a tick-independent
+		// observer of the same fact; aria-valuenow needs the tick below since
+		// it only updates on the next render.
 		window.dispatchEvent(pointerEvent("pointermove", 700, 9));
+		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe(storedAtCancel);
+		await tick();
 		expect(splitter.getAttribute("aria-valuenow")).toBe(heightAtCancel);
 	});
 });

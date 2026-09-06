@@ -62,15 +62,17 @@ describe("node & link editing", () => {
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(getStoredState().links[0].value).toBe(10);
 
-		// Blur restoration, unlike per-keystroke draft feedback, is a
-		// synchronous DOM write (see link-row.tsx's handleChange) — no tick()
-		// needed here.
+		// Blur restoration, like per-keystroke draft feedback, is state that
+		// only reaches the DOM on the next Preact render.
 		fireChange(valueInput);
+		await tick();
 		expect(valueInput.value).toBe("10");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 
 		// After a *valid* edit, blur must not rewrite the text — "5." parses to
 		// 5 but the trailing dot is preserved so the user can keep typing.
+		// handleChange returns before touching draft state on a valid value, so
+		// no render is scheduled and no tick() is needed here.
 		valueInput.value = "5.";
 		fireInput(valueInput);
 		expect(getStoredState().links[0].value).toBe(5);
@@ -137,6 +139,7 @@ describe("node & link editing", () => {
 		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
 
 		fireChange(valueInput);
+		await tick();
 		expect(valueInput.value).toBe("20");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(errorEl.textContent).toBe("");

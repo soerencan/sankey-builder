@@ -10,7 +10,14 @@ import {
 } from "../../src/features/settings/options";
 import { defaultState } from "../../src/model/graph";
 import { ALIGNMENTS, ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../src/model/settings";
-import { click, fireChange, getStoredState, mountApp, requireElement } from "../helpers/mount-app";
+import {
+	click,
+	fireChange,
+	getStoredState,
+	mountApp,
+	requireElement,
+	tick,
+} from "../helpers/mount-app";
 
 describe("toolbar & settings", () => {
 	it("palette-next advances the carousel: state, preview label, and rendered colors all follow", () => {
@@ -264,11 +271,14 @@ describe("toolbar & settings", () => {
 	// vnode's style object, so a later aspect-ratio-driven rerender must not
 	// clobber the height PreviewResizer wrote straight to the DOM outside that
 	// diff.
-	it("changing aspect ratio after resizing the preview leaves --diagram-preview-height untouched", () => {
+	it("changing aspect ratio after resizing the preview leaves --diagram-preview-height untouched", async () => {
 		mountApp();
 
 		const diagram = document.getElementById("diagram");
 		click(document.querySelector('[data-action="preview-larger"]'));
+		// PreviewResizer's CSS custom-property write happens in a layout effect,
+		// on the next render.
+		await tick();
 		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
 
 		click(document.getElementById("aspect-ratio-button"));

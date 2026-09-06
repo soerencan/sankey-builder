@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { startApp } from "../../src/app/start-app";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-resizer";
-import { click, getStoredState, installMarkup, mountApp } from "../helpers/mount-app";
+import { click, getStoredState, installMarkup, mountApp, tick } from "../helpers/mount-app";
 
 describe("application boot", () => {
 	it("static markup is only the icon sprite and the #app mount — production markup comes from startApp() itself", () => {
@@ -33,12 +33,15 @@ describe("application boot", () => {
 		).toBeTruthy();
 	});
 
-	it("resizes only the preview through the splitter controls", () => {
+	it("resizes only the preview through the splitter controls", async () => {
 		mountApp();
 
 		const diagram = document.getElementById("diagram");
 		const viewBoxBefore = diagram?.querySelector("svg")?.getAttribute("viewBox");
 		click(document.querySelector('[data-action="preview-larger"]'));
+		// PreviewResizer's CSS custom-property write happens in a layout effect,
+		// on the next render.
+		await tick();
 
 		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
 		expect(diagram?.querySelector("svg")?.getAttribute("viewBox")).toBe(viewBoxBefore);
