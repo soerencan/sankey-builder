@@ -33,6 +33,17 @@ function wideAlignmentGroup(): HTMLElement {
 	return group;
 }
 
+/**
+ * In the default graph, every node either has outgoing links or already sits
+ * in the last column, so every alignment agrees on where it goes: the align
+ * functions only differ on a node with neither. Adding one gives alignment
+ * something to disagree on (justify pushes it to the last column; left keeps
+ * it at column 0), so a redraw is visible in markup.
+ */
+function addIsolatedNode(): void {
+	click(byRole<HTMLButtonElement>(document, "button", "Add node"));
+}
+
 describe("toolbar & settings", () => {
 	it("palette-next advances the carousel: state, preview label, and rendered colors all follow", () => {
 		mountApp();
@@ -213,8 +224,10 @@ describe("toolbar & settings", () => {
 
 	it("clicking Left in the alignment group sets state, updates aria-pressed on both copies, and re-renders the diagram", () => {
 		mountApp();
+		addIsolatedNode();
 
 		const svgBefore = document.querySelector("#diagram svg");
+		const svgHtmlBefore = svgBefore?.outerHTML;
 		const leftOption = byRole<HTMLButtonElement>(wideAlignmentGroup(), "button", "Left");
 		click(leftOption);
 
@@ -229,10 +242,10 @@ describe("toolbar & settings", () => {
 			}
 		}
 
-		// A fresh <svg> is the re-render evidence.
+		// Changed markup is the redraw evidence.
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
-		expect(svgAfter).not.toBe(svgBefore);
+		expect(svgAfter?.outerHTML).not.toBe(svgHtmlBefore);
 	});
 
 	it("every alignment button has a non-empty accessible name", () => {
@@ -486,42 +499,43 @@ describe("diagram-only settings redraw and persist", () => {
 	it("changing link color redraws the diagram and persists", () => {
 		mountApp();
 
-		const svgBefore = document.querySelector("#diagram svg");
+		const svgHtmlBefore = document.querySelector("#diagram svg")?.outerHTML;
 
 		click(document.getElementById("links-button"));
 		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
 		click(byRole(dialog, "button", SETTING_LABELS.linkColor.static));
 
-		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).not.toBe(svgHtmlBefore);
 		expect(getStoredState().settings.linkColor).toBe("static");
 	});
 
 	it("changing alignment redraws the diagram and persists", () => {
 		mountApp();
+		addIsolatedNode();
 
-		const svgBefore = document.querySelector("#diagram svg");
+		const svgHtmlBefore = document.querySelector("#diagram svg")?.outerHTML;
 
 		click(byRole(wideAlignmentGroup(), "button", "Left"));
 
-		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).not.toBe(svgHtmlBefore);
 		expect(getStoredState().settings.alignment).toBe("left");
 	});
 
 	it("changing aspect ratio redraws the diagram and persists", () => {
 		mountApp();
 
-		const svgBefore = document.querySelector("#diagram svg");
+		const svgHtmlBefore = document.querySelector("#diagram svg")?.outerHTML;
 
 		click(document.getElementById("aspect-ratio-button"));
 		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
 		click(byRole(dialog, "button", SETTING_LABELS.aspectRatio["3:1"]));
 
-		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).not.toBe(svgHtmlBefore);
 		expect(getStoredState().settings.aspectRatio).toBe("3:1");
 	});
 });
 
-// The last-valid render request is only replaced when the graph validates.
+// The last-valid diagram is only replaced when the graph validates.
 describe("a diagram-setting change made while the graph is invalid", () => {
 	it("persists and updates controls but leaves the last-valid SVG element and markup untouched", () => {
 		mountApp();
@@ -542,8 +556,9 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 		expect(leftOption.getAttribute("aria-pressed")).toBe("true");
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
-		// Identity, not markup equality: the same request reference means the
-		// layout effect never reran.
+		// Markup equality is the evidence that nothing was redrawn; identity
+		// only adds that the svg was never unmounted. The diagram reference is
+		// unchanged while the graph is invalid.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 	});
@@ -552,10 +567,10 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 // Unlike the diagram-only settings, a palette change reaches the node
 // editor's swatches, but as a style patch, not a rebuild.
 describe("palette changes patch node-editor swatches", () => {
-	it("choosing a palette from the dialog updates swatch colors, replaces the SVG, and persists", () => {
+	it("choosing a palette from the dialog updates swatch colors, redraws the SVG, and persists", () => {
 		mountApp();
 
-		const svgBefore = document.querySelector("#diagram svg");
+		const svgHtmlBefore = document.querySelector("#diagram svg")?.outerHTML;
 
 		click(document.getElementById("palette-preview"));
 		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
@@ -567,7 +582,7 @@ describe("palette changes patch node-editor swatches", () => {
 		const expectedColors = paletteColors("tableau10").slice(0, swatches.length);
 		expect(swatches.map((s) => s.style.backgroundColor)).toEqual(expectedColors);
 
-		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).not.toBe(svgHtmlBefore);
 		expect(getStoredState().settings.palette).toBe("tableau10");
 	});
 });
@@ -602,6 +617,7 @@ describe("theme changes skip validation and the redraw", () => {
 
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
+		const svgHtmlBefore = svgBefore?.outerHTML;
 
 		const themeButton = document.getElementById("theme-button");
 		click(themeButton);
@@ -611,8 +627,10 @@ describe("theme changes skip validation and the redraw", () => {
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 		expect(getStoredState().settings.theme).toBe("light");
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
-		// Same <svg> element, not just equivalent markup.
+		// The rendered diagram — element and markup alike — is untouched by
+		// the theme change.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 	});
 
 	it("on an invalid graph (cycle): leaves the error banner and the last valid diagram untouched", () => {
@@ -626,15 +644,18 @@ describe("theme changes skip validation and the redraw", () => {
 		const errorBefore = document.getElementById("error")?.textContent;
 		expect(errorBefore).toContain("cycle");
 		const svgBefore = document.querySelector("#diagram svg");
+		const svgHtmlBefore = svgBefore?.outerHTML;
 
 		const themeButton = document.getElementById("theme-button");
 		click(themeButton);
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
 		click(byRole(dialog, "button", SETTING_LABELS.theme.light));
 
-		// Same error verbatim and same svg element: validation didn't re-run.
+		// Same error verbatim, and the rendered diagram — element and markup
+		// alike — is untouched.
 		expect(document.getElementById("error")?.textContent).toBe(errorBefore);
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 		expect(getStoredState().settings.theme).toBe("light");

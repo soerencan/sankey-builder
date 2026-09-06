@@ -161,7 +161,7 @@ describe("application lifecycle", () => {
 
 		app.destroy();
 
-		// Only SankeyCanvas's effect cleanup can remove the svg.
+		// Only unmounting the Preact tree can remove the svg.
 		expect(document.querySelector("#diagram svg")).toBeNull();
 	});
 

@@ -35,6 +35,7 @@ describe("node & link editing", () => {
 
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
+		const svgHtmlBefore = svgBefore?.outerHTML;
 
 		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 
@@ -45,6 +46,7 @@ describe("node & link editing", () => {
 		expect(document.getElementById("error")?.textContent).toBe("");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 		expect(document.contains(valueInput)).toBe(true);
 		expect(getStoredState().links[0].value).toBe(10);
 
@@ -56,6 +58,7 @@ describe("node & link editing", () => {
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(document.getElementById("error")?.textContent).toBe("");
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 		expect(getStoredState().links[0].value).toBe(10);
 
 		// Blur restoration is draft state too, rendered on the next microtask.
@@ -80,7 +83,7 @@ describe("node & link editing", () => {
 		expect(document.getElementById("error")?.textContent).toBe("");
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
-		expect(svgAfter).not.toBe(svgBefore);
+		expect(svgAfter?.outerHTML).not.toBe(svgHtmlBefore);
 		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(4);
 		expect(getStoredState().links[0].value).toBe(20);
 	});
@@ -269,13 +272,25 @@ describe("node & link editing", () => {
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 
+		// Bumping a value while the cycle is still present must not redraw:
+		// retargeting alone would restore the pre-cycle graph exactly, so this
+		// change is what makes the eventual fix visible in markup.
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
+		valueInput.value = "20";
+		fireInput(valueInput);
+
+		expect(document.getElementById("error")?.textContent).toContain("cycle");
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
+		expect(getStoredState().links[0].value).toBe(20);
+
 		target.value = "n4";
 		fireChange(target);
 
 		expect(document.getElementById("error")?.textContent).toBe("");
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
-		expect(svgAfter).not.toBe(svgBefore);
+		expect(svgAfter?.outerHTML).not.toBe(svgHtmlBefore);
 	});
 
 	it("keeps focus on a link-value input through its own committed valid keystroke, which still redraws the diagram", () => {
@@ -283,6 +298,7 @@ describe("node & link editing", () => {
 
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
+		const svgHtmlBefore = svgBefore?.outerHTML;
 
 		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		valueInput.focus();
@@ -294,7 +310,7 @@ describe("node & link editing", () => {
 		expect(document.activeElement).toBe(valueInput);
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
-		expect(svgAfter).not.toBe(svgBefore);
+		expect(svgAfter?.outerHTML).not.toBe(svgHtmlBefore);
 		expect(getStoredState().links[0].value).toBe(20);
 	});
 
@@ -358,6 +374,7 @@ describe("node & link editing", () => {
 		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		const storedBefore = localStorage.getItem(STORAGE_KEY);
 		const svgBefore = document.querySelector("#diagram svg");
+		const svgHtmlBefore = svgBefore?.outerHTML;
 		const errorBefore = document.getElementById("error")?.textContent;
 		const noticeBefore = document.getElementById("io-notice")?.textContent;
 
@@ -370,6 +387,7 @@ describe("node & link editing", () => {
 		expect(document.getElementById("error")?.textContent).toBe(errorBefore);
 		expect(document.getElementById("io-notice")?.textContent).toBe(noticeBefore);
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 
 		valueInput.value = "";
 		fireInput(valueInput);
@@ -380,6 +398,7 @@ describe("node & link editing", () => {
 		expect(document.getElementById("error")?.textContent).toBe(errorBefore);
 		expect(document.getElementById("io-notice")?.textContent).toBe(noticeBefore);
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 	});
 
 	it("node deletion cascades: rows for a deleted link disappear, but an invalid draft on a surviving link (whose index shifts) persists", async () => {
@@ -463,6 +482,7 @@ describe("node & link editing", () => {
 
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
+		const svgHtmlBefore = svgBefore?.outerHTML;
 
 		const linkRowElsBefore = Array.from(document.querySelectorAll("#link-editor .link-row"));
 
@@ -513,7 +533,7 @@ describe("node & link editing", () => {
 
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
-		expect(svgAfter).not.toBe(svgBefore);
+		expect(svgAfter?.outerHTML).not.toBe(svgHtmlBefore);
 
 		expect(getStoredState().nodes.find((n: { id: string }) => n.id === "n1")?.name).toBe("Lignite");
 	});

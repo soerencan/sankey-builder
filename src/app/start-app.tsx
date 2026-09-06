@@ -1,13 +1,12 @@
 import { render } from "preact";
 import type { DiagramPanelActions } from "../features/diagram/diagram-panel";
-import type { DiagramRenderRequest } from "../features/diagram/render";
 import type { DataPanelActions } from "../features/editor/data-panel";
 import type { LinkEditorActions } from "../features/editor/link-editor";
 import type { NodeEditorActions } from "../features/editor/node-editor";
 import { removeActiveDragClone } from "../features/editor/row-reorder";
 import { applyTheme } from "../features/settings/theme";
 import type { ThemeControlActions } from "../features/settings/theme-control";
-import type { State } from "../model/graph";
+import type { Diagram, State } from "../model/graph";
 import {
 	addLink,
 	addNode,
@@ -59,9 +58,10 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 
 	const state: State = loadState(localStorage);
 
-	// Reassigned wholesale, never mutated in place: SankeyCanvas keys its
-	// redraw off reference identity.
-	let lastValidRequest: DiagramRenderRequest | null = null;
+	// Reassigned wholesale, never mutated in place, because SankeySvg
+	// memoizes on reference identity; a new reference per valid commit is the
+	// whole contract.
+	let lastValidDiagram: Diagram | null = null;
 
 	// At most one notice per kind. Plain local state rather than Preact state
 	// because this controller, not a component, owns every action.
@@ -75,7 +75,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 				state={state}
 				nodes={projectNodes(state)}
 				notices={notices}
-				lastValidRequest={lastValidRequest}
+				lastValidDiagram={lastValidDiagram}
 				themeActions={themeControlActions}
 				diagramActions={diagramPanelActions}
 				nodeActions={nodeEditorActions}
@@ -100,13 +100,11 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		const result = validate(state);
 		notices.graph = result.ok ? undefined : { tone: "error", message: result.error };
 		if (result.ok) {
-			lastValidRequest = {
-				state: structuredClone({
-					nodes: state.nodes,
-					links: state.links,
-					settings: pickDiagramSettings(state.settings),
-				}),
-			};
+			lastValidDiagram = structuredClone({
+				nodes: state.nodes,
+				links: state.links,
+				settings: pickDiagramSettings(state.settings),
+			});
 		}
 
 		persist(io);

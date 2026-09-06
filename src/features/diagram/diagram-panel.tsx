@@ -76,7 +76,7 @@ function serializeVisibleDiagram(
 		return null;
 	}
 	// Detached from the page, currentColor and the background would resolve
-	// to black and transparent; the SankeyCanvas host carries the theme's
+	// to black and transparent; the .sankey-canvas host carries the theme's
 	// background.
 	const labelColor = getComputedStyle(svgEl).color;
 	const background = getComputedStyle(svgEl.parentElement as Element).backgroundColor;

@@ -241,6 +241,7 @@ describe("import & export", () => {
 
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
+		const svgHtmlBefore = svgBefore?.outerHTML;
 
 		const payload = {
 			nodes: [
@@ -272,8 +273,11 @@ describe("import & export", () => {
 
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
-		// Same request reference on an invalid graph, so no redraw.
+		// Markup equality is the evidence that nothing was redrawn; identity
+		// only adds that the svg was never unmounted. The diagram reference is
+		// unchanged on an invalid graph.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Imported 2 nodes, 2 links. Adjustments: link 1: invalid value — set to 1.",
