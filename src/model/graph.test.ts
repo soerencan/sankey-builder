@@ -177,6 +177,12 @@ describe("updateLink", () => {
 		updateLink(state, "no-such-id", { value: 42 });
 		expect(state.links.map((l) => l.value)).toEqual(before);
 	});
+
+	it("rejects a patch that carries id at the type level", () => {
+		const state = twoLinkState();
+		// @ts-expect-error — id is not a patchable field
+		updateLink(state, state.links[0].id, { id: "new-id" });
+	});
 });
 
 describe("deleteLink", () => {

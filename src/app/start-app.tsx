@@ -100,9 +100,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		mutation(state);
 
 		const result = validate(state);
-		notices.graph = result.ok
-			? undefined
-			: { kind: "graph", tone: "error", message: result.error ?? "" };
+		notices.graph = result.ok ? undefined : { kind: "graph", tone: "error", message: result.error };
 		if (result.ok) {
 			lastValidRequest = {
 				state: structuredClone({
@@ -145,14 +143,8 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		deleteLink(id) {
 			commit((s) => deleteLink(s, id));
 		},
-		updateLinkSource(id, source) {
-			commit((s) => updateLink(s, id, { source }));
-		},
-		updateLinkTarget(id, target) {
-			commit((s) => updateLink(s, id, { target }));
-		},
-		updateLinkValue(id, value) {
-			commit((s) => updateLink(s, id, { value }));
+		updateLink(id, patch) {
+			commit((s) => updateLink(s, id, patch));
 		},
 		moveLink(from, to) {
 			commit((s) => moveLink(s, from, to));

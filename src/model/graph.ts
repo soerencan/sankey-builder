@@ -17,12 +17,14 @@ export interface Link {
 	value: number;
 }
 
+export type CompleteLink = Link & { source: string; target: string };
+
 /**
  * Incomplete links are inert (validation skips them, rendering omits them)
  * so "Add link" never draws a flow the user didn't choose. Persistence keeps
  * them so an in-progress row survives a reload.
  */
-export function isComplete(link: Link): link is Link & { source: string; target: string } {
+export function isComplete(link: Link): link is CompleteLink {
 	return link.source !== null && link.target !== null;
 }
 
@@ -91,7 +93,7 @@ export function deleteNode(state: State, id: string): void {
 	state.links = state.links.filter((l) => l.source !== id && l.target !== id);
 }
 
-export function updateLink(state: State, id: string, patch: Partial<Link>): void {
+export function updateLink(state: State, id: string, patch: Partial<Omit<Link, "id">>): void {
 	const link = state.links.find((l) => l.id === id);
 	if (link) Object.assign(link, patch);
 }

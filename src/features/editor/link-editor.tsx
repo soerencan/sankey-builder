@@ -7,9 +7,7 @@ import { useRowSortable } from "./use-row-sortable";
 export interface LinkEditorActions {
 	addLink(): void;
 	deleteLink(id: string): void;
-	updateLinkSource(id: string, source: string | null): void;
-	updateLinkTarget(id: string, target: string | null): void;
-	updateLinkValue(id: string, value: number): void;
+	updateLink(id: string, patch: Partial<Omit<Link, "id">>): void;
 	moveLink(from: number, to: number): void;
 }
 

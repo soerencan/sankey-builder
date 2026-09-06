@@ -8,14 +8,12 @@ import {
 } from "d3-sankey";
 import type { SankeyLink, SankeyNode } from "d3-sankey";
 import { select } from "d3-selection";
-import type { Link, Node } from "../../model/graph";
+import type { CompleteLink, Link, Node } from "../../model/graph";
 import { isComplete } from "../../model/graph";
 import type { Alignment, DiagramSettings, LinkColorMode } from "../../model/settings";
 import { aspectRatioOption } from "../../model/settings";
 import { createNodeColorResolver } from "./colors";
 import type { NodeColorResolver } from "./colors";
-
-type CompleteLink = Link & { source: string; target: string };
 
 /** A point-in-time view rather than the live `State`, so nothing the renderer calls can mutate domain data. */
 export interface DiagramSnapshot {

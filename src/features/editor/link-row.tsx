@@ -98,7 +98,7 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 		const parsed = parseLinkValue(text);
 		if (parsed.kind === "valid") {
 			setDraft({ text, invalid: false, message: "" });
-			actions.updateLinkValue(link.id, parsed.value);
+			actions.updateLink(link.id, { value: parsed.value });
 		} else if (parsed.kind === "empty") {
 			// Mid-edit blank: leave state untouched rather than writing NaN.
 			setDraft({ text, invalid: false, message: "" });
@@ -152,7 +152,9 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 				class="link-source"
 				aria-label={`Source for link ${index + 1}`}
 				value={link.source ?? ""}
-				onChange={(event) => actions.updateLinkSource(link.id, event.currentTarget.value || null)}
+				onChange={(event) =>
+					actions.updateLink(link.id, { source: event.currentTarget.value || null })
+				}
 			>
 				{renderLinkOptions(nodes, link.source, link.target)}
 			</select>
@@ -160,7 +162,9 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 				class="link-target"
 				aria-label={`Target for link ${index + 1}`}
 				value={link.target ?? ""}
-				onChange={(event) => actions.updateLinkTarget(link.id, event.currentTarget.value || null)}
+				onChange={(event) =>
+					actions.updateLink(link.id, { target: event.currentTarget.value || null })
+				}
 			>
 				{renderLinkOptions(nodes, link.target, link.source)}
 			</select>

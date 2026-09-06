@@ -1,14 +1,18 @@
 import { isComplete } from "./graph";
-import type { State } from "./graph";
+import type { CompleteLink, State } from "./graph";
 
 // d3-sankey multiplies y-coordinates by link values; near Number.MAX_VALUE
 // that overflows into NaN geometry even though the value itself is finite.
 // Capped far below that, with room for column sums of several such links.
 export const MAX_LINK_VALUE = 1e15;
 
-export interface ValidationResult {
-	ok: boolean;
-	error?: string;
+export type ValidationResult = { ok: true } | { ok: false; error: string };
+
+// The row number disambiguates duplicate links between the same pair.
+function describeLink(index: number, link: CompleteLink, nameById: Map<string, string>): string {
+	const sourceName = nameById.get(link.source) ?? link.source;
+	const targetName = nameById.get(link.target) ?? link.target;
+	return `Link ${index + 1} (${sourceName} to ${targetName})`;
 }
 
 /** Keeps d3-sankey's failure modes (throws on cycles/self-links, silent NaN geometry on bad values) from reaching layout. */
@@ -25,20 +29,15 @@ export function validate(state: State): ValidationResult {
 			};
 		}
 		if (!Number.isFinite(link.value) || link.value <= 0) {
-			// The row number disambiguates duplicate links between the same pair.
-			const sourceName = nameById.get(link.source) ?? link.source;
-			const targetName = nameById.get(link.target) ?? link.target;
 			return {
 				ok: false,
-				error: `Link ${index + 1} (${sourceName} to ${targetName}) needs a value greater than 0.`,
+				error: `${describeLink(index, link, nameById)} needs a value greater than 0.`,
 			};
 		}
 		if (link.value > MAX_LINK_VALUE) {
-			const sourceName = nameById.get(link.source) ?? link.source;
-			const targetName = nameById.get(link.target) ?? link.target;
 			return {
 				ok: false,
-				error: `Link ${index + 1} (${sourceName} to ${targetName}) value is too large (maximum ${MAX_LINK_VALUE}).`,
+				error: `${describeLink(index, link, nameById)} value is too large (maximum ${MAX_LINK_VALUE}).`,
 			};
 		}
 	}
