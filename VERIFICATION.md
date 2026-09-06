@@ -94,7 +94,7 @@ container queries, so none of this is automated.
 - [ ] On a small/phone viewport, tapping Diagram opens it as a bottom sheet (full width, flush to the bottom edge, rounded top corners only) rather than a small centered card.
 - [ ] The diagram panel's rendered height does not change while the Diagram sheet is open (the sheet is a top-layer overlay, not part of panel layout).
 - [ ] With the Diagram sheet open, pressing Escape closes it (native `<dialog>` behavior, not exercised by the automated suite); all rows/buttons remain comfortable touch targets (~44px).
-- [ ] After closing the Diagram sheet (a choice, Close button, backdrop click, or Escape), focus visibly returns to the Diagram button.
+- [ ] After closing the Diagram sheet (export, header Close button, backdrop click, or Escape), focus visibly returns to the Diagram button.
 - [ ] Coarse-pointer targets (both toolbar buttons and the Diagram sheet's option rows) are comfortably tappable (~44px) on a real touch device.
 
 ## Row reordering (drag feel)
@@ -142,3 +142,21 @@ served app (`make dev` or a served `dist/`).
 - [ ] Safari PNG export specifically: repeat the above in Safari — canvas + SVG rasterization (drawImage of an svg: URL, toBlob) is the part most likely to diverge from Chrome/Firefox; confirm the PNG downloads and its colors/dimensions match.
 - [ ] Feedback in the consolidated notice region does not cause overlap or horizontal overflow at 360px or 390px.
 - [ ] With a screen reader running, confirm the `aria-live="polite"` notice region announces restrainedly: typing an invalid link value repeatedly does not trigger a root announcement (it's an inline field error, not a root notice), and an unrelated action (e.g. a settings change, or a second import) while a notice is already showing doesn't re-announce unchanged notice text.
+
+
+## Shared choice panels
+
+- [ ] Links, Export, Theme, Palette, and Aspect ratio use the same anchored desktop panel, transparent backdrop, header Close button, and viewport clamping/flipping. The workspace remains modal/inert until dismissal.
+- [ ] Every panel becomes a bottom sheet at narrow viewport widths, with a gentle backdrop, safe-area padding, and internally scrolling content. Close stays visible.
+- [ ] Selected list choices have a soft accent tint and decorative checkmark; keyboard focus has its own visible ring. Compact alignment buttons retain their segmented treatment.
+- [ ] Clicking interior padding keeps a panel open; outside clicks, Escape, and header Close dismiss it and return focus. Resizing and scrolling reposition open desktop panels.
+- [ ] Single-setting choices close their panel; the combined Diagram sheet stays open after settings changes and closes after export.
+## Implementation verification — 2026-09-06
+
+- Automated: lint, TypeScript, unit/integration suites, and production build smoke tests passed.
+- Chromium: checked 1440, 1024, 768, 390, and 360px in light and dark themes. No horizontal overflow; every available panel remained in bounds and focused the selected choice or first export action.
+- Checked native Escape and Tab/Shift+Tab, focus return, and resizing an open Theme panel from 1440 to 1024px.
+- Touch emulation: verified coarse-pointer detection, 44px drag handles and value fields. Safe-area padding is implemented; physical-device inset and drag feel still require the checklist above.
+- Downloaded real SVG and PNG files during browser verification. Export handlers are unchanged; the final implementation restores the original label rendering and export typography.
+- Label sizing/fitting was explored and then explicitly deferred. A 72-node, six-stage graph reduced every label to an ellipsis at 360px; avoiding overlap alone did not preserve meaning. Revisit readable-scale navigation and labels in a dedicated follow-up.
+- Safari, Firefox, physical touch dragging, and assistive-technology checks remain manual follow-ups; they were not run in this Chromium session.
