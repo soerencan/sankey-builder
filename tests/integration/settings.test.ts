@@ -589,8 +589,9 @@ describe("palette changes patch node-editor swatches", () => {
 });
 
 // Theme is not diagram data: a change applies, persists, and clears the
-// one-shot I/O notice, without validation or a redraw.
-describe("theme changes skip validation and the redraw", () => {
+// one-shot I/O notice, but leaves the graph notice and the rendered SVG
+// unchanged.
+describe("theme changes leave the diagram and its notice unchanged", () => {
 	it("on a valid graph: persists, clears a seeded I/O notice, applies data-theme, and leaves the rendered SVG untouched", async () => {
 		mountApp();
 

@@ -1,11 +1,19 @@
 // @vitest-environment happy-dom
 
 import { render } from "preact";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Diagram, State } from "../../model/graph";
 import { defaultState } from "../../model/graph";
 import type { LinkColorMode } from "../../model/settings";
+import { layoutDiagram } from "./layout";
 import { SankeySvg } from "./sankey-svg";
+
+// Memoization has no observable but its call count: an unchanged reference
+// produces the same markup with or without it.
+vi.mock("./layout", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("./layout")>();
+	return { ...actual, layoutDiagram: vi.fn(actual.layoutDiagram) };
+});
 
 function diagramOf(state: State): Diagram {
 	return { nodes: state.nodes, links: state.links, settings: state.settings };
@@ -17,6 +25,7 @@ function mount(container: HTMLElement, diagram: Diagram | null): void {
 
 beforeEach(() => {
 	document.body.innerHTML = "";
+	vi.mocked(layoutDiagram).mockClear();
 });
 
 describe("SankeySvg", () => {
@@ -112,19 +121,17 @@ describe("SankeySvg", () => {
 		},
 	);
 
-	it("keeps the same svg element and markup on a rerender with the same diagram reference", () => {
+	it("lays out once for a repeated diagram reference and again for a new one", () => {
 		const container = document.createElement("div");
 		document.body.appendChild(container);
 		const diagram = diagramOf(defaultState());
 
 		mount(container, diagram);
-		const svgBefore = container.querySelector("svg");
-		const markupBefore = svgBefore?.outerHTML;
-
 		mount(container, diagram);
+		expect(layoutDiagram).toHaveBeenCalledTimes(1);
 
-		expect(container.querySelector("svg")).toBe(svgBefore);
-		expect(container.querySelector("svg")?.outerHTML).toBe(markupBefore);
+		mount(container, diagramOf(defaultState()));
+		expect(layoutDiagram).toHaveBeenCalledTimes(2);
 	});
 
 	it("reuses the svg element and produces identical markup for an equal-content new reference", () => {

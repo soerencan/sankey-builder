@@ -19,9 +19,10 @@ export interface SankeySvgProps {
 
 /**
  * Renders the pure layout `layoutDiagram` computes as an SVG vnode tree.
- * Memoizes on the `diagram` reference, so an unchanged reference yields an
- * identical tree and Preact leaves the DOM alone. That is how the
- * last-valid diagram stays on screen while the graph is invalid.
+ * Memoizes on the `diagram` reference so app re-renders that don't change
+ * the diagram (notices, theme, edits to an invalid graph) skip d3-sankey.
+ * The memo is only an optimization: the controller keeps the last valid
+ * diagram on screen by leaving the reference unchanged, not by relying on it.
  */
 export function SankeySvg({ diagram }: SankeySvgProps) {
 	const positioned = useMemo(() => {
