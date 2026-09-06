@@ -75,10 +75,11 @@ through in a real browser after any change.
 
 ## Development
 
-Bun 1.3.14 (pinned in `.bun-version`) runs the dev server and the
-production build. Vitest and `tsc` run on Node 24, managed via nvm
-(`.nvmrc`). Install dependencies once with `bun install`. Linting and
-formatting run on Biome, and tests run on Vitest against happy-dom.
+Bun, at the version pinned in `.bun-version`, runs the dev server and the
+production build. Vitest and `tsc` run on the Node version pinned in
+`.nvmrc`, managed via nvm. Install dependencies once with `bun install`.
+Linting and formatting run on Biome, and tests run on Vitest against
+happy-dom.
 
 The app is written in TypeScript under `src/`, entered via `src/main.ts` and
 loaded straight from `index.html` as an ES module — there's no committed

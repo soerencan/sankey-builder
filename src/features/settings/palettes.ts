@@ -1,6 +1,6 @@
 /**
  * Lives in settings, not diagram: both the swatch previews and the node
- * colour resolver need this table, and settings must not depend on diagram.
+ * color resolver need this table, and settings must not depend on diagram.
  * Only this file imports d3-scale-chromatic.
  */
 

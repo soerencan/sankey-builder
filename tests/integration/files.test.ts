@@ -193,7 +193,9 @@ describe("import & export", () => {
 	it("rejects a non-diagram file, leaving state and storage untouched, and shows the error", async () => {
 		mountApp();
 
-		const storedBefore = localStorage.getItem(STORAGE_KEY);
+		// State is unchanged either way, so a stray persist would write the
+		// same bytes; only the call itself is evidence.
+		const setItem = vi.spyOn(localStorage, "setItem");
 		const rectsBefore = document.querySelectorAll("#diagram svg rect").length;
 
 		const file = new File(['{"totally":"unrelated"}'], "notes.json", { type: "application/json" });
@@ -204,7 +206,8 @@ describe("import & export", () => {
 
 		expect(document.getElementById("io-notice")?.textContent).toContain("diagram export");
 		expect(document.getElementById("io-notice")?.className).toBe("notice-error");
-		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
+		expect(setItem).not.toHaveBeenCalled();
+		setItem.mockRestore();
 		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(rectsBefore);
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
 	});

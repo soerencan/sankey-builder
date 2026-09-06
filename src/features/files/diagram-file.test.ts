@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeState } from "../../model/codec";
 import { type State, defaultState, moveLink, moveNode, withoutLinkId } from "../../model/graph";
-import { DEFAULT_SETTINGS } from "../../model/settings";
+import { DEFAULT_SETTINGS, pickDiagramSettings } from "../../model/settings";
 import { parseImport, serializeState } from "./diagram-file";
 
 function sampleState(): State {
@@ -25,12 +25,7 @@ function sampleState(): State {
 describe("serializeState", () => {
 	it("omits theme from the exported settings", () => {
 		const parsed = JSON.parse(serializeState(sampleState()));
-		expect(parsed.settings).toEqual({
-			palette: "dark2",
-			linkColor: "static",
-			alignment: "center",
-			aspectRatio: "16:9",
-		});
+		expect(parsed.settings).toEqual(pickDiagramSettings(sampleState().settings));
 		expect("theme" in parsed.settings).toBe(false);
 	});
 
@@ -89,12 +84,7 @@ describe("parseImport round-trip", () => {
 		expect(result.diagram.links.map(withoutLinkId)).toEqual([
 			{ source: "n1", target: "n2", value: 5 },
 		]);
-		expect(result.diagram.settings).toEqual({
-			palette: "dark2",
-			linkColor: "static",
-			alignment: "center",
-			aspectRatio: "16:9",
-		});
+		expect(result.diagram.settings).toEqual(pickDiagramSettings(state.settings));
 	});
 
 	it("assigns every imported link a fresh id, ignoring any id in the file", () => {

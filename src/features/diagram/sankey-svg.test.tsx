@@ -41,7 +41,7 @@ describe("SankeySvg", () => {
 		expect(container.querySelectorAll("path")).toHaveLength(state.links.length);
 		const labels = Array.from(container.querySelectorAll("text"));
 		expect(labels).toHaveLength(state.nodes.length);
-		// export.ts recolours labels by selecting on this attribute.
+		// export.ts recolors labels by selecting on this attribute.
 		for (const label of labels) {
 			expect(label.getAttribute("fill")).toBe("currentColor");
 		}
