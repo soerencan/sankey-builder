@@ -1,4 +1,6 @@
 import type { Theme } from "../../model/settings";
+import { ChoiceDialog } from "../../shared/choice-dialog";
+import { ChoiceGroup } from "../../shared/choice-group";
 import { useDialog } from "../../shared/use-dialog";
 import { THEME_OPTIONS } from "./options";
 
@@ -11,10 +13,12 @@ export interface ThemeControlProps {
 	actions: ThemeControlActions;
 }
 
-// Runtime iteration order follows THEME_OPTIONS's own declaration order
-// (system, light, dark), matching diagram-panel.tsx's LINK_COLOR_ENTRIES
-// pattern for the same kind of dialog.
-const THEME_ENTRIES = Object.entries(THEME_OPTIONS) as [Theme, { label: string; iconId: string }][];
+// Runtime iteration order follows THEME_OPTIONS's own declaration order:
+// system, light, dark.
+const THEME_CHOICES = Object.entries(THEME_OPTIONS).map(([value, option]) => ({
+	value: value as Theme,
+	...option,
+}));
 
 /**
  * The header's theme button and its dialog — no validation/redraw on
@@ -41,38 +45,28 @@ export function ThemeControl({ theme, actions }: ThemeControlProps) {
 				</svg>
 			</button>
 
-			<dialog id="theme-dialog" ref={dialog.ref} aria-labelledby="theme-dialog-heading">
-				<h3 id="theme-dialog-heading">Theme</h3>
-				<div
+			<ChoiceDialog id="theme-dialog" heading="Theme" handle={dialog}>
+				<ChoiceGroup
+					options={THEME_CHOICES}
+					value={theme}
+					label="Theme"
 					class="choice-options"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-					role="group"
-					aria-label="Theme"
-				>
-					{THEME_ENTRIES.map(([value, option]) => (
-						<button
-							key={value}
-							type="button"
-							class="choice-option"
-							data-action="set-theme"
-							data-value={value}
-							aria-pressed={theme === value}
-							onClick={() => {
-								actions.setTheme(value);
-								dialog.close();
-							}}
-						>
+					optionClass="choice-option"
+					dataAction="set-theme"
+					onSelect={(value) => {
+						actions.setTheme(value);
+						dialog.close();
+					}}
+					renderLabel={(option) => (
+						<>
 							<svg class="icon" aria-hidden="true" focusable="false">
 								<use href={`#${option.iconId}`} />
 							</svg>
 							<span class="choice-option-label">{option.label}</span>
-						</button>
-					))}
-				</div>
-				<button type="button" class="dialog-close" data-action="close-dialog">
-					Close
-				</button>
-			</dialog>
+						</>
+					)}
+				/>
+			</ChoiceDialog>
 		</>
 	);
 }

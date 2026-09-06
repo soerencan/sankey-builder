@@ -756,15 +756,16 @@ dialog h3 {
 }
 
 /* Sub-group headings inside the Diagram dialog, which (unlike the other
-   dialogs) holds two labelled option groups under one h3 — Link colors and
-   Alignment each need their own visible heading to stay distinguishable. */
+   dialogs) holds four labelled sections under one h3 — Link colors,
+   Alignment, Aspect ratio, and Export diagram each need their own visible
+   heading to stay distinguishable. */
 dialog h4 {
   margin: 0 0 0.4rem;
   font-size: 0.85rem;
   color: color-mix(in srgb, var(--ink) 65%, transparent);
 }
 
-dialog [role="group"] + [role="group"] {
+dialog .dialog-section + .dialog-section {
   margin-top: 1rem;
 }
 

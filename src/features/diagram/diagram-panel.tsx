@@ -7,6 +7,8 @@ import type {
 	Settings,
 } from "../../model/settings";
 import { ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../model/settings";
+import { ChoiceDialog } from "../../shared/choice-dialog";
+import { ChoiceGroup } from "../../shared/choice-group";
 import type { IoNoticeActions } from "../../shared/notice";
 import type { DialogHandle } from "../../shared/use-dialog";
 import { useDialog } from "../../shared/use-dialog";
@@ -17,7 +19,6 @@ import {
 	LINK_COLOR_OPTIONS,
 	PALETTE_LABELS,
 } from "../settings/options";
-import type { LinkColorOptionMeta } from "../settings/options";
 import { paletteColors } from "./colors";
 import { rasterizeSvg, serializeDiagramSvg, svgViewBoxSize } from "./export";
 
@@ -32,12 +33,15 @@ const PNG_EXPORT_SCALE = 2;
 // truncated to keep the preview/dialog rows a consistent width.
 const SWATCH_COUNT = 5;
 
-// Runtime iteration order (source, source-target, target, static) is the
-// dialog's display order, which is LINK_COLOR_OPTIONS's own declaration order.
-const LINK_COLOR_ENTRIES = Object.entries(LINK_COLOR_OPTIONS) as [
-	LinkColorMode,
-	LinkColorOptionMeta,
-][];
+// ChoiceGroup option lists, one per closed setting domain. Runtime iteration
+// order (source, source-target, target, static for link color) is the
+// dialogs' display order, which is each metadata table's own declaration
+// order in options.ts/settings.ts.
+const PALETTE_CHOICES = PALETTE_ORDER.map((value) => ({ value }));
+const LINK_COLOR_CHOICES = Object.entries(LINK_COLOR_OPTIONS).map(([value, option]) => ({
+	value: value as LinkColorMode,
+	...option,
+}));
 
 export interface DiagramPanelActions extends IoNoticeActions {
 	setPalette(value: Palette): void;
@@ -61,6 +65,51 @@ export interface DiagramPanelProps {
 	actions: DiagramPanelActions;
 	/** The owning app instance's AbortSignal — guards PNG rasterization. */
 	signal: AbortSignal;
+}
+
+/** An accessible name comes from a visible label (aria-label) or a heading elsewhere in the DOM (aria-labelledby) — never both, never neither. Mirrors ChoiceGroup's own label/labelledBy split. */
+type ExportOptionsAccessibleName =
+	| { label: string; labelledBy?: undefined }
+	| { label?: undefined; labelledBy: string };
+
+type ExportOptionsProps = {
+	onExportSvg(): void;
+	onExportPng(): void;
+	svgButtonId?: string;
+	pngButtonId?: string;
+} & ExportOptionsAccessibleName;
+
+/**
+ * The SVG/PNG export pair, shared by the wide export dialog and the narrow
+ * display sheet's copy. Not a ChoiceGroup: these are one-shot actions, not a
+ * persisted choice, so there is no aria-pressed/current value — just the two
+ * buttons under one accessible group name, owning this file's other
+ * role="group" suppression.
+ */
+function ExportOptions({
+	onExportSvg,
+	onExportPng,
+	svgButtonId,
+	pngButtonId,
+	label,
+	labelledBy,
+}: ExportOptionsProps) {
+	return (
+		<div
+			class="export-options"
+			// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — a labelled pair of one-shot export actions, not a submittable form control.
+			role="group"
+			aria-label={label}
+			aria-labelledby={labelledBy}
+		>
+			<button type="button" id={svgButtonId} data-action="export-svg" onClick={onExportSvg}>
+				SVG
+			</button>
+			<button type="button" id={pngButtonId} data-action="export-png" onClick={onExportPng}>
+				PNG
+			</button>
+		</div>
+	);
 }
 
 function SwatchStrip({ palette }: { palette: Palette }) {
@@ -244,29 +293,21 @@ export function DiagramPanel({
 							<use href={`#${LINK_COLOR_OPTIONS[settings.linkColor].iconId}`} />
 						</svg>
 					</button>
-					<div
-						// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-						role="group"
-						aria-label="Alignment"
+					<ChoiceGroup
+						options={ALIGNMENT_OPTIONS}
+						value={settings.alignment}
+						label="Alignment"
 						class="align-group"
-					>
-						{ALIGNMENT_OPTIONS.map((option) => (
-							<button
-								key={option.value}
-								type="button"
-								class="align-option"
-								data-action="set-alignment"
-								data-value={option.value}
-								aria-pressed={settings.alignment === option.value}
-								aria-label={option.label}
-								onClick={() => actions.setAlignment(option.value)}
-							>
-								<svg class="icon" aria-hidden="true" focusable="false">
-									<use href={`#${option.iconId}`} />
-								</svg>
-							</button>
-						))}
-					</div>
+						optionClass="align-option"
+						dataAction="set-alignment"
+						ariaLabel={(option) => option.label}
+						onSelect={(value) => actions.setAlignment(value)}
+						renderLabel={(option) => (
+							<svg class="icon" aria-hidden="true" focusable="false">
+								<use href={`#${option.iconId}`} />
+							</svg>
+						)}
+					/>
 					<button
 						type="button"
 						id="aspect-ratio-button"
@@ -307,140 +348,86 @@ export function DiagramPanel({
 				</button>
 			</header>
 
-			<dialog id="palette-dialog" ref={paletteDialog.ref} aria-labelledby="palette-dialog-heading">
-				<h3 id="palette-dialog-heading">Palette</h3>
-				<div
+			<ChoiceDialog id="palette-dialog" heading="Palette" handle={paletteDialog}>
+				<ChoiceGroup
+					options={PALETTE_CHOICES}
+					value={settings.palette}
+					label="Palette"
 					class="palette-options"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-					role="group"
-					aria-label="Palette"
-				>
-					{PALETTE_ORDER.map((value) => (
-						<button
-							key={value}
-							type="button"
-							class="palette-option"
-							data-action="set-palette"
-							data-value={value}
-							aria-pressed={settings.palette === value}
-							onClick={() => {
-								actions.setPalette(value);
-								paletteDialog.close();
-							}}
-						>
-							<span class="palette-option-label">{PALETTE_LABELS[value]}</span>
-							<SwatchStrip palette={value} />
-						</button>
-					))}
-				</div>
-				<button type="button" class="dialog-close" data-action="close-dialog">
-					Close
-				</button>
-			</dialog>
+					optionClass="palette-option"
+					dataAction="set-palette"
+					onSelect={(value) => {
+						actions.setPalette(value);
+						paletteDialog.close();
+					}}
+					renderLabel={(option) => (
+						<>
+							<span class="palette-option-label">{PALETTE_LABELS[option.value]}</span>
+							<SwatchStrip palette={option.value} />
+						</>
+					)}
+				/>
+			</ChoiceDialog>
 
-			<dialog id="links-dialog" ref={linksDialog.ref} aria-labelledby="links-dialog-heading">
-				<h3 id="links-dialog-heading">Link colors</h3>
-				<div
+			<ChoiceDialog id="links-dialog" heading="Link colors" handle={linksDialog}>
+				<ChoiceGroup
+					options={LINK_COLOR_CHOICES}
+					value={settings.linkColor}
+					label="Link colors"
 					class="choice-options"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-					role="group"
-					aria-label="Link colors"
-				>
-					{LINK_COLOR_ENTRIES.map(([value, option]) => (
-						<button
-							key={value}
-							type="button"
-							class="choice-option"
-							data-action="set-link-color"
-							data-value={value}
-							aria-pressed={settings.linkColor === value}
-							onClick={() => {
-								actions.setLinkColor(value);
-								linksDialog.close();
-							}}
-						>
+					optionClass="choice-option"
+					dataAction="set-link-color"
+					onSelect={(value) => {
+						actions.setLinkColor(value);
+						linksDialog.close();
+					}}
+					renderLabel={(option) => (
+						<>
 							<svg class="icon" aria-hidden="true" focusable="false">
 								<use href={`#${option.iconId}`} />
 							</svg>
 							<span class="choice-option-label">{option.label}</span>
-						</button>
-					))}
-				</div>
-				<button type="button" class="dialog-close" data-action="close-dialog">
-					Close
-				</button>
-			</dialog>
+						</>
+					)}
+				/>
+			</ChoiceDialog>
 
-			<dialog
-				id="aspect-ratio-dialog"
-				ref={aspectRatioDialog.ref}
-				aria-labelledby="aspect-ratio-dialog-heading"
-			>
-				<h3 id="aspect-ratio-dialog-heading">Aspect ratio</h3>
-				<div
+			<ChoiceDialog id="aspect-ratio-dialog" heading="Aspect ratio" handle={aspectRatioDialog}>
+				<ChoiceGroup
+					options={ASPECT_RATIO_OPTIONS}
+					value={settings.aspectRatio}
+					label="Aspect ratio"
 					class="choice-options aspect-ratio-options"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-					role="group"
-					aria-label="Aspect ratio"
-				>
-					{ASPECT_RATIO_OPTIONS.map((option) => (
-						<button
-							key={option.value}
-							type="button"
-							class="choice-option"
-							data-action="set-aspect-ratio"
-							data-value={option.value}
-							aria-pressed={settings.aspectRatio === option.value}
-							onClick={() => {
-								actions.setAspectRatio(option.value);
-								aspectRatioDialog.close();
-							}}
-						>
+					optionClass="choice-option"
+					dataAction="set-aspect-ratio"
+					onSelect={(value) => {
+						actions.setAspectRatio(value);
+						aspectRatioDialog.close();
+					}}
+					renderLabel={(option) => (
+						<>
 							<span class="ratio-preview" aria-hidden="true" />
 							<span class="choice-option-label">{ASPECT_RATIO_LABELS[option.value]}</span>
-						</button>
-					))}
-				</div>
-				<button type="button" class="dialog-close" data-action="close-dialog">
-					Close
-				</button>
-			</dialog>
+						</>
+					)}
+				/>
+			</ChoiceDialog>
 
-			<dialog
+			<ChoiceDialog
 				id="diagram-export-dialog"
-				ref={diagramExportDialog.ref}
-				aria-labelledby="diagram-export-dialog-heading"
+				heading="Export diagram"
+				handle={diagramExportDialog}
 			>
-				<h3 id="diagram-export-dialog-heading">Export diagram</h3>
-				<div
-					class="export-options"
-					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-					role="group"
-					aria-label="Export diagram format"
-				>
-					<button
-						type="button"
-						id="export-svg-button"
-						data-action="export-svg"
-						onClick={() => exportSvg(diagramExportDialog)}
-					>
-						SVG
-					</button>
-					<button
-						type="button"
-						id="export-png-button"
-						data-action="export-png"
-						onClick={() => exportPng(diagramExportDialog)}
-					>
-						PNG
-					</button>
-				</div>
-				<button type="button" class="dialog-close" data-action="close-dialog">
-					Close
-				</button>
-			</dialog>
+				<ExportOptions
+					label="Export diagram format"
+					svgButtonId="export-svg-button"
+					pngButtonId="export-png-button"
+					onExportSvg={() => exportSvg(diagramExportDialog)}
+					onExportPng={() => exportPng(diagramExportDialog)}
+				/>
+			</ChoiceDialog>
 
-			{/* Narrow-toolbar equivalent of the wide Links button + .align-group
+			{/* Narrow-toolbar equivalent of the wide Links button + align-group
 			    above: same data-actions (COPIES, not new ids on the options), so
 			    the same `actions` callbacks cover both. Unlike the other dialogs,
 			    choosing a link-color/alignment/aspect-ratio option here does NOT
@@ -448,105 +435,77 @@ export function DiagramPanel({
 			    dismisses it explicitly (Close, backdrop, Escape). Its SVG/PNG
 			    export buttons are the exception: they DO close it, matching the
 			    wide export dialog above. */}
-			<dialog id="display-dialog" ref={displayDialog.ref} aria-labelledby="display-dialog-heading">
-				<h3 id="display-dialog-heading">Diagram</h3>
-				<div
-					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-					role="group"
-					aria-labelledby="display-link-colors-heading"
-				>
+			<ChoiceDialog id="display-dialog" heading="Diagram" handle={displayDialog}>
+				<div class="dialog-section">
 					<h4 id="display-link-colors-heading">Link colors</h4>
-					<div class="choice-options">
-						{LINK_COLOR_ENTRIES.map(([value, option]) => (
-							<button
-								key={value}
-								type="button"
-								class="choice-option"
-								data-action="set-link-color"
-								data-value={value}
-								aria-pressed={settings.linkColor === value}
-								onClick={() => actions.setLinkColor(value)}
-							>
+					<ChoiceGroup
+						options={LINK_COLOR_CHOICES}
+						value={settings.linkColor}
+						labelledBy="display-link-colors-heading"
+						class="choice-options"
+						optionClass="choice-option"
+						dataAction="set-link-color"
+						onSelect={(value) => actions.setLinkColor(value)}
+						renderLabel={(option) => (
+							<>
 								<svg class="icon" aria-hidden="true" focusable="false">
 									<use href={`#${option.iconId}`} />
 								</svg>
 								<span class="choice-option-label">{option.shortLabel}</span>
-							</button>
-						))}
-					</div>
+							</>
+						)}
+					/>
 				</div>
-				<div
-					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-					role="group"
-					aria-labelledby="display-alignment-heading"
-				>
+
+				<div class="dialog-section">
 					<h4 id="display-alignment-heading">Alignment</h4>
-					<div class="choice-options">
-						{ALIGNMENT_OPTIONS.map((option) => (
-							<button
-								key={option.value}
-								type="button"
-								class="choice-option"
-								data-action="set-alignment"
-								data-value={option.value}
-								aria-pressed={settings.alignment === option.value}
-								onClick={() => actions.setAlignment(option.value)}
-							>
+					<ChoiceGroup
+						options={ALIGNMENT_OPTIONS}
+						value={settings.alignment}
+						labelledBy="display-alignment-heading"
+						class="choice-options"
+						optionClass="choice-option"
+						dataAction="set-alignment"
+						onSelect={(value) => actions.setAlignment(value)}
+						renderLabel={(option) => (
+							<>
 								<svg class="icon" aria-hidden="true" focusable="false">
 									<use href={`#${option.iconId}`} />
 								</svg>
 								<span class="choice-option-label">{option.label}</span>
-							</button>
-						))}
-					</div>
+							</>
+						)}
+					/>
 				</div>
-				<div
-					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-					role="group"
-					aria-labelledby="display-aspect-ratio-heading"
-				>
+
+				<div class="dialog-section">
 					<h4 id="display-aspect-ratio-heading">Aspect ratio</h4>
-					<div
+					<ChoiceGroup
+						options={ASPECT_RATIO_OPTIONS}
+						value={settings.aspectRatio}
+						labelledBy="display-aspect-ratio-heading"
 						class="choice-options aspect-ratio-options"
-						// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-						role="group"
-						aria-labelledby="display-aspect-ratio-heading"
-					>
-						{ASPECT_RATIO_OPTIONS.map((option) => (
-							<button
-								key={option.value}
-								type="button"
-								class="choice-option"
-								data-action="set-aspect-ratio"
-								data-value={option.value}
-								aria-pressed={settings.aspectRatio === option.value}
-								onClick={() => actions.setAspectRatio(option.value)}
-							>
+						optionClass="choice-option"
+						dataAction="set-aspect-ratio"
+						onSelect={(value) => actions.setAspectRatio(value)}
+						renderLabel={(option) => (
+							<>
 								<span class="ratio-preview" aria-hidden="true" />
 								<span class="choice-option-label">{ASPECT_RATIO_LABELS[option.value]}</span>
-							</button>
-						))}
-					</div>
+							</>
+						)}
+					/>
 				</div>
-				<div
-					// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — pinned by tests/integration/settings.test.ts's dialog-markup-vs-metadata contract.
-					role="group"
-					aria-labelledby="display-export-heading"
-				>
+
+				<div class="dialog-section">
 					<h4 id="display-export-heading">Export diagram</h4>
-					<div class="export-options">
-						<button type="button" data-action="export-svg" onClick={() => exportSvg(displayDialog)}>
-							SVG
-						</button>
-						<button type="button" data-action="export-png" onClick={() => exportPng(displayDialog)}>
-							PNG
-						</button>
-					</div>
+					<ExportOptions
+						labelledBy="display-export-heading"
+						onExportSvg={() => exportSvg(displayDialog)}
+						onExportPng={() => exportPng(displayDialog)}
+					/>
 				</div>
-				<button type="button" class="dialog-close" data-action="close-dialog">
-					Close
-				</button>
-			</dialog>
+			</ChoiceDialog>
 		</>
 	);
 }
