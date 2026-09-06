@@ -5,7 +5,7 @@ export const PREVIEW_HEIGHT_STORAGE_KEY = "sankey-builder-preview-height";
 export const MIN_PREVIEW_HEIGHT = 240;
 export const MAX_PREVIEW_HEIGHT = 720;
 export const DEFAULT_PREVIEW_HEIGHT = 360;
-export const PREVIEW_HEIGHT_STEP = 40;
+const PREVIEW_HEIGHT_STEP = 40;
 
 export function clampPreviewHeight(value: number): number {
 	if (!Number.isFinite(value)) return DEFAULT_PREVIEW_HEIGHT;
@@ -122,9 +122,9 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 			window.removeEventListener("pointermove", onPointerMove);
 			window.removeEventListener("pointerup", onPointerUp);
 			window.removeEventListener("pointercancel", onPointerCancel);
-			// An AbortSignal-driven teardown can't unwind a drag already in
-			// flight — release capture and drop the drag state explicitly so a
-			// pointerup/pointercancel that arrives after unmount is inert.
+			// This cleanup runs on unmount, which can land mid-drag — release
+			// capture and drop the drag state explicitly so a pointerup/
+			// pointercancel that arrives after unmount is inert.
 			const drag = dragRef.current;
 			if (drag) {
 				splitterRef.current?.releasePointerCapture?.(drag.pointerId);

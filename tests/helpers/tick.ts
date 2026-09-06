@@ -9,3 +9,12 @@
 export async function tick(): Promise<void> {
 	await Promise.resolve();
 }
+
+/**
+ * Awaits one macrotask turn (a `setTimeout(0)`), for effects a `Promise`
+ * microtask flush doesn't cover — e.g. code under test that itself defers
+ * work with `setTimeout`.
+ */
+export async function settle(): Promise<void> {
+	await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}

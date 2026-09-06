@@ -7,8 +7,10 @@ import Sortable from "sortablejs";
  * mid-drag branch below isn't duplicated per caller.
  */
 export function destroySortable(instance: Sortable | null): void {
-	// A container rebuild (e.g. a keyboard reorder in the other box, or a
-	// delete tap from a second finger) can land mid-drag on `instance`.
+	// The only caller reaching this mid-drag is AppHandle's destroy(): each
+	// editor's Sortable instance is mounted once for the component's
+	// lifetime, so unmounting it (the sole path to this function) can land
+	// on `instance` while it's mid-drag.
 	// Sortable's own destroy() calls its internal drop handler with no
 	// event, which skips the branch that would otherwise remove the
 	// floating fallback clone from <body> — so destroying an active instance

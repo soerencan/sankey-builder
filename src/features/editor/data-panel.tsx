@@ -93,7 +93,6 @@ export function DataPanel({
 				>
 					<button
 						type="button"
-						id="import-button"
 						class="data-card-action"
 						aria-label="Import data"
 						title="Import data"

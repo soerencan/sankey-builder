@@ -1,5 +1,5 @@
 export type NoticeKind = "graph" | "storage" | "io";
-export type NoticeTone = "info" | "warning" | "error";
+export type NoticeTone = "warning" | "error";
 
 export interface Notice {
 	readonly kind: NoticeKind;
@@ -12,8 +12,7 @@ export interface Notice {
  * DiagramPanelActions: starting a new import or export attempt clears any
  * notice left by a previous one, and a failure of either kind reports
  * through the one `reportIoError`. The controller (start-app.tsx) implements
- * both members; each panel's action object picks only the ones its own
- * controls call.
+ * both members.
  */
 export interface IoNoticeActions {
 	clearIoNotice(): void;
@@ -25,8 +24,8 @@ export interface IoNoticeActions {
 // across renders for :empty CSS and direct-id test lookups.
 const NOTICE_ORDER: readonly NoticeKind[] = ["graph", "storage", "io"];
 
-// Fixed ids (#error/#storage-notice/#io-notice) that tests and style.css
-// selectors depend on directly.
+// Fixed ids (#error/#storage-notice/#io-notice) that tests use as stable
+// landmarks to look up each notice slot directly.
 const NOTICE_ID: Record<NoticeKind, string> = {
 	graph: "error",
 	storage: "storage-notice",

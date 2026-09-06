@@ -8,6 +8,7 @@ import type {
 } from "../../model/settings";
 import { ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../model/settings";
 import { ChoiceDialog } from "../../shared/choice-dialog";
+import type { AccessibleName } from "../../shared/choice-group";
 import { ChoiceGroup } from "../../shared/choice-group";
 import type { IoNoticeActions } from "../../shared/notice";
 import type { DialogHandle } from "../../shared/use-dialog";
@@ -80,17 +81,10 @@ export interface DiagramPanelProps {
 	signal: AbortSignal;
 }
 
-/** An accessible name comes from a visible label (aria-label) or a heading elsewhere in the DOM (aria-labelledby) — never both, never neither. Mirrors ChoiceGroup's own label/labelledBy split. */
-type ExportOptionsAccessibleName =
-	| { label: string; labelledBy?: undefined }
-	| { label?: undefined; labelledBy: string };
-
 type ExportOptionsProps = {
 	onExportSvg(): void;
 	onExportPng(): void;
-	svgButtonId?: string;
-	pngButtonId?: string;
-} & ExportOptionsAccessibleName;
+} & AccessibleName;
 
 /**
  * The SVG/PNG export pair, shared by the wide export dialog and the narrow
@@ -99,14 +93,7 @@ type ExportOptionsProps = {
  * buttons under one accessible group name, owning this file's other
  * role="group" suppression.
  */
-function ExportOptions({
-	onExportSvg,
-	onExportPng,
-	svgButtonId,
-	pngButtonId,
-	label,
-	labelledBy,
-}: ExportOptionsProps) {
+function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOptionsProps) {
 	return (
 		<div
 			class="export-options"
@@ -115,10 +102,10 @@ function ExportOptions({
 			aria-label={label}
 			aria-labelledby={labelledBy}
 		>
-			<button type="button" id={svgButtonId} onClick={onExportSvg}>
+			<button type="button" onClick={onExportSvg}>
 				SVG
 			</button>
-			<button type="button" id={pngButtonId} onClick={onExportPng}>
+			<button type="button" onClick={onExportPng}>
 				PNG
 			</button>
 		</div>
@@ -130,9 +117,8 @@ function SwatchStrip({ palette }: { palette: Palette }) {
 		<span class="swatch-strip">
 			{paletteColors(palette)
 				.slice(0, SWATCH_COUNT)
-				.map((color, index) => (
-					// biome-ignore lint/suspicious/noArrayIndexKey: a fixed-length decorative strip, never reordered or edited in place.
-					<span key={index} class="swatch" style={{ backgroundColor: color }} />
+				.map((color) => (
+					<span key={color} class="swatch" style={{ backgroundColor: color }} />
 				))}
 		</span>
 	);
@@ -411,8 +397,6 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 			>
 				<ExportOptions
 					label="Export diagram format"
-					svgButtonId="export-svg-button"
-					pngButtonId="export-png-button"
 					onExportSvg={() => exportSvg(diagramExportDialog)}
 					onExportPng={() => exportPng(diagramExportDialog)}
 				/>

@@ -142,10 +142,9 @@ body {
   flex: 0 0 auto;
 }
 
-/* One consolidated, full-width region (PLAN.md's Notice policy) instead of
-   three independently styled/positioned containers — no floating toast, no
-   animation. Each kind slot shares this base styling; only color varies by
-   tone below. */
+/* One consolidated, full-width region instead of three independently
+   styled/positioned containers — no floating toast, no animation. Each kind
+   slot shares this base styling; only color varies by tone below. */
 .notice-region > div {
   padding: 0.75rem 1.5rem;
   font-size: 0.85rem;
@@ -163,10 +162,6 @@ body {
 
 .notice-warning {
   color: color-mix(in srgb, var(--ink) 65%, transparent);
-}
-
-.notice-info {
-  color: color-mix(in srgb, var(--ink) 80%, transparent);
 }
 
 .app-layout {
@@ -393,7 +388,7 @@ select {
 /* Row reordering: a grab handle plus drag/keyboard affordances. SortableJS
    (forceFallback mode) drives the drag itself; the classes below are the
    ones it toggles via the matching ghostClass/chosenClass/fallbackClass
-   options (src/features/editor/row-reorder.ts). */
+   options (src/features/editor/use-row-sortable.ts). */
 .drag-handle {
   border: none;
   border-radius: var(--radius-1);
@@ -479,7 +474,7 @@ select {
   border-bottom: 1px solid var(--border);
 }
 
-/* #diagram is now just Preact's static mount point for SankeyCanvas — its own
+/* #diagram is just Preact's static mount point for SankeyCanvas — its own
    box carries no sizing so SankeyCanvas's rendered .sankey-canvas div (the
    D3-owned host, sole child) can be the real #diagram-panel flex item without
    an extra nested box. It keeps receiving the --diagram-aspect-ratio/
@@ -500,8 +495,9 @@ select {
   );
   aspect-ratio: var(--diagram-aspect-ratio, 2 / 1);
   align-self: center;
-  /* Read directly by features/files/controls.ts (getComputedStyle of the svg's
-     parentElement) as the SVG/PNG export background, so it stays opaque. */
+  /* Read directly by features/diagram/diagram-panel.tsx (getComputedStyle of
+     the svg's parentElement) as the SVG/PNG export background, so it stays
+     opaque. */
   background: var(--surface);
 }
 
@@ -588,12 +584,11 @@ select {
   padding-inline: 0.6rem;
 }
 
-/* Wide/narrow toolbar swap (PLAN.md's "Use an adaptive diagram toolbar").
-   .toolbar-wide holds the Links button + alignment group; .toolbar-narrow is
-   the single Diagram trigger. Both live in the DOM at all times (so tests
-   under happy-dom, which doesn't evaluate container queries, can exercise
-   either); only one is shown at a time, switched by the @container rule
-   below. */
+/* Wide/narrow toolbar swap: .toolbar-wide holds the Links button +
+   alignment group; .toolbar-narrow is the single Diagram trigger. Both live
+   in the DOM at all times (so tests under happy-dom, which doesn't evaluate
+   container queries, can exercise either); only one is shown at a time,
+   switched by the @container rule below. */
 .toolbar-wide {
   display: flex;
   align-items: center;
@@ -605,8 +600,8 @@ select {
 
 .toolbar-narrow {
   display: none;
-  /* Pushes the Diagram button to the toolbar's trailing edge, matching
-     PLAN.md's narrow-toolbar mock. Harmless while display:none above. */
+  /* Pushes the Diagram button to the toolbar's trailing edge. Harmless
+     while display:none above. */
   margin-inline-start: auto;
 }
 
@@ -692,7 +687,7 @@ select {
 
 /* Narrow toolbar: swap the wide Links button + alignment/export group for the
    single Diagram trigger once the diagram panel's own inline size (not the
-   viewport) gets tight. 680px is tuned to include the grouped Export action
+   viewport) gets tight. 820px is tuned to include the grouped Export action
    without crowding the other controls; see VERIFICATION.md's "Diagram
    toolbar" section if it needs adjusting; this is its only definition. */
 @container diagram-panel (max-width: 820px) {
@@ -714,7 +709,7 @@ select {
 }
 
 /* ==========================================================================
-   Dialogs (native <dialog>, wired by src/shared/dialog.ts). The palette chooser,
+   Dialogs (native <dialog>, wired by src/shared/use-dialog.ts). The palette chooser,
    link color/theme dialogs, and the narrow Diagram surface all share
    these base styles.
    ========================================================================== */
@@ -770,10 +765,10 @@ dialog .dialog-section + .dialog-section {
 }
 
 /* .choice-options/.choice-option generalize the palette dialog's row styling
-   for other labelled choosers (the links dialog now, more later) — same
-   full-width tappable row and non-color-reliant selected state, just with
-   the icon+label pairing left-aligned instead of the palette row's
-   label/swatch split. */
+   for other labelled choosers (link colors, aspect ratio, theme, and their
+   narrow display-sheet copies) — same full-width tappable row and
+   non-color-reliant selected state, just with the icon+label pairing
+   left-aligned instead of the palette row's label/swatch split. */
 .palette-options,
 .choice-options {
   display: flex;

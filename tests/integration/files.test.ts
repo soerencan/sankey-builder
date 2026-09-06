@@ -17,6 +17,7 @@ import {
 	installMarkup,
 	mountApp,
 	requireElement,
+	settle,
 	tick,
 } from "../helpers/mount-app";
 
@@ -103,7 +104,7 @@ describe("import & export", () => {
 		// below counts only the import's own commit().
 		vi.mocked(render).mockClear();
 		// Flush the async file.text() + parseImport chain.
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 
 		// One commit() call renders the replaced diagram, its notices, and the
 		// preserved theme all at once — not a second render for the notice.
@@ -151,7 +152,7 @@ describe("import & export", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 
 		const notice = () => document.getElementById("io-notice")?.textContent;
 		const repairMessage =
@@ -202,7 +203,7 @@ describe("import & export", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 
 		const importedValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		expect(importedValueInput.hasAttribute("aria-invalid")).toBe(false);
@@ -219,7 +220,7 @@ describe("import & export", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 
 		expect(document.getElementById("io-notice")?.textContent).toContain("diagram export");
 		// An import/export failure's tone is always "error".
@@ -250,7 +251,7 @@ describe("import & export", () => {
 		// the async read below even starts — cleared here so the assertion
 		// below counts only the import's own commit().
 		vi.mocked(render).mockClear();
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 
 		// One commit() call installs both the replaced diagram and the repair
 		// notice — not a second render for the notice.
@@ -284,7 +285,7 @@ describe("import & export", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 
 		// State is replaced and saved regardless of validity — there is no
 		// "last-good state" in storage, only the last-good diagram.
@@ -324,7 +325,7 @@ describe("import & export", () => {
 		try {
 			click(document.getElementById("export-button"));
 			// revoke is deferred via setTimeout(0) — let it fire before capturing.
-			await new Promise((resolve) => setTimeout(resolve, 0));
+			await settle();
 		} finally {
 			createUrlCalls = createObjectURL.mock.calls.length;
 			blob = createObjectURL.mock.calls[0]?.[0] as Blob | undefined;
@@ -355,7 +356,7 @@ describe("import & export", () => {
 		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
 		try {
 			click(document.getElementById("export-button"));
-			await new Promise((resolve) => setTimeout(resolve, 0));
+			await settle();
 		} finally {
 			createObjectURL.mockRestore();
 			revokeObjectURL.mockRestore();
@@ -374,14 +375,14 @@ describe("import & export", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 		expect(document.getElementById("io-notice")?.textContent).toContain("diagram export");
 
 		const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
 		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
 		try {
 			click(document.getElementById("export-button"));
-			await new Promise((resolve) => setTimeout(resolve, 0));
+			await settle();
 		} finally {
 			createObjectURL.mockRestore();
 			revokeObjectURL.mockRestore();
@@ -416,7 +417,7 @@ describe("import & export", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 		expect(document.querySelector("#diagram svg")).not.toBeNull();
 
 		click(document.getElementById("diagram-export-button"));
@@ -556,7 +557,7 @@ describe("import & export", () => {
 		);
 		// Flush the guarded file.text()-then-parseImport chain (same wait files.test.ts's
 		// other import tests use) before asserting on its absent effects.
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 
 		expect(document.getElementById("io-notice")).toBeNull();
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
@@ -584,7 +585,7 @@ describe("import & export", () => {
 					settings: {},
 				}),
 			);
-			await new Promise((resolve) => setTimeout(resolve, 0));
+			await settle();
 
 			expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(rowsBefore);
 			expect(document.getElementById("io-notice")?.textContent).toBe("");

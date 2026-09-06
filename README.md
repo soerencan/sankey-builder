@@ -64,10 +64,11 @@ Available `make` targets:
 | `test-unit` | Run tests except the dist smoke test — fast local loop |
 | `test-dist` | Run only the dist smoke test (builds `dist/` from scratch, then boots it) |
 
-Most tests in `tests/` import `src/` directly. The `tests/integration/`
-suites are broader: they boot the application through
-`startApp()` (`src/app/start-app.tsx`) against the real `index.html` markup with the
-real d3/SortableJS. `tests/build/dist.test.ts` goes one step further: it runs the
+Unit tests live next to the module they cover, in `src/` (model, codec,
+validation, link-value, colors, export, hooks). `tests/integration/` suites
+are broader: they boot the application through `startApp()`
+(`src/app/start-app.tsx`) against the real `index.html` markup with the real
+d3/SortableJS. `tests/build/dist.test.ts` goes one step further: it runs the
 build script (`bun run build`) itself, then boots the actual emitted `dist/`
 bundle, asserting its asset URLs are relative (so the site works from any
 subpath) and the default diagram renders.
@@ -103,7 +104,7 @@ under the [MIT License](LICENSE).
 
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) is the authoritative
 notice list: it attributes the full production dependency closure of the
-bundled site (D3 and its `d3-*` modules, d3-sankey, Preact, and SortableJS),
-plus Open Props, whose license is retained because `style.css` derives a
-handful of design-token values from it. None of these are relicensed under
-the MIT License above.
+bundled site (`d3-sankey`, `d3-scale`, `d3-scale-chromatic`, `d3-selection`,
+Preact, and SortableJS), plus Open Props, whose license is retained because
+`style.css` derives a handful of design-token values from it. None of these
+are relicensed under the MIT License above.

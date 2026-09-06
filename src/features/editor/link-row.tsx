@@ -47,8 +47,8 @@ function linkValueErrorMessage(reason: LinkValueInvalidReason): string {
  * live selection — Preact assigns it as a DOM property, which works
  * regardless of the select's "dirty" flag. `selected`/`disabled` are
  * additionally mirrored onto each <option> as real attributes here, purely
- * for Sortable's cloneNode drag ghost (which copies attributes, not live
- * properties) and for tests that read them back with getAttribute.
+ * for Sortable's cloneNode drag ghost, which copies attributes, not live
+ * properties.
  */
 function renderLinkOptions(
 	nodes: readonly NodeView[],

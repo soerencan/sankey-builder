@@ -128,11 +128,12 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			? undefined
 			: { kind: "graph", tone: "error", message: result.error ?? "" };
 		if (result.ok) {
+			const { theme: _theme, ...settings } = state.settings;
 			lastValidRequest = {
 				state: structuredClone({
 					nodes: state.nodes,
 					links: state.links,
-					settings: state.settings,
+					settings,
 				}),
 			};
 		}
@@ -196,8 +197,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	};
 
 	const dataPanelActions: DataPanelActions = {
-		clearIoNotice: ioNoticeActions.clearIoNotice,
-		reportIoError: ioNoticeActions.reportIoError,
+		...ioNoticeActions,
 		importDiagram(imported, repairs) {
 			// theme is deliberately untouched — a per-browser preference, not
 			// diagram data, so it survives an import. No notice when nothing
@@ -248,8 +248,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 				s.settings.aspectRatio = value;
 			});
 		},
-		clearIoNotice: ioNoticeActions.clearIoNotice,
-		reportIoError: ioNoticeActions.reportIoError,
+		...ioNoticeActions,
 	};
 
 	// Validates and renders the state loaded above, exactly like any other

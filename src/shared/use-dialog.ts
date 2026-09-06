@@ -34,14 +34,7 @@ export function useDialog(): DialogHandle {
 		const dialog = dialogRef.current;
 		if (!dialog) return;
 		triggerRef.current = trigger;
-		try {
-			dialog.showModal();
-		} catch {
-			// Feature-detection fallback for a showModal that throws (not needed
-			// by happy-dom or any real browser target today, but cheap insurance
-			// against a runtime that only partially implements <dialog>).
-			dialog.setAttribute("open", "");
-		}
+		dialog.showModal();
 		// Prefers the currently selected option (aria-pressed) so reopening a
 		// chooser lands on the active setting, falling back to the first
 		// focusable control (e.g. the export dialog, which has none pressed).

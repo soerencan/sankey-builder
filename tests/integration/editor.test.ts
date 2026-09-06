@@ -10,6 +10,7 @@ import {
 	getStoredState,
 	mountApp,
 	requireElement,
+	settle,
 	tick,
 } from "../helpers/mount-app";
 
@@ -379,7 +380,7 @@ describe("node & link editing", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.",
 		);

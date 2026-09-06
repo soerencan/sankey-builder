@@ -1,6 +1,6 @@
 import type { Link, Node, State } from "./graph";
 import { defaultState, nextLinkId } from "./graph";
-import type { Alignment, LinkColorMode, Palette, Settings, Theme } from "./settings";
+import type { Alignment, AspectRatio, LinkColorMode, Palette, Settings, Theme } from "./settings";
 import {
 	DEFAULT_SETTINGS,
 	isAlignment,
@@ -43,7 +43,7 @@ export function normalizeSettings(settings: unknown, repairs?: string[]): Settin
 	if (isAlignment(s.alignment)) alignment = s.alignment;
 	else if (s.alignment !== undefined) repairs?.push("settings: unknown alignment — using default");
 
-	let aspectRatio: Settings["aspectRatio"] = DEFAULT_SETTINGS.aspectRatio;
+	let aspectRatio: AspectRatio = DEFAULT_SETTINGS.aspectRatio;
 	if (isAspectRatio(s.aspectRatio)) aspectRatio = s.aspectRatio;
 	else if (s.aspectRatio !== undefined) {
 		repairs?.push("settings: unknown aspect ratio — using 2:1");

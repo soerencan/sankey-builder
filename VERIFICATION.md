@@ -82,12 +82,12 @@ emulation).
 ## Diagram toolbar — narrow mode
 
 The wide/narrow swap is a container query on `.diagram-panel` itself
-(`@container diagram-panel (max-width: 680px)` in style.css's "Diagram
+(`@container diagram-panel (max-width: 820px)` in style.css's "Diagram
 toolbar" section), not a viewport media query. happy-dom doesn't evaluate
 container queries, so none of this is automated.
 
 - [ ] Resize the browser through the diagram toolbar's container-query breakpoint: the wide Links button + alignment group + Export diagram control and the narrow Diagram button swap cleanly at one width, with no point where controls clip, overlap, or wrap onto a second line.
-- [ ] If the swap happens too early or too late relative to where the wide row actually stops fitting, tune the 680px value in style.css rather than filing it as a bug.
+- [ ] If the swap happens too early or too late relative to where the wide row actually stops fitting, tune the 820px value in style.css rather than filing it as a bug.
 - [ ] No horizontal scrollbar appears at 360px, 390px, or 768px viewport widths with the narrow toolbar showing.
 - [ ] On a small/phone viewport, tapping Diagram opens it as a bottom sheet (full width, flush to the bottom edge, rounded top corners only) rather than a small centered card.
 - [ ] The diagram panel's rendered height does not change while the Diagram sheet is open (the sheet is a top-layer overlay, not part of panel layout).

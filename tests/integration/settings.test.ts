@@ -19,6 +19,7 @@ import {
 	fireChange,
 	getStoredState,
 	mountApp,
+	settle,
 	tick,
 } from "../helpers/mount-app";
 
@@ -632,7 +633,7 @@ describe("theme changes skip validation and the redraw", () => {
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
 		// Flush the async file.text() + parseImport chain.
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		await settle();
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Imported 2 nodes, 1 links. Adjustments: settings: unknown palette — using default.",

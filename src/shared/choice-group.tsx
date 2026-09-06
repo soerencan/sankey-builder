@@ -1,7 +1,7 @@
 import type { ComponentChildren } from "preact";
 
 /** An accessible name comes from a visible label (aria-label) or a heading elsewhere in the DOM (aria-labelledby) — never both, never neither. */
-type ChoiceGroupAccessibleName =
+export type AccessibleName =
 	| { label: string; labelledBy?: undefined }
 	| { label?: undefined; labelledBy: string };
 
@@ -17,7 +17,7 @@ export type ChoiceGroupProps<Option extends { value: string }> = {
 	optionClass?: string;
 	/** Per-option aria-label, for icon-only buttons that render no visible text (e.g. alignment). Omit when renderLabel's own content already names the button. */
 	ariaLabel?(option: Option): string;
-} & ChoiceGroupAccessibleName;
+} & AccessibleName;
 
 /**
  * A "pick one of N" option list rendered as pressed toggle buttons — the one
