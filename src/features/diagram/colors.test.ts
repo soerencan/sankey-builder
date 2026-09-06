@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultState } from "../../model/graph";
+import { paletteColors } from "../settings/palettes";
 import { createNodeColorResolver } from "./colors";
 
 describe("createNodeColorResolver", () => {
@@ -22,5 +23,50 @@ describe("createNodeColorResolver", () => {
 		const after = state.nodes.map((n) => dark2(n));
 
 		expect(after).not.toEqual(before);
+	});
+
+	it("assigns the i-th node the i-th palette color", () => {
+		const palette = "observable10";
+		const colors = paletteColors(palette);
+		const nodes = colors.map((_, i) => ({ id: `n${i}`, name: `Node ${i}` }));
+		const resolve = createNodeColorResolver(nodes, palette);
+		nodes.forEach((node, i) => {
+			expect(resolve(node)).toBe(colors[i]);
+		});
+	});
+
+	it("wraps around when there are more nodes than palette colors", () => {
+		const palette = "observable10";
+		const colors = paletteColors(palette);
+		const nodes = Array.from({ length: colors.length + 1 }, (_, i) => ({
+			id: `n${i}`,
+			name: `Node ${i}`,
+		}));
+		const resolve = createNodeColorResolver(nodes, palette);
+
+		expect(resolve(nodes[colors.length])).toBe(colors[0]);
+	});
+
+	it("resolves an id absent from the constructor's nodes to the first color", () => {
+		const state = defaultState();
+		const resolve = createNodeColorResolver(state.nodes, state.settings.palette);
+		const colors = paletteColors(state.settings.palette);
+
+		expect(resolve({ id: "unknown", name: "Unknown" })).toBe(colors[0]);
+	});
+
+	it("gives a duplicate node id the color of its first occurrence, and the next node the following index", () => {
+		const palette = "observable10";
+		const colors = paletteColors(palette);
+		const nodes = [
+			{ id: "a", name: "A" },
+			{ id: "a", name: "A again" },
+			{ id: "b", name: "B" },
+		];
+		const resolve = createNodeColorResolver(nodes, palette);
+
+		expect(resolve(nodes[0])).toBe(colors[0]);
+		expect(resolve(nodes[1])).toBe(colors[0]);
+		expect(resolve(nodes[2])).toBe(colors[1]);
 	});
 });

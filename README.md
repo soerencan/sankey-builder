@@ -15,8 +15,8 @@ which browsers block from `file://` origins for security reasons.
 
 ## Dependencies
 
-The runtime dependencies are D3 (`d3-selection`, `d3-scale`,
-`d3-scale-chromatic`, `d3-sankey`), Preact, and SortableJS, all bundled by
+The runtime dependencies are D3 (`d3-selection`, `d3-scale-chromatic`,
+`d3-sankey`), Preact, and SortableJS, all bundled by
 `bun build`. `package.json` and `bun.lock` are the source of truth for
 versions.
 

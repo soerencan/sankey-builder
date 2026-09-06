@@ -60,13 +60,18 @@ describe("production build (dist/)", () => {
 		const notices = readFileSync(join(DIST_DIR, footerLink as string), "utf8");
 		for (const name of [
 			"d3-sankey",
-			"d3-scale",
 			"d3-scale-chromatic",
 			"d3-selection",
 			"preact",
 			"sortablejs",
 		]) {
 			expect(notices).toContain(`<h2>${name} `);
+		}
+
+		// Guards against the ordinal scale (and its d3 dependents) creeping
+		// back in now that colors.ts uses a plain index lookup instead.
+		for (const name of ["d3-scale", "d3-format", "d3-time", "d3-time-format"]) {
+			expect(notices).not.toContain(`<h2>${name} `);
 		}
 	});
 

@@ -3,8 +3,8 @@ import type { State } from "../model/graph";
 import { defaultState, withoutLinkId } from "../model/graph";
 import { STORAGE_KEY, loadState, saveState } from "./storage";
 
-// Deliberately imports nothing from features/diagram/colors.ts: proves
-// storage.ts and codec.ts stay d3-free at module-eval and call time.
+// Deliberately imports nothing from features/: proves storage.ts and
+// codec.ts stay d3-free at module-eval and call time.
 
 function fakeLocalStorage(initial: Record<string, string> = {}): Storage {
 	const store = new Map(Object.entries(initial));

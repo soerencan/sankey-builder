@@ -9,8 +9,8 @@ import {
 	pickDiagramSettings,
 } from "./settings";
 
-// Deliberately imports nothing from features/diagram/colors.ts: proves
-// settings.ts stays d3-free at module-eval and call time.
+// Deliberately imports nothing from features/: proves settings.ts stays
+// d3-free at module-eval and call time.
 
 const SETTING_KEYS = Object.keys(SETTING_DOMAINS) as (keyof typeof SETTING_DOMAINS)[];
 

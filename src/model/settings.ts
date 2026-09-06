@@ -1,6 +1,7 @@
 /**
- * Deliberately d3-free: colors.ts depends on this module, not the reverse,
- * so storage validation never pulls d3 in.
+ * Deliberately d3-free: features/settings/palettes.ts and
+ * features/diagram/colors.ts depend on this module, not the reverse, so
+ * storage validation never pulls d3 in.
  */
 
 // The one table for every setting: its allowed values, and their display

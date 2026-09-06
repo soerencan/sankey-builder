@@ -98,7 +98,6 @@ describe("against this repository's installed dependencies", () => {
 	it("covers every direct production dependency and none of the dev tooling", () => {
 		for (const name of [
 			"d3-sankey",
-			"d3-scale",
 			"d3-scale-chromatic",
 			"d3-selection",
 			"preact",

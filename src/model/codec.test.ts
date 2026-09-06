@@ -4,8 +4,8 @@ import type { State } from "./graph";
 import { defaultState, withoutLinkId } from "./graph";
 import { DEFAULT_SETTINGS, DIAGRAM_SETTING_KEYS } from "./settings";
 
-// Deliberately imports nothing from features/diagram/colors.ts: proves
-// codec.ts stays d3-free at module-eval and call time.
+// Deliberately imports nothing from features/: proves codec.ts stays
+// d3-free at module-eval and call time.
 
 /** Link ids from two independent loads necessarily differ. */
 function stripLinkIds(state: State) {
