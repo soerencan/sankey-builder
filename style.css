@@ -558,6 +558,7 @@ select {
    @container rule below: happy-dom doesn't evaluate container queries, so
    tests must be able to reach either. */
 .toolbar-wide {
+	flex: 1;
 	display: flex;
 	align-items: center;
 	gap: inherit;
@@ -935,4 +936,27 @@ dialog .dialog-section + .dialog-section {
 .link-delete:focus-visible {
 	background: color-mix(in srgb, var(--danger) 12%, transparent);
 	border-color: var(--danger);
+}
+
+.toolbar-wide > .align-group {
+	margin-inline-start: 0.65rem;
+}
+#links-button {
+	margin-inline-start: 0.5rem;
+	border-inline-start-color: var(--border);
+	border-radius: 0;
+}
+#diagram-export-button {
+	margin-inline-start: auto;
+}
+.data-card-action {
+	gap: 0.35rem;
+}
+.data-action-label {
+	font-size: 0.85rem;
+}
+@container data-card (max-width: 340px) {
+	.data-action-label {
+		display: none;
+	}
 }

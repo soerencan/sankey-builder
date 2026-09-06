@@ -86,6 +86,7 @@ export function DataPanel({
 						onClick={() => fileInputRef.current?.click()}
 					>
 						<Icon id="icon-import" />
+						<span class="data-action-label">Import</span>
 					</button>
 					<button
 						type="button"
@@ -96,6 +97,7 @@ export function DataPanel({
 						onClick={handleExport}
 					>
 						<Icon id="icon-export" />
+						<span class="data-action-label">Export JSON</span>
 					</button>
 					<input
 						type="file"
