@@ -15,12 +15,6 @@ still contain that module's code. `d3-scale` pulls in `d3-array`,
 in `d3-path`); `d3-array` pulls in `internmap`. Over-attribution here is
 safe; under-attribution is not.
 
-Open Props is no longer vendored or shipped as a stylesheet; `style.css`
-instead defines a handful of design-token custom properties (color steps,
-font stack, radii, an easing curve, two shadow presets) whose values are
-copied from Open Props 1.7.14. Its license and copyright are included below,
-since the derived values still originate from that package.
-
 ## D3 modules
 
 Direct dependencies (`d3-selection` 3.0.0, `d3-scale` 4.0.2,
@@ -162,37 +156,6 @@ MIT License, Copyright (c) 2015-present Jason Miller:
 The MIT License (MIT)
 
 Copyright (c) 2015-present Jason Miller
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-## Open Props (1.7.14)
-
-MIT License, Copyright (c) 2021 Adam Argyle. The package itself is not
-shipped; only a handful of design-token values it defines (color steps,
-font stack, radii, an easing curve, two shadow presets) are copied directly
-into `style.css`:
-
-```
-MIT License
-
-Copyright (c) 2021 Adam Argyle
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

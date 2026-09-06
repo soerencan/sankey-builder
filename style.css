@@ -1,8 +1,3 @@
-/* The token primitives (gray/indigo/red steps, font-sans, radii, ease-out,
-   shadow-raised/shadow-floating) are literal values copied from Open Props
-   1.7.14 rather than a vendored stylesheet; see THIRD_PARTY_LICENSES.md.
-   --border is a color-mix() off --ink rather than its own step so it tracks
-   the theme. */
 /* Chromium's UA [hidden] { display: none } rule is scoped to the HTML
    namespace and doesn't reach an SVG-namespace root, so index.html's icon
    sprite (<svg hidden>) needs an explicit rule or it renders as an empty
@@ -32,33 +27,34 @@ svg[hidden] {
     0 4px 12px -5px light-dark(hsl(220 3% 15% / 6%), hsl(220 40% 2% / 30%)),
     0 12px 15px -5px light-dark(hsl(220 3% 15% / 8%), hsl(220 40% 2% / 32%));
 
-  --surface: #f8f9fa; /* gray-0 */
-  --ink: #0d0f12; /* gray-11 */
+  --surface: #f8f9fa;
+  --ink: #0d0f12;
+  /* Derived from --ink rather than given its own value so it tracks the theme. */
   --border: color-mix(in srgb, var(--ink) 10%, transparent);
-  --accent: #4263eb; /* indigo-7 */
-  --danger: #c92a2a; /* red-9 */
+  --accent: #4263eb;
+  --danger: #c92a2a;
 }
 
 /* :not([data-theme="light"]) lets an explicit light choice win even when
-   the OS prefers dark. Accent/danger use lighter steps than light mode's
-   indigo-7/red-9, which fall short of the 4.5:1 AA text contrast against
-   --gray-10 that --danger needs as text (#error, delete buttons). */
+   the OS prefers dark. Accent/danger are lighter than their light-mode
+   values, which fall short of the 4.5:1 AA text contrast against the dark
+   --surface that --danger needs as text (#error, delete buttons). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --surface: #16191d; /* gray-10 */
-    --ink: #f8f9fa; /* gray-0 */
-    --accent: #91a7ff; /* indigo-3 */
-    --danger: #ff6b6b; /* red-5 */
+    --surface: #16191d;
+    --ink: #f8f9fa;
+    --accent: #91a7ff;
+    --danger: #ff6b6b;
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --surface: #16191d; /* gray-10 */
-  --ink: #f8f9fa; /* gray-0 */
-  --accent: #91a7ff; /* indigo-3 */
-  --danger: #ff6b6b; /* red-5 */
+  --surface: #16191d;
+  --ink: #f8f9fa;
+  --accent: #91a7ff;
+  --danger: #ff6b6b;
 }
 
 :root[data-theme="light"] {

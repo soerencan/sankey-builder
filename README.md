@@ -17,9 +17,7 @@ which browsers block from `file://` origins for security reasons.
 
 d3-selection 3.0.0, d3-scale 4.0.2, d3-scale-chromatic 3.1.0, d3-sankey
 0.12.3, Preact 10.29.8, and SortableJS 1.15.7 are real npm dependencies,
-bundled by `bun build`. `style.css` also defines a handful of design-token
-custom properties whose values are copied from Open Props 1.7.14; the
-package itself isn't vendored or shipped.
+bundled by `bun build`.
 
 ## Architecture
 
@@ -102,6 +100,5 @@ under the [MIT License](LICENSE).
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) is the authoritative
 notice list: it attributes the full production dependency closure of the
 bundled site (`d3-sankey`, `d3-scale`, `d3-scale-chromatic`, `d3-selection`,
-Preact, and SortableJS), plus Open Props, whose license is retained because
-`style.css` derives a handful of design-token values from it. None of these
-are relicensed under the MIT License above.
+Preact, and SortableJS). None of these are relicensed under the MIT License
+above.
