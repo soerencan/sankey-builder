@@ -1,5 +1,5 @@
 import type { DiagramSettings, Settings } from "./settings";
-import { DEFAULT_SETTINGS } from "./settings";
+import { DEFAULT_SETTINGS, pickDiagramSettings } from "./settings";
 
 export interface Node {
 	id: string;
@@ -136,8 +136,5 @@ export function replaceDiagram(state: State, diagram: Diagram): void {
 	state.nodes.push(...diagram.nodes);
 	state.links.length = 0;
 	state.links.push(...diagram.links);
-	state.settings.palette = diagram.settings.palette;
-	state.settings.linkColor = diagram.settings.linkColor;
-	state.settings.alignment = diagram.settings.alignment;
-	state.settings.aspectRatio = diagram.settings.aspectRatio;
+	Object.assign(state.settings, pickDiagramSettings(diagram.settings));
 }

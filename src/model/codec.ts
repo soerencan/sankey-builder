@@ -1,14 +1,7 @@
 import type { Link, Node, State } from "./graph";
 import { defaultState, nextLinkId } from "./graph";
 import type { Alignment, AspectRatio, LinkColorMode, Palette, Settings, Theme } from "./settings";
-import {
-	DEFAULT_SETTINGS,
-	isAlignment,
-	isAspectRatio,
-	isLinkColorMode,
-	isPaletteKey,
-	isTheme,
-} from "./settings";
+import { DEFAULT_SETTINGS, isSettingValue } from "./settings";
 import { MAX_LINK_VALUE } from "./validation";
 
 /** `theme` is never reported in `repairs`: the import path drops it and the load path keeps it. */
@@ -16,7 +9,7 @@ export function normalizeSettings(settings: unknown, repairs?: string[]): Settin
 	const s = settings && typeof settings === "object" ? (settings as Record<string, unknown>) : {};
 
 	let palette: Palette = DEFAULT_SETTINGS.palette;
-	if (isPaletteKey(s.palette)) palette = s.palette;
+	if (isSettingValue("palette", s.palette)) palette = s.palette;
 	else if (s.palette !== undefined) repairs?.push("settings: unknown palette — using default");
 
 	// colorMode is a legacy setting; only its "manual" value is worth a repair
@@ -26,20 +19,20 @@ export function normalizeSettings(settings: unknown, repairs?: string[]): Settin
 	}
 
 	let linkColor: LinkColorMode = DEFAULT_SETTINGS.linkColor;
-	if (isLinkColorMode(s.linkColor)) linkColor = s.linkColor;
+	if (isSettingValue("linkColor", s.linkColor)) linkColor = s.linkColor;
 	else if (s.linkColor !== undefined) repairs?.push("settings: unknown link color — using default");
 
 	let alignment: Alignment = DEFAULT_SETTINGS.alignment;
-	if (isAlignment(s.alignment)) alignment = s.alignment;
+	if (isSettingValue("alignment", s.alignment)) alignment = s.alignment;
 	else if (s.alignment !== undefined) repairs?.push("settings: unknown alignment — using default");
 
 	let aspectRatio: AspectRatio = DEFAULT_SETTINGS.aspectRatio;
-	if (isAspectRatio(s.aspectRatio)) aspectRatio = s.aspectRatio;
+	if (isSettingValue("aspectRatio", s.aspectRatio)) aspectRatio = s.aspectRatio;
 	else if (s.aspectRatio !== undefined) {
 		repairs?.push("settings: unknown aspect ratio — using 2:1");
 	}
 
-	const theme: Theme = isTheme(s.theme) ? s.theme : DEFAULT_SETTINGS.theme;
+	const theme: Theme = isSettingValue("theme", s.theme) ? s.theme : DEFAULT_SETTINGS.theme;
 
 	return { palette, linkColor, alignment, aspectRatio, theme };
 }

@@ -3,14 +3,15 @@
 import { describe, expect, it } from "vitest";
 import { paletteColors } from "../../src/features/diagram/colors";
 import {
-	ALIGNMENT_OPTIONS,
-	ASPECT_RATIO_LABELS,
-	LINK_COLOR_OPTIONS,
-	PALETTE_LABELS,
-	THEME_OPTIONS,
+	ALIGNMENT_CHOICES,
+	ASPECT_RATIO_CHOICES,
+	LINK_COLOR_CHOICES,
+	LINK_COLOR_SHORT_LABELS,
+	PALETTE_CHOICES,
+	SETTING_LABELS,
+	THEME_CHOICES,
 } from "../../src/features/settings/options";
 import { defaultState } from "../../src/model/graph";
-import { ALIGNMENTS, ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../src/model/settings";
 import {
 	accessibleName,
 	allByRole,
@@ -72,10 +73,10 @@ describe("toolbar & settings", () => {
 
 		expect(dialog.open).toBe(true);
 
-		// Pinned against PALETTE_LABELS so the two can't drift apart.
+		// Pinned against PALETTE_CHOICES so the two can't drift apart.
 		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
 		expect(options.map((option) => accessibleName(option))).toEqual(
-			PALETTE_ORDER.map((value) => PALETTE_LABELS[value]),
+			PALETTE_CHOICES.map((option) => option.label),
 		);
 	});
 
@@ -86,14 +87,14 @@ describe("toolbar & settings", () => {
 		click(preview);
 
 		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
-		const set2Option = byRole<HTMLButtonElement>(dialog, "button", PALETTE_LABELS.set2);
+		const set2Option = byRole<HTMLButtonElement>(dialog, "button", SETTING_LABELS.palette.set2);
 		click(set2Option);
 
 		const stored = getStoredState();
 		expect(stored.settings.palette).toBe("set2");
 		expect(set2Option.getAttribute("aria-pressed")).toBe("true");
 		expect(
-			byRole<HTMLButtonElement>(dialog, "button", PALETTE_LABELS.observable10).getAttribute(
+			byRole<HTMLButtonElement>(dialog, "button", SETTING_LABELS.palette.observable10).getAttribute(
 				"aria-pressed",
 			),
 		).toBe("false");
@@ -112,8 +113,8 @@ describe("toolbar & settings", () => {
 
 		expect(dialog.open).toBe(true);
 
-		// Pinned against LINK_COLOR_OPTIONS so the two can't drift apart.
-		for (const option of Object.values(LINK_COLOR_OPTIONS)) {
+		// Pinned against LINK_COLOR_CHOICES so the two can't drift apart.
+		for (const option of LINK_COLOR_CHOICES) {
 			byRole(dialog, "button", option.label);
 		}
 	});
@@ -128,7 +129,7 @@ describe("toolbar & settings", () => {
 		const staticOption = byRole<HTMLButtonElement>(
 			dialog,
 			"button",
-			LINK_COLOR_OPTIONS.static.label,
+			SETTING_LABELS.linkColor.static,
 		);
 		click(staticOption);
 
@@ -165,7 +166,7 @@ describe("toolbar & settings", () => {
 		const staticOption = byRole<HTMLButtonElement>(
 			dialog,
 			"button",
-			LINK_COLOR_OPTIONS.static.label,
+			SETTING_LABELS.linkColor.static,
 		);
 		click(staticOption);
 
@@ -179,7 +180,7 @@ describe("toolbar & settings", () => {
 		const gradientOption = byRole<HTMLButtonElement>(
 			dialog,
 			"button",
-			LINK_COLOR_OPTIONS["source-target"].label,
+			SETTING_LABELS.linkColor["source-target"],
 		);
 		click(gradientOption);
 
@@ -198,7 +199,7 @@ describe("toolbar & settings", () => {
 		// same settings, so every pressed button must share one value.
 		const alignmentGroups = allByRole(document, "group", "Alignment");
 		expect(alignmentGroups).toHaveLength(2);
-		const defaultLabel = ALIGNMENT_OPTIONS.find(
+		const defaultLabel = ALIGNMENT_CHOICES.find(
 			(option) => option.value === defaultState().settings.alignment,
 		)?.label;
 		for (const group of alignmentGroups) {
@@ -252,7 +253,7 @@ describe("toolbar & settings", () => {
 		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
 		expect(dialog.open).toBe(true);
 
-		click(byRole(dialog, "button", ASPECT_RATIO_LABELS["3:1"]));
+		click(byRole(dialog, "button", SETTING_LABELS.aspectRatio["3:1"]));
 
 		expect(document.querySelector("#diagram svg")?.getAttribute("viewBox")).toBe("0 0 1440 480");
 		const diagram = document.getElementById("diagram");
@@ -264,7 +265,7 @@ describe("toolbar & settings", () => {
 		for (const group of allByRole(document, "group", "Aspect ratio")) {
 			for (const option of allByRole<HTMLButtonElement>(group, "button")) {
 				expect(option.getAttribute("aria-pressed")).toBe(
-					accessibleName(option) === ASPECT_RATIO_LABELS["3:1"] ? "true" : "false",
+					accessibleName(option) === SETTING_LABELS.aspectRatio["3:1"] ? "true" : "false",
 				);
 			}
 		}
@@ -285,7 +286,7 @@ describe("toolbar & settings", () => {
 
 		click(document.getElementById("aspect-ratio-button"));
 		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "button", ASPECT_RATIO_LABELS["3:1"]));
+		click(byRole(dialog, "button", SETTING_LABELS.aspectRatio["3:1"]));
 
 		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
 		expect(diagram?.style.getPropertyValue("--diagram-aspect-ratio")).toBe("1440 / 480");
@@ -295,8 +296,8 @@ describe("toolbar & settings", () => {
 	it("offers every labelled aspect-ratio preset in the wide picker and narrow Diagram sheet", () => {
 		mountApp();
 
-		for (const preset of ASPECT_RATIO_OPTIONS) {
-			const copies = allByRole<HTMLElement>(document, "button", ASPECT_RATIO_LABELS[preset.value]);
+		for (const preset of ASPECT_RATIO_CHOICES) {
+			const copies = allByRole<HTMLElement>(document, "button", preset.label);
 			expect(copies).toHaveLength(2);
 			for (const copy of copies) {
 				expect(copy.querySelector(".ratio-preview")).not.toBeNull();
@@ -327,7 +328,7 @@ describe("toolbar & settings", () => {
 
 		// The default is already "source-target", so start from "static" to
 		// prove the click handler ran.
-		click(byRole(displayDialog, "button", LINK_COLOR_OPTIONS.static.shortLabel));
+		click(byRole(displayDialog, "button", LINK_COLOR_SHORT_LABELS.static));
 
 		const storedAfterStatic = getStoredState();
 		expect(storedAfterStatic.settings.linkColor).toBe("static");
@@ -336,7 +337,7 @@ describe("toolbar & settings", () => {
 		const gradientOption = byRole<HTMLButtonElement>(
 			displayDialog,
 			"button",
-			LINK_COLOR_OPTIONS["source-target"].shortLabel,
+			LINK_COLOR_SHORT_LABELS["source-target"],
 		);
 		click(gradientOption);
 
@@ -354,7 +355,7 @@ describe("toolbar & settings", () => {
 		const linksDialogGradientOption = byRole<HTMLButtonElement>(
 			linksDialog,
 			"button",
-			LINK_COLOR_OPTIONS["source-target"].label,
+			SETTING_LABELS.linkColor["source-target"],
 		);
 		expect(linksDialogGradientOption.getAttribute("aria-pressed")).toBe("true");
 		expect(document.getElementById("links-button")?.getAttribute("aria-label")).toBe(
@@ -410,7 +411,7 @@ describe("toolbar & settings", () => {
 		const linksDialog = document.getElementById("links-dialog") as HTMLDialogElement;
 		expect(linksDialog.open).toBe(true);
 
-		click(byRole(linksDialog, "button", LINK_COLOR_OPTIONS.target.label));
+		click(byRole(linksDialog, "button", SETTING_LABELS.linkColor.target));
 
 		const stored = getStoredState();
 		expect(stored.settings.linkColor).toBe("target");
@@ -427,7 +428,7 @@ describe("toolbar & settings", () => {
 		);
 
 		expect(pressed).toHaveLength(1);
-		expect(accessibleName(pressed[0])).toBe(THEME_OPTIONS[defaultState().settings.theme].label);
+		expect(accessibleName(pressed[0])).toBe(SETTING_LABELS.theme[defaultState().settings.theme]);
 		expect(document.getElementById("theme-button")?.getAttribute("aria-label")).toBe(
 			"Theme: System",
 		);
@@ -441,7 +442,7 @@ describe("toolbar & settings", () => {
 
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
 		expect(dialog.open).toBe(true);
-		const lightOption = byRole<HTMLButtonElement>(dialog, "button", THEME_OPTIONS.light.label);
+		const lightOption = byRole<HTMLButtonElement>(dialog, "button", SETTING_LABELS.theme.light);
 		click(lightOption);
 
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
@@ -450,7 +451,7 @@ describe("toolbar & settings", () => {
 		expect(themeButton?.getAttribute("aria-label")).toBe("Theme: Light");
 		expect(lightOption.getAttribute("aria-pressed")).toBe("true");
 		expect(
-			byRole<HTMLButtonElement>(dialog, "button", THEME_OPTIONS.auto.label).getAttribute(
+			byRole<HTMLButtonElement>(dialog, "button", SETTING_LABELS.theme.auto).getAttribute(
 				"aria-pressed",
 			),
 		).toBe("false");
@@ -467,11 +468,11 @@ describe("toolbar & settings", () => {
 		// Start from Light so the System transition actually removes the attribute
 		// rather than it never having been set.
 		click(themeButton);
-		click(byRole(dialog, "button", THEME_OPTIONS.light.label));
+		click(byRole(dialog, "button", SETTING_LABELS.theme.light));
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 
 		click(themeButton);
-		click(byRole(dialog, "button", THEME_OPTIONS.auto.label));
+		click(byRole(dialog, "button", SETTING_LABELS.theme.auto));
 
 		expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
 		const stored = getStoredState();
@@ -489,7 +490,7 @@ describe("diagram-only settings redraw and persist", () => {
 
 		click(document.getElementById("links-button"));
 		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "button", LINK_COLOR_OPTIONS.static.label));
+		click(byRole(dialog, "button", SETTING_LABELS.linkColor.static));
 
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.linkColor).toBe("static");
@@ -513,7 +514,7 @@ describe("diagram-only settings redraw and persist", () => {
 
 		click(document.getElementById("aspect-ratio-button"));
 		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "button", ASPECT_RATIO_LABELS["3:1"]));
+		click(byRole(dialog, "button", SETTING_LABELS.aspectRatio["3:1"]));
 
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.aspectRatio).toBe("3:1");
@@ -558,7 +559,7 @@ describe("palette changes patch node-editor swatches", () => {
 
 		click(document.getElementById("palette-preview"));
 		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "button", PALETTE_LABELS.tableau10));
+		click(byRole(dialog, "button", SETTING_LABELS.palette.tableau10));
 
 		const swatches = Array.from(
 			document.querySelectorAll<HTMLElement>("#node-editor .node-swatch"),
@@ -605,7 +606,7 @@ describe("theme changes skip validation and the redraw", () => {
 		const themeButton = document.getElementById("theme-button");
 		click(themeButton);
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "button", THEME_OPTIONS.light.label));
+		click(byRole(dialog, "button", SETTING_LABELS.theme.light));
 
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 		expect(getStoredState().settings.theme).toBe("light");
@@ -629,7 +630,7 @@ describe("theme changes skip validation and the redraw", () => {
 		const themeButton = document.getElementById("theme-button");
 		click(themeButton);
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "button", THEME_OPTIONS.light.label));
+		click(byRole(dialog, "button", SETTING_LABELS.theme.light));
 
 		// Same error verbatim and same svg element: validation didn't re-run.
 		expect(document.getElementById("error")?.textContent).toBe(errorBefore);
@@ -640,37 +641,35 @@ describe("theme changes skip validation and the redraw", () => {
 	});
 });
 
-// The dialogs render from the options.ts tables, so these pin that every
-// table entry is wired into the DOM. Alignment is the exception: its
-// rendered set is compared against model/settings' ALIGNMENTS, the one
-// independent source, since ALIGNMENT_OPTIONS reorders it and could drift.
+// The dialogs render from the options.ts choice arrays, so these pin that
+// every table entry is wired into the DOM.
 describe("dialog markup vs settings metadata contract", () => {
-	it("palette dialog: rendered option order and labels match PALETTE_ORDER / PALETTE_LABELS", () => {
+	it("palette dialog: rendered option order and labels match PALETTE_CHOICES", () => {
 		mountApp();
 
 		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
 		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
 		expect(options.map((option) => accessibleName(option))).toEqual(
-			PALETTE_ORDER.map((value) => PALETTE_LABELS[value]),
+			PALETTE_CHOICES.map((option) => option.label),
 		);
 	});
 
-	it("links dialog: rendered option set, labels, and icons match LINK_COLOR_OPTIONS", () => {
+	it("links dialog: rendered option set, labels, and icons match LINK_COLOR_CHOICES", () => {
 		mountApp();
 
 		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
 		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
-		expect(options).toHaveLength(Object.keys(LINK_COLOR_OPTIONS).length);
+		expect(options).toHaveLength(LINK_COLOR_CHOICES.length);
 		expect(new Set(options.map((option) => accessibleName(option)))).toEqual(
-			new Set(Object.values(LINK_COLOR_OPTIONS).map((option) => option.label)),
+			new Set(LINK_COLOR_CHOICES.map((option) => option.label)),
 		);
-		for (const meta of Object.values(LINK_COLOR_OPTIONS)) {
+		for (const meta of LINK_COLOR_CHOICES) {
 			const option = byRole<HTMLButtonElement>(dialog, "button", meta.label);
 			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${meta.iconId}`);
 		}
 	});
 
-	it("display dialog's narrow link-color copy: rendered option set matches LINK_COLOR_OPTIONS", () => {
+	it("display dialog's narrow link-color copy: rendered option set matches LINK_COLOR_CHOICES", () => {
 		mountApp();
 
 		// The narrow copy uses shortLabels; the links-dialog test pins the full
@@ -679,25 +678,21 @@ describe("dialog markup vs settings metadata contract", () => {
 		const group = byRole(displayDialog, "group", "Link colors");
 		const options = allByRole<HTMLButtonElement>(group, "button");
 		expect(new Set(options.map((option) => accessibleName(option)))).toEqual(
-			new Set(Object.values(LINK_COLOR_OPTIONS).map((option) => option.shortLabel)),
+			new Set(LINK_COLOR_CHOICES.map((option) => option.shortLabel)),
 		);
 	});
 
-	it("alignment buttons: each DOM copy's rendered option set matches the model's ALIGNMENTS", () => {
+	it("alignment buttons: each DOM copy's rendered option order and labels match ALIGNMENT_CHOICES", () => {
 		mountApp();
 
 		// Each copy is checked separately so a missing button in one can't
 		// hide behind the other's count in a merged set.
-		const alignmentLabelByValue = new Map(
-			ALIGNMENT_OPTIONS.map((option) => [option.value, option.label]),
-		);
-		const expectedLabels = new Set(ALIGNMENTS.map((value) => alignmentLabelByValue.get(value)));
+		const expectedLabels = ALIGNMENT_CHOICES.map((option) => option.label);
 
 		const wideLabels = allByRole<HTMLButtonElement>(wideAlignmentGroup(), "button").map((option) =>
 			accessibleName(option),
 		);
-		expect(new Set(wideLabels)).toEqual(expectedLabels);
-		expect(wideLabels).toHaveLength(ALIGNMENTS.length);
+		expect(wideLabels).toEqual(expectedLabels);
 
 		const narrowGroup = byRole(
 			document.getElementById("display-dialog") as HTMLDialogElement,
@@ -707,29 +702,28 @@ describe("dialog markup vs settings metadata contract", () => {
 		const narrowLabels = allByRole<HTMLButtonElement>(narrowGroup, "button").map((option) =>
 			accessibleName(option),
 		);
-		expect(new Set(narrowLabels)).toEqual(expectedLabels);
-		expect(narrowLabels).toHaveLength(ALIGNMENTS.length);
+		expect(narrowLabels).toEqual(expectedLabels);
 	});
 
-	it("aspect-ratio dialog: rendered option order and labels match ASPECT_RATIO_OPTIONS / ASPECT_RATIO_LABELS", () => {
+	it("aspect-ratio dialog: rendered option order and labels match ASPECT_RATIO_CHOICES", () => {
 		mountApp();
 
 		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
 		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
 		expect(options.map((option) => accessibleName(option))).toEqual(
-			ASPECT_RATIO_OPTIONS.map((preset) => ASPECT_RATIO_LABELS[preset.value]),
+			ASPECT_RATIO_CHOICES.map((preset) => preset.label),
 		);
 	});
 
-	it("theme dialog: rendered option order, labels, and icons match THEME_OPTIONS", () => {
+	it("theme dialog: rendered option order, labels, and icons match THEME_CHOICES", () => {
 		mountApp();
 
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
 		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
 		expect(options.map((option) => accessibleName(option))).toEqual(
-			Object.values(THEME_OPTIONS).map((option) => option.label),
+			THEME_CHOICES.map((option) => option.label),
 		);
-		for (const meta of Object.values(THEME_OPTIONS)) {
+		for (const meta of THEME_CHOICES) {
 			const option = byRole<HTMLButtonElement>(dialog, "button", meta.label);
 			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${meta.iconId}`);
 		}

@@ -3,54 +3,71 @@
  * so storage validation never pulls d3 in.
  */
 
-// --- Palette ---
+// The one table for every setting: its allowed values, and their display
+// order. There is no second ordering anywhere else.
+export const SETTING_DOMAINS = {
+	palette: ["observable10", "tableau10", "category10", "set2", "dark2"],
+	linkColor: ["source", "source-target", "target", "static"],
+	alignment: ["left", "center", "right", "justify"],
+	aspectRatio: ["a-series", "3:2", "16:9", "2:1", "3:1"],
+	theme: ["auto", "light", "dark"],
+} as const;
 
-/** Carousel display order; colors.ts's PALETTES must cover exactly this set. */
-export const PALETTE_ORDER = ["observable10", "tableau10", "category10", "set2", "dark2"] as const;
+// `-readonly` strips the modifier this mapped type would otherwise inherit
+// from SETTING_DOMAINS's `as const` tuples: Settings' fields are mutated in
+// place (see graph.ts's State), unlike the domain table itself.
+export type Settings = {
+	-readonly [K in keyof typeof SETTING_DOMAINS]: (typeof SETTING_DOMAINS)[K][number];
+};
 
-export type Palette = (typeof PALETTE_ORDER)[number];
+export type Palette = Settings["palette"];
+export type LinkColorMode = Settings["linkColor"];
+export type Alignment = Settings["alignment"];
+export type AspectRatio = Settings["aspectRatio"];
+export type Theme = Settings["theme"];
 
-const PALETTE_KEYS: ReadonlySet<string> = new Set(PALETTE_ORDER);
+export type DiagramSettingKey = Exclude<keyof Settings, "theme">;
+export type DiagramSettings = Pick<Settings, DiagramSettingKey>;
 
-// A Set rather than `key in record`, which would accept prototype keys such
-// as "toString".
-export function isPaletteKey(key: unknown): key is Palette {
-	return typeof key === "string" && PALETTE_KEYS.has(key);
+/** The only place that knows theme is a per-browser preference and not diagram data. */
+function isDiagramSettingKey(key: keyof Settings): key is DiagramSettingKey {
+	return key !== "theme";
 }
 
-// --- Link color mode ---
+export const DIAGRAM_SETTING_KEYS: readonly DiagramSettingKey[] = (
+	Object.keys(SETTING_DOMAINS) as (keyof Settings)[]
+).filter(isDiagramSettingKey);
 
-const LINK_COLOR_MODES = ["source", "target", "source-target", "static"] as const;
-export type LinkColorMode = (typeof LINK_COLOR_MODES)[number];
-const LINK_COLOR_MODE_SET: ReadonlySet<string> = new Set(LINK_COLOR_MODES);
-
-export function isLinkColorMode(value: unknown): value is LinkColorMode {
-	return typeof value === "string" && LINK_COLOR_MODE_SET.has(value);
+export function isSettingValue<K extends keyof Settings>(
+	key: K,
+	value: unknown,
+): value is Settings[K] {
+	const domain: readonly string[] = SETTING_DOMAINS[key];
+	return typeof value === "string" && domain.includes(value);
 }
 
-// --- Alignment ---
-
-export const ALIGNMENTS = ["left", "right", "center", "justify"] as const;
-export type Alignment = (typeof ALIGNMENTS)[number];
-const ALIGNMENT_SET: ReadonlySet<string> = new Set(ALIGNMENTS);
-
-export function isAlignment(value: unknown): value is Alignment {
-	return typeof value === "string" && ALIGNMENT_SET.has(value);
+export function pickDiagramSettings(settings: DiagramSettings): DiagramSettings {
+	const picked = {} as DiagramSettings;
+	for (const key of DIAGRAM_SETTING_KEYS) {
+		assignSetting(picked, key, settings[key]);
+	}
+	return picked;
 }
 
-// --- Theme ---
-
-const THEMES = ["auto", "light", "dark"] as const;
-export type Theme = (typeof THEMES)[number];
-const THEME_SET: ReadonlySet<string> = new Set(THEMES);
-
-export function isTheme(value: unknown): value is Theme {
-	return typeof value === "string" && THEME_SET.has(value);
+/**
+ * TypeScript can't tell that `target[key]` and `value` share a type when
+ * both are indexed by the same generic key; this narrows it once so callers
+ * don't reach for `any`.
+ */
+function assignSetting<K extends DiagramSettingKey>(
+	target: DiagramSettings,
+	key: K,
+	value: DiagramSettings[K],
+): void {
+	target[key] = value;
 }
 
 // --- Aspect ratio ---
-
-export type AspectRatio = "a-series" | "3:2" | "16:9" | "2:1" | "3:1";
 
 export interface AspectRatioOption {
 	value: AspectRatio;
@@ -73,26 +90,9 @@ const ASPECT_RATIO_OPTIONS_BY_VALUE = new Map(
 	ASPECT_RATIO_OPTIONS.map((option) => [option.value, option]),
 );
 
-export function isAspectRatio(value: unknown): value is AspectRatio {
-	return typeof value === "string" && ASPECT_RATIO_OPTIONS_BY_VALUE.has(value as AspectRatio);
-}
-
 export function aspectRatioOption(value: AspectRatio): AspectRatioOption {
 	return ASPECT_RATIO_OPTIONS_BY_VALUE.get(value) as AspectRatioOption;
 }
-
-// --- Settings ---
-
-export interface Settings {
-	palette: Palette;
-	linkColor: LinkColorMode;
-	alignment: Alignment;
-	aspectRatio: AspectRatio;
-	theme: Theme;
-}
-
-/** Excludes theme, a per-browser preference rather than diagram data. */
-export type DiagramSettings = Omit<Settings, "theme">;
 
 // --- Defaults ---
 

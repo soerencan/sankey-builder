@@ -1,12 +1,6 @@
 import type { RefObject } from "preact";
-import type {
-	Alignment,
-	AspectRatio,
-	LinkColorMode,
-	Palette,
-	Settings,
-} from "../../model/settings";
-import { ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../model/settings";
+import type { AspectRatio, DiagramSettingKey, Palette, Settings } from "../../model/settings";
+import { SETTING_DOMAINS } from "../../model/settings";
 import { ChoiceDialog } from "../../shared/choice-dialog";
 import type { AccessibleName } from "../../shared/choice-group";
 import { ChoiceGroup } from "../../shared/choice-group";
@@ -15,10 +9,12 @@ import type { DialogHandle } from "../../shared/use-dialog";
 import { useDialog } from "../../shared/use-dialog";
 import { download } from "../files/download";
 import {
-	ALIGNMENT_OPTIONS,
-	ASPECT_RATIO_LABELS,
-	LINK_COLOR_OPTIONS,
-	PALETTE_LABELS,
+	ALIGNMENT_CHOICES,
+	ASPECT_RATIO_CHOICES,
+	LINK_COLOR_CHOICES,
+	LINK_COLOR_ICONS,
+	PALETTE_CHOICES,
+	SETTING_LABELS,
 } from "../settings/options";
 import { paletteColors } from "./colors";
 import { rasterizeSvg, serializeDiagramSvg, svgViewBoxSize } from "./export";
@@ -31,13 +27,6 @@ const PNG_EXPORT_SCALE = 2;
 // Palettes with more colors are truncated so preview and dialog rows keep a
 // consistent width.
 const SWATCH_COUNT = 5;
-
-// Object.entries order is the dialogs' display order.
-const PALETTE_CHOICES = PALETTE_ORDER.map((value) => ({ value }));
-const LINK_COLOR_CHOICES = Object.entries(LINK_COLOR_OPTIONS).map(([value, option]) => ({
-	value: value as LinkColorMode,
-	...option,
-}));
 
 /**
  * ":" is swapped for "-" because a colon in a class selector needs escaping.
@@ -53,10 +42,7 @@ const RATIO_PREVIEW_CLASSES: Record<AspectRatio, string> = {
 };
 
 export interface DiagramPanelActions extends IoNoticeActions {
-	setPalette(value: Palette): void;
-	setLinkColor(value: LinkColorMode): void;
-	setAlignment(value: Alignment): void;
-	setAspectRatio(value: AspectRatio): void;
+	setDiagramSetting<K extends DiagramSettingKey>(key: K, value: Settings[K]): void;
 }
 
 export interface DiagramPanelProps {
@@ -133,9 +119,10 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 	const displayDialog = useDialog();
 
 	function cyclePalette(step: 1 | -1): void {
-		const current = PALETTE_ORDER.indexOf(settings.palette);
-		const next = (current + step + PALETTE_ORDER.length) % PALETTE_ORDER.length;
-		actions.setPalette(PALETTE_ORDER[next]);
+		const palettes = SETTING_DOMAINS.palette;
+		const current = palettes.indexOf(settings.palette);
+		const next = (current + step + palettes.length) % palettes.length;
+		actions.setDiagramSetting("palette", palettes[next]);
 	}
 
 	function exportSvg(dialog: DialogHandle): void {
@@ -204,7 +191,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					id="palette-preview"
 					class="toolbar-button"
 					aria-haspopup="dialog"
-					aria-label={`Palette: ${PALETTE_LABELS[settings.palette]}`}
+					aria-label={`Palette: ${SETTING_LABELS.palette[settings.palette]}`}
 					onClick={(event) => paletteDialog.open(event.currentTarget)}
 				>
 					<SwatchStrip palette={settings.palette} />
@@ -225,22 +212,22 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						id="links-button"
 						class="toolbar-button"
 						aria-haspopup="dialog"
-						aria-label={`Links: ${LINK_COLOR_OPTIONS[settings.linkColor].label}`}
+						aria-label={`Links: ${SETTING_LABELS.linkColor[settings.linkColor]}`}
 						onClick={(event) => linksDialog.open(event.currentTarget)}
 					>
 						Links
 						<svg class="icon" aria-hidden="true" focusable="false">
-							<use href={`#${LINK_COLOR_OPTIONS[settings.linkColor].iconId}`} />
+							<use href={`#${LINK_COLOR_ICONS[settings.linkColor]}`} />
 						</svg>
 					</button>
 					<ChoiceGroup
-						options={ALIGNMENT_OPTIONS}
+						options={ALIGNMENT_CHOICES}
 						value={settings.alignment}
 						label="Alignment"
 						class="align-group"
 						optionClass="align-option"
 						ariaLabel={(option) => option.label}
-						onSelect={(value) => actions.setAlignment(value)}
+						onSelect={(value) => actions.setDiagramSetting("alignment", value)}
 						renderLabel={(option) => (
 							<svg class="icon" aria-hidden="true" focusable="false">
 								<use href={`#${option.iconId}`} />
@@ -252,10 +239,10 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						id="aspect-ratio-button"
 						class="toolbar-button"
 						aria-haspopup="dialog"
-						aria-label={`Aspect ratio: ${ASPECT_RATIO_LABELS[settings.aspectRatio]}`}
+						aria-label={`Aspect ratio: ${SETTING_LABELS.aspectRatio[settings.aspectRatio]}`}
 						onClick={(event) => aspectRatioDialog.open(event.currentTarget)}
 					>
-						<span class="aspect-ratio-current">{`Aspect ${ASPECT_RATIO_LABELS[settings.aspectRatio]}`}</span>
+						<span class="aspect-ratio-current">{`Aspect ${SETTING_LABELS.aspectRatio[settings.aspectRatio]}`}</span>
 					</button>
 					<button
 						type="button"
@@ -292,12 +279,12 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					class="palette-options"
 					optionClass="palette-option"
 					onSelect={(value) => {
-						actions.setPalette(value);
+						actions.setDiagramSetting("palette", value);
 						paletteDialog.close();
 					}}
 					renderLabel={(option) => (
 						<>
-							<span class="palette-option-label">{PALETTE_LABELS[option.value]}</span>
+							<span class="palette-option-label">{option.label}</span>
 							<SwatchStrip palette={option.value} />
 						</>
 					)}
@@ -312,7 +299,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					class="choice-options"
 					optionClass="choice-option"
 					onSelect={(value) => {
-						actions.setLinkColor(value);
+						actions.setDiagramSetting("linkColor", value);
 						linksDialog.close();
 					}}
 					renderLabel={(option) => (
@@ -328,13 +315,13 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 
 			<ChoiceDialog id="aspect-ratio-dialog" heading="Aspect ratio" handle={aspectRatioDialog}>
 				<ChoiceGroup
-					options={ASPECT_RATIO_OPTIONS}
+					options={ASPECT_RATIO_CHOICES}
 					value={settings.aspectRatio}
 					label="Aspect ratio"
 					class="choice-options aspect-ratio-options"
 					optionClass="choice-option"
 					onSelect={(value) => {
-						actions.setAspectRatio(value);
+						actions.setDiagramSetting("aspectRatio", value);
 						aspectRatioDialog.close();
 					}}
 					renderLabel={(option) => (
@@ -343,7 +330,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 								class={`ratio-preview ${RATIO_PREVIEW_CLASSES[option.value]}`}
 								aria-hidden="true"
 							/>
-							<span class="choice-option-label">{ASPECT_RATIO_LABELS[option.value]}</span>
+							<span class="choice-option-label">{option.label}</span>
 						</>
 					)}
 				/>
@@ -374,7 +361,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						labelledBy="display-link-colors-heading"
 						class="choice-options"
 						optionClass="choice-option"
-						onSelect={(value) => actions.setLinkColor(value)}
+						onSelect={(value) => actions.setDiagramSetting("linkColor", value)}
 						renderLabel={(option) => (
 							<>
 								<svg class="icon" aria-hidden="true" focusable="false">
@@ -389,12 +376,12 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 				<div class="dialog-section">
 					<h4 id="display-alignment-heading">Alignment</h4>
 					<ChoiceGroup
-						options={ALIGNMENT_OPTIONS}
+						options={ALIGNMENT_CHOICES}
 						value={settings.alignment}
 						labelledBy="display-alignment-heading"
 						class="choice-options"
 						optionClass="choice-option"
-						onSelect={(value) => actions.setAlignment(value)}
+						onSelect={(value) => actions.setDiagramSetting("alignment", value)}
 						renderLabel={(option) => (
 							<>
 								<svg class="icon" aria-hidden="true" focusable="false">
@@ -409,19 +396,19 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 				<div class="dialog-section">
 					<h4 id="display-aspect-ratio-heading">Aspect ratio</h4>
 					<ChoiceGroup
-						options={ASPECT_RATIO_OPTIONS}
+						options={ASPECT_RATIO_CHOICES}
 						value={settings.aspectRatio}
 						labelledBy="display-aspect-ratio-heading"
 						class="choice-options aspect-ratio-options"
 						optionClass="choice-option"
-						onSelect={(value) => actions.setAspectRatio(value)}
+						onSelect={(value) => actions.setDiagramSetting("aspectRatio", value)}
 						renderLabel={(option) => (
 							<>
 								<span
 									class={`ratio-preview ${RATIO_PREVIEW_CLASSES[option.value]}`}
 									aria-hidden="true"
 								/>
-								<span class="choice-option-label">{ASPECT_RATIO_LABELS[option.value]}</span>
+								<span class="choice-option-label">{option.label}</span>
 							</>
 						)}
 					/>

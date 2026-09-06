@@ -1,6 +1,7 @@
 import { normalizeLinks, normalizeNodes, normalizeSettings } from "../../model/codec";
 import type { Diagram, State } from "../../model/graph";
 import { isComplete, withoutLinkId } from "../../model/graph";
+import { pickDiagramSettings } from "../../model/settings";
 
 export type ImportResult =
 	| { ok: true; diagram: Diagram; repairs: string[] }
@@ -11,12 +12,7 @@ export function serializeState(state: State): string {
 	const exported = {
 		nodes: state.nodes,
 		links: state.links.filter(isComplete).map(withoutLinkId),
-		settings: {
-			palette: state.settings.palette,
-			linkColor: state.settings.linkColor,
-			alignment: state.settings.alignment,
-			aspectRatio: state.settings.aspectRatio,
-		},
+		settings: pickDiagramSettings(state.settings),
 	};
 	return JSON.stringify(exported, null, 2);
 }
@@ -52,12 +48,7 @@ export function parseImport(text: string): ImportResult {
 	const diagram: Diagram = {
 		nodes,
 		links,
-		settings: {
-			palette: normalized.palette,
-			linkColor: normalized.linkColor,
-			alignment: normalized.alignment,
-			aspectRatio: normalized.aspectRatio,
-		},
+		settings: pickDiagramSettings(normalized),
 	};
 	return { ok: true, diagram, repairs };
 }

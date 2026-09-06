@@ -2,112 +2,51 @@ import { describe, expect, it } from "vitest";
 import {
 	ASPECT_RATIO_OPTIONS,
 	DEFAULT_SETTINGS,
-	PALETTE_ORDER,
+	DIAGRAM_SETTING_KEYS,
+	SETTING_DOMAINS,
 	aspectRatioOption,
-	isAlignment,
-	isAspectRatio,
-	isLinkColorMode,
-	isPaletteKey,
-	isTheme,
+	isSettingValue,
+	pickDiagramSettings,
 } from "./settings";
 
 // Deliberately imports nothing from features/diagram/colors.ts: proves
 // settings.ts stays d3-free at module-eval and call time.
 
-describe("isPaletteKey", () => {
-	it.each<[unknown, boolean]>([
-		["observable10", true],
-		["tableau10", true],
-		["category10", true],
-		["set2", true],
-		["dark2", true],
+const SETTING_KEYS = Object.keys(SETTING_DOMAINS) as (keyof typeof SETTING_DOMAINS)[];
+
+describe.each(SETTING_KEYS)("isSettingValue(%j, value)", (key) => {
+	const values = SETTING_DOMAINS[key];
+	const ownValues = new Set<string>(values);
+
+	it.each(values.map((value) => [value] as const))("accepts %j", (value) => {
+		expect(isSettingValue(key, value)).toBe(true);
+	});
+
+	it.each<[unknown]>([
+		["not-a-real-value"],
 		// Would resolve through Object.prototype on a naive `in` check.
-		["toString", false],
-		["rainbow", false],
-		[undefined, false],
-		[null, false],
-		[42, false],
-		[{}, false],
-	])("isPaletteKey(%j) is %s", (input, expected) => {
-		expect(isPaletteKey(input)).toBe(expected);
+		["toString"],
+		[undefined],
+		[null],
+		[42],
+		[{}],
+	])("rejects %j", (value) => {
+		expect(isSettingValue(key, value)).toBe(false);
 	});
-});
 
-describe("PALETTE_ORDER", () => {
-	it("contains every palette key exactly once", () => {
-		for (const key of ["observable10", "tableau10", "category10", "set2", "dark2"]) {
-			expect(PALETTE_ORDER.filter((k) => k === key)).toHaveLength(1);
-		}
-		expect(PALETTE_ORDER).toHaveLength(5);
-	});
-});
+	// A value from another setting's domain must not pass here, unless it also
+	// happens to be one of this key's own values (none do today; the filter
+	// keeps the assertion correct if that ever changes).
+	const foreignValues = SETTING_KEYS.filter((otherKey) => otherKey !== key)
+		.flatMap((otherKey): readonly string[] => SETTING_DOMAINS[otherKey])
+		.filter((value) => !ownValues.has(value));
 
-describe("isLinkColorMode", () => {
-	it.each<[unknown, boolean]>([
-		["source", true],
-		["target", true],
-		["source-target", true],
-		["static", true],
-		["toString", false],
-		["manual", false],
-		[undefined, false],
-		[null, false],
-		[42, false],
-		[{}, false],
-	])("isLinkColorMode(%j) is %s", (input, expected) => {
-		expect(isLinkColorMode(input)).toBe(expected);
-	});
-});
-
-describe("isAlignment", () => {
-	it.each<[unknown, boolean]>([
-		["left", true],
-		["right", true],
-		["center", true],
-		["justify", true],
-		["toString", false],
-		["top", false],
-		[undefined, false],
-		[null, false],
-		[42, false],
-		[{}, false],
-	])("isAlignment(%j) is %s", (input, expected) => {
-		expect(isAlignment(input)).toBe(expected);
-	});
-});
-
-describe("isTheme", () => {
-	it.each<[unknown, boolean]>([
-		["auto", true],
-		["light", true],
-		["dark", true],
-		["toString", false],
-		["system", false],
-		[undefined, false],
-		[null, false],
-		[42, false],
-		[{}, false],
-	])("isTheme(%j) is %s", (input, expected) => {
-		expect(isTheme(input)).toBe(expected);
-	});
-});
-
-describe("isAspectRatio", () => {
-	it.each<[unknown, boolean]>([
-		["a-series", true],
-		["3:2", true],
-		["16:9", true],
-		["2:1", true],
-		["3:1", true],
-		["toString", false],
-		["4:3", false],
-		[undefined, false],
-		[null, false],
-		[42, false],
-		[{}, false],
-	])("isAspectRatio(%j) is %s", (input, expected) => {
-		expect(isAspectRatio(input)).toBe(expected);
-	});
+	it.each(foreignValues.map((value) => [value] as const))(
+		"rejects %j from another setting's domain",
+		(value) => {
+			expect(isSettingValue(key, value)).toBe(false);
+		},
+	);
 });
 
 describe("aspectRatioOption", () => {
@@ -132,5 +71,32 @@ describe("DEFAULT_SETTINGS", () => {
 			aspectRatio: "2:1",
 			theme: "auto",
 		});
+	});
+
+	it("has a default that is one of the domain's allowed values, for every setting", () => {
+		for (const key of Object.keys(SETTING_DOMAINS) as (keyof typeof SETTING_DOMAINS)[]) {
+			expect(SETTING_DOMAINS[key]).toContain(DEFAULT_SETTINGS[key]);
+		}
+	});
+});
+
+describe("DIAGRAM_SETTING_KEYS", () => {
+	it("is every settings key except theme", () => {
+		expect(new Set(DIAGRAM_SETTING_KEYS)).toEqual(
+			new Set(Object.keys(SETTING_DOMAINS).filter((key) => key !== "theme")),
+		);
+	});
+});
+
+describe("pickDiagramSettings", () => {
+	it("keeps the four diagram keys and drops theme", () => {
+		const picked = pickDiagramSettings(DEFAULT_SETTINGS);
+		expect(picked).toEqual({
+			palette: DEFAULT_SETTINGS.palette,
+			linkColor: DEFAULT_SETTINGS.linkColor,
+			alignment: DEFAULT_SETTINGS.alignment,
+			aspectRatio: DEFAULT_SETTINGS.aspectRatio,
+		});
+		expect(picked).not.toHaveProperty("theme");
 	});
 });

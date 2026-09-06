@@ -19,6 +19,7 @@ import {
 	replaceDiagram,
 	updateLink,
 } from "../model/graph";
+import { pickDiagramSettings } from "../model/settings";
 import { validate } from "../model/validation";
 import { loadState, saveState } from "../platform/storage";
 import type { IoNoticeActions, Notice, NoticeKind } from "../shared/notice";
@@ -103,12 +104,11 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			? undefined
 			: { kind: "graph", tone: "error", message: result.error ?? "" };
 		if (result.ok) {
-			const { theme: _theme, ...settings } = state.settings;
 			lastValidRequest = {
 				state: structuredClone({
 					nodes: state.nodes,
 					links: state.links,
-					settings,
+					settings: pickDiagramSettings(state.settings),
 				}),
 			};
 		}
@@ -196,24 +196,9 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	};
 
 	const diagramPanelActions: DiagramPanelActions = {
-		setPalette(value) {
+		setDiagramSetting(key, value) {
 			commit((s) => {
-				s.settings.palette = value;
-			});
-		},
-		setLinkColor(value) {
-			commit((s) => {
-				s.settings.linkColor = value;
-			});
-		},
-		setAlignment(value) {
-			commit((s) => {
-				s.settings.alignment = value;
-			});
-		},
-		setAspectRatio(value) {
-			commit((s) => {
-				s.settings.aspectRatio = value;
+				s.settings[key] = value;
 			});
 		},
 		...ioNoticeActions,

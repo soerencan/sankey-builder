@@ -2,7 +2,7 @@ import type { Theme } from "../../model/settings";
 import { ChoiceDialog } from "../../shared/choice-dialog";
 import { ChoiceGroup } from "../../shared/choice-group";
 import { useDialog } from "../../shared/use-dialog";
-import { THEME_OPTIONS } from "./options";
+import { SETTING_LABELS, THEME_CHOICES, THEME_ICONS } from "./options";
 
 export interface ThemeControlActions {
 	setTheme(theme: Theme): void;
@@ -13,14 +13,10 @@ export interface ThemeControlProps {
 	actions: ThemeControlActions;
 }
 
-const THEME_CHOICES = Object.entries(THEME_OPTIONS).map(([value, option]) => ({
-	value: value as Theme,
-	...option,
-}));
-
 export function ThemeControl({ theme, actions }: ThemeControlProps) {
 	const dialog = useDialog();
-	const { label, iconId } = THEME_OPTIONS[theme];
+	const label = SETTING_LABELS.theme[theme];
+	const iconId = THEME_ICONS[theme];
 
 	return (
 		<>
