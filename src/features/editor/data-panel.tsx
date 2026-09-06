@@ -2,6 +2,7 @@ import type { JSX } from "preact";
 import { useRef } from "preact/hooks";
 import type { NodeView } from "../../app/view";
 import type { Diagram, State } from "../../model/graph";
+import { Icon } from "../../shared/icon";
 import type { IoNoticeActions } from "../../shared/notice";
 import { parseImport, serializeState } from "../files/diagram-file";
 import { download } from "../files/download";
@@ -85,9 +86,7 @@ export function DataPanel({
 						title="Import data"
 						onClick={() => fileInputRef.current?.click()}
 					>
-						<svg class="icon" aria-hidden="true" focusable="false">
-							<use href="#icon-import" />
-						</svg>
+						<Icon id="icon-import" />
 					</button>
 					<button
 						type="button"
@@ -97,9 +96,7 @@ export function DataPanel({
 						title="Export data as JSON"
 						onClick={handleExport}
 					>
-						<svg class="icon" aria-hidden="true" focusable="false">
-							<use href="#icon-export" />
-						</svg>
+						<Icon id="icon-export" />
 					</button>
 					<input
 						type="file"

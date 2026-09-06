@@ -1,6 +1,7 @@
 import type { Theme } from "../../model/settings";
 import { ChoiceDialog } from "../../shared/choice-dialog";
 import { ChoiceGroup } from "../../shared/choice-group";
+import { Icon } from "../../shared/icon";
 import { useDialog } from "../../shared/use-dialog";
 import { SETTING_LABELS, THEME_CHOICES, THEME_ICONS } from "./options";
 
@@ -28,9 +29,7 @@ export function ThemeControl({ theme, actions }: ThemeControlProps) {
 				aria-label={`Theme: ${label}`}
 				onClick={(event) => dialog.open(event.currentTarget)}
 			>
-				<svg class="icon" aria-hidden="true" focusable="false">
-					<use href={`#${iconId}`} />
-				</svg>
+				<Icon id={iconId} />
 			</button>
 
 			<ChoiceDialog id="theme-dialog" heading="Theme" handle={dialog}>
@@ -46,9 +45,7 @@ export function ThemeControl({ theme, actions }: ThemeControlProps) {
 					}}
 					renderLabel={(option) => (
 						<>
-							<svg class="icon" aria-hidden="true" focusable="false">
-								<use href={`#${option.iconId}`} />
-							</svg>
+							<Icon id={option.iconId} />
 							<span class="choice-option-label">{option.label}</span>
 						</>
 					)}

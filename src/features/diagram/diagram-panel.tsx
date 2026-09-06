@@ -4,6 +4,7 @@ import { SETTING_DOMAINS } from "../../model/settings";
 import { ChoiceDialog } from "../../shared/choice-dialog";
 import type { AccessibleName } from "../../shared/choice-group";
 import { ChoiceGroup } from "../../shared/choice-group";
+import { Icon } from "../../shared/icon";
 import type { IoNoticeActions } from "../../shared/notice";
 import type { DialogHandle } from "../../shared/use-dialog";
 import { useDialog } from "../../shared/use-dialog";
@@ -16,7 +17,7 @@ import {
 	PALETTE_CHOICES,
 	SETTING_LABELS,
 } from "../settings/options";
-import { paletteColors } from "./colors";
+import { paletteColors } from "../settings/palettes";
 import { rasterizeSvg, serializeDiagramSvg, svgViewBoxSize } from "./export";
 
 const EXPORT_SVG_FILENAME = "sankey.svg";
@@ -182,9 +183,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					aria-label="Previous palette"
 					onClick={() => cyclePalette(-1)}
 				>
-					<svg class="icon" aria-hidden="true" focusable="false">
-						<use href="#icon-chevron-left" />
-					</svg>
+					<Icon id="icon-chevron-left" />
 				</button>
 				<button
 					type="button"
@@ -202,9 +201,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					aria-label="Next palette"
 					onClick={() => cyclePalette(1)}
 				>
-					<svg class="icon" aria-hidden="true" focusable="false">
-						<use href="#icon-chevron-right" />
-					</svg>
+					<Icon id="icon-chevron-right" />
 				</button>
 				<div class="toolbar-wide">
 					<button
@@ -216,9 +213,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						onClick={(event) => linksDialog.open(event.currentTarget)}
 					>
 						Links
-						<svg class="icon" aria-hidden="true" focusable="false">
-							<use href={`#${LINK_COLOR_ICONS[settings.linkColor]}`} />
-						</svg>
+						<Icon id={LINK_COLOR_ICONS[settings.linkColor]} />
 					</button>
 					<ChoiceGroup
 						options={ALIGNMENT_CHOICES}
@@ -228,11 +223,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						optionClass="align-option"
 						ariaLabel={(option) => option.label}
 						onSelect={(value) => actions.setDiagramSetting("alignment", value)}
-						renderLabel={(option) => (
-							<svg class="icon" aria-hidden="true" focusable="false">
-								<use href={`#${option.iconId}`} />
-							</svg>
-						)}
+						renderLabel={(option) => <Icon id={option.iconId} />}
 					/>
 					<button
 						type="button"
@@ -251,9 +242,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						aria-haspopup="dialog"
 						onClick={(event) => diagramExportDialog.open(event.currentTarget)}
 					>
-						<svg class="icon" aria-hidden="true" focusable="false">
-							<use href="#icon-download" />
-						</svg>
+						<Icon id="icon-download" />
 						Export
 					</button>
 				</div>
@@ -264,9 +253,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					aria-haspopup="dialog"
 					onClick={(event) => displayDialog.open(event.currentTarget)}
 				>
-					<svg class="icon" aria-hidden="true" focusable="false">
-						<use href="#icon-display" />
-					</svg>
+					<Icon id="icon-display" />
 					Diagram
 				</button>
 			</header>
@@ -304,9 +291,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					}}
 					renderLabel={(option) => (
 						<>
-							<svg class="icon" aria-hidden="true" focusable="false">
-								<use href={`#${option.iconId}`} />
-							</svg>
+							<Icon id={option.iconId} />
 							<span class="choice-option-label">{option.label}</span>
 						</>
 					)}
@@ -364,9 +349,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						onSelect={(value) => actions.setDiagramSetting("linkColor", value)}
 						renderLabel={(option) => (
 							<>
-								<svg class="icon" aria-hidden="true" focusable="false">
-									<use href={`#${option.iconId}`} />
-								</svg>
+								<Icon id={option.iconId} />
 								<span class="choice-option-label">{option.shortLabel}</span>
 							</>
 						)}
@@ -384,9 +367,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						onSelect={(value) => actions.setDiagramSetting("alignment", value)}
 						renderLabel={(option) => (
 							<>
-								<svg class="icon" aria-hidden="true" focusable="false">
-									<use href={`#${option.iconId}`} />
-								</svg>
+								<Icon id={option.iconId} />
 								<span class="choice-option-label">{option.label}</span>
 							</>
 						)}

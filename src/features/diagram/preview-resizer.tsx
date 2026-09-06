@@ -1,5 +1,6 @@
 import type { JSX, RefObject } from "preact";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { Icon } from "../../shared/icon";
 
 export const PREVIEW_HEIGHT_STORAGE_KEY = "sankey-builder-preview-height";
 export const MIN_PREVIEW_HEIGHT = 240;
@@ -136,9 +137,7 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 				title="Make preview smaller"
 				onClick={() => apply(heightRef.current - PREVIEW_HEIGHT_STEP)}
 			>
-				<svg class="icon" aria-hidden="true" focusable="false">
-					<use href="#icon-minus" />
-				</svg>
+				<Icon id="icon-minus" />
 			</button>
 			<div
 				id="preview-splitter"
@@ -165,9 +164,7 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 				title="Make preview larger"
 				onClick={() => apply(heightRef.current + PREVIEW_HEIGHT_STEP)}
 			>
-				<svg class="icon" aria-hidden="true" focusable="false">
-					<use href="#icon-plus" />
-				</svg>
+				<Icon id="icon-plus" />
 			</button>
 			<button
 				type="button"
@@ -176,9 +173,7 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 				title="Reset preview size"
 				onClick={() => apply(DEFAULT_PREVIEW_HEIGHT)}
 			>
-				<svg class="icon" aria-hidden="true" focusable="false">
-					<use href="#icon-reset" />
-				</svg>
+				<Icon id="icon-reset" />
 			</button>
 		</>
 	);

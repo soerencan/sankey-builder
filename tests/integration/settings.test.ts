@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
-import { paletteColors } from "../../src/features/diagram/colors";
 import {
 	ALIGNMENT_CHOICES,
 	ASPECT_RATIO_CHOICES,
@@ -11,6 +10,7 @@ import {
 	SETTING_LABELS,
 	THEME_CHOICES,
 } from "../../src/features/settings/options";
+import { paletteColors } from "../../src/features/settings/palettes";
 import { defaultState } from "../../src/model/graph";
 import {
 	accessibleName,
