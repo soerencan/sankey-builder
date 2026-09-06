@@ -1,9 +1,9 @@
 import type { Theme } from "../../model/settings";
 import { ChoiceDialog } from "../../shared/choice-dialog";
-import { ChoiceGroup } from "../../shared/choice-group";
 import { Icon } from "../../shared/icon";
 import { useDialog } from "../../shared/use-dialog";
-import { SETTING_LABELS, THEME_CHOICES, THEME_ICONS } from "./options";
+import { ThemeChoices } from "./choices";
+import { SETTING_LABELS, THEME_ICONS } from "./options";
 
 export interface ThemeControlActions {
 	setTheme(theme: Theme): void;
@@ -33,22 +33,13 @@ export function ThemeControl({ theme, actions }: ThemeControlProps) {
 			</button>
 
 			<ChoiceDialog id="theme-dialog" heading="Theme" handle={dialog}>
-				<ChoiceGroup
-					options={THEME_CHOICES}
+				<ThemeChoices
 					value={theme}
 					label="Theme"
-					class="choice-options"
-					optionClass="choice-option"
 					onSelect={(value) => {
 						actions.setTheme(value);
 						dialog.close();
 					}}
-					renderLabel={(option) => (
-						<>
-							<Icon id={option.iconId} />
-							<span class="choice-option-label">{option.label}</span>
-						</>
-					)}
 				/>
 			</ChoiceDialog>
 		</>

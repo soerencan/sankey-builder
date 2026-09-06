@@ -1,46 +1,27 @@
 import type { RefObject } from "preact";
-import type { AspectRatio, DiagramSettingKey, Palette, Settings } from "../../model/settings";
+import type { DiagramSettingKey, Settings } from "../../model/settings";
 import { SETTING_DOMAINS } from "../../model/settings";
 import { ChoiceDialog } from "../../shared/choice-dialog";
 import type { AccessibleName } from "../../shared/choice-group";
-import { ChoiceGroup } from "../../shared/choice-group";
 import { Icon } from "../../shared/icon";
 import type { IoNoticeActions } from "../../shared/notice";
 import type { DialogHandle } from "../../shared/use-dialog";
 import { useDialog } from "../../shared/use-dialog";
 import { download } from "../files/download";
 import {
-	ALIGNMENT_CHOICES,
-	ASPECT_RATIO_CHOICES,
-	LINK_COLOR_CHOICES,
-	LINK_COLOR_ICONS,
-	PALETTE_CHOICES,
-	SETTING_LABELS,
-} from "../settings/options";
-import { paletteColors } from "../settings/palettes";
+	AlignmentChoices,
+	AspectRatioChoices,
+	LinkColorChoices,
+	PaletteChoices,
+	SwatchStrip,
+} from "../settings/choices";
+import { LINK_COLOR_ICONS, SETTING_LABELS } from "../settings/options";
 import { rasterizeSvg, serializeDiagramSvg, svgViewBoxSize } from "./export";
 
 const EXPORT_SVG_FILENAME = "sankey.svg";
 const EXPORT_PNG_FILENAME = "sankey.png";
 // 2x for hidpi-crisp output.
 const PNG_EXPORT_SCALE = 2;
-
-// Palettes with more colors are truncated so preview and dialog rows keep a
-// consistent width.
-const SWATCH_COUNT = 5;
-
-/**
- * ":" is swapped for "-" because a colon in a class selector needs escaping.
- * A `Record` rather than a string-munging function so that a new
- * `AspectRatio` without a matching style.css rule is a compile error.
- */
-const RATIO_PREVIEW_CLASSES: Record<AspectRatio, string> = {
-	"a-series": "ratio-preview-a-series",
-	"3:2": "ratio-preview-3-2",
-	"16:9": "ratio-preview-16-9",
-	"2:1": "ratio-preview-2-1",
-	"3:1": "ratio-preview-3-1",
-};
 
 export interface DiagramPanelActions extends IoNoticeActions {
 	setDiagramSetting<K extends DiagramSettingKey>(key: K, value: Settings[K]): void;
@@ -59,7 +40,7 @@ type ExportOptionsProps = {
 	onExportPng(): void;
 } & AccessibleName;
 
-/** Not a ChoiceGroup: these are one-shot actions with no current value to mark. */
+/** Not a choice component: these are one-shot actions with no current value to mark. */
 function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOptionsProps) {
 	return (
 		<div
@@ -79,17 +60,7 @@ function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOp
 	);
 }
 
-function SwatchStrip({ palette }: { palette: Palette }) {
-	return (
-		<span class="swatch-strip">
-			{paletteColors(palette)
-				.slice(0, SWATCH_COUNT)
-				.map((color) => (
-					<span key={color} class="swatch" style={{ backgroundColor: color }} />
-				))}
-		</span>
-	);
-}
+type SerializedDiagram = { svg: SVGSVGElement; xml: string };
 
 /**
  * Exports what is on screen: while the state is invalid the controller keeps
@@ -98,7 +69,7 @@ function SwatchStrip({ palette }: { palette: Palette }) {
 function serializeVisibleDiagram(
 	diagramEl: HTMLElement,
 	actions: DiagramPanelActions,
-): { svg: SVGSVGElement; xml: string } | null {
+): SerializedDiagram | null {
 	const svgEl = diagramEl.querySelector("svg");
 	if (!svgEl) {
 		actions.reportIoError("Nothing to export — the diagram is empty.");
@@ -126,33 +97,37 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 		actions.setDiagramSetting("palette", palettes[next]);
 	}
 
-	function exportSvg(dialog: DialogHandle): void {
+	/**
+	 * The shared prologue of both export handlers: clear the I/O notice, read
+	 * the live diagram element, and serialize what is on screen. `fn` runs
+	 * only when there is something to export; the dialog closes in every
+	 * case, including when there is nothing to export.
+	 */
+	function withVisibleDiagram(
+		dialog: DialogHandle,
+		fn: (diagramEl: HTMLElement, result: SerializedDiagram) => void,
+	): void {
 		actions.clearIoNotice();
 		const diagramEl = diagramRef.current;
-		if (!diagramEl) {
-			dialog.close();
-			return;
+		if (diagramEl) {
+			const result = serializeVisibleDiagram(diagramEl, actions);
+			if (result) fn(diagramEl, result);
 		}
-		const result = serializeVisibleDiagram(diagramEl, actions);
-		if (result) {
+		dialog.close();
+	}
+
+	function exportSvg(dialog: DialogHandle): void {
+		withVisibleDiagram(dialog, (diagramEl, result) => {
 			download(
 				diagramEl.ownerDocument,
 				new Blob([result.xml], { type: "image/svg+xml" }),
 				EXPORT_SVG_FILENAME,
 			);
-		}
-		dialog.close();
+		});
 	}
 
 	function exportPng(dialog: DialogHandle): void {
-		actions.clearIoNotice();
-		const diagramEl = diagramRef.current;
-		if (!diagramEl) {
-			dialog.close();
-			return;
-		}
-		const result = serializeVisibleDiagram(diagramEl, actions);
-		if (result) {
+		withVisibleDiagram(dialog, (diagramEl, result) => {
 			const { width, height } = svgViewBoxSize(result.svg);
 			rasterizeSvg(result.xml, width, height, PNG_EXPORT_SCALE, signal)
 				.then((blob) => {
@@ -167,8 +142,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					console.error(err);
 					actions.reportIoError("PNG export failed. Try the SVG export instead.");
 				});
-		}
-		dialog.close();
+		});
 	}
 
 	return (
@@ -215,15 +189,11 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						Links
 						<Icon id={LINK_COLOR_ICONS[settings.linkColor]} />
 					</button>
-					<ChoiceGroup
-						options={ALIGNMENT_CHOICES}
+					<AlignmentChoices
 						value={settings.alignment}
 						label="Alignment"
-						class="align-group"
-						optionClass="align-option"
-						ariaLabel={(option) => option.label}
+						variant="segmented"
 						onSelect={(value) => actions.setDiagramSetting("alignment", value)}
-						renderLabel={(option) => <Icon id={option.iconId} />}
 					/>
 					<button
 						type="button"
@@ -259,65 +229,36 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 			</header>
 
 			<ChoiceDialog id="palette-dialog" heading="Palette" handle={paletteDialog}>
-				<ChoiceGroup
-					options={PALETTE_CHOICES}
+				<PaletteChoices
 					value={settings.palette}
 					label="Palette"
-					class="palette-options"
-					optionClass="palette-option"
 					onSelect={(value) => {
 						actions.setDiagramSetting("palette", value);
 						paletteDialog.close();
 					}}
-					renderLabel={(option) => (
-						<>
-							<span class="palette-option-label">{option.label}</span>
-							<SwatchStrip palette={option.value} />
-						</>
-					)}
 				/>
 			</ChoiceDialog>
 
 			<ChoiceDialog id="links-dialog" heading="Link colors" handle={linksDialog}>
-				<ChoiceGroup
-					options={LINK_COLOR_CHOICES}
+				<LinkColorChoices
 					value={settings.linkColor}
 					label="Link colors"
-					class="choice-options"
-					optionClass="choice-option"
+					variant="full"
 					onSelect={(value) => {
 						actions.setDiagramSetting("linkColor", value);
 						linksDialog.close();
 					}}
-					renderLabel={(option) => (
-						<>
-							<Icon id={option.iconId} />
-							<span class="choice-option-label">{option.label}</span>
-						</>
-					)}
 				/>
 			</ChoiceDialog>
 
 			<ChoiceDialog id="aspect-ratio-dialog" heading="Aspect ratio" handle={aspectRatioDialog}>
-				<ChoiceGroup
-					options={ASPECT_RATIO_CHOICES}
+				<AspectRatioChoices
 					value={settings.aspectRatio}
 					label="Aspect ratio"
-					class="choice-options aspect-ratio-options"
-					optionClass="choice-option"
 					onSelect={(value) => {
 						actions.setDiagramSetting("aspectRatio", value);
 						aspectRatioDialog.close();
 					}}
-					renderLabel={(option) => (
-						<>
-							<span
-								class={`ratio-preview ${RATIO_PREVIEW_CLASSES[option.value]}`}
-								aria-hidden="true"
-							/>
-							<span class="choice-option-label">{option.label}</span>
-						</>
-					)}
 				/>
 			</ChoiceDialog>
 
@@ -340,58 +281,30 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 			<ChoiceDialog id="display-dialog" heading="Diagram" handle={displayDialog}>
 				<div class="dialog-section">
 					<h4 id="display-link-colors-heading">Link colors</h4>
-					<ChoiceGroup
-						options={LINK_COLOR_CHOICES}
+					<LinkColorChoices
 						value={settings.linkColor}
 						labelledBy="display-link-colors-heading"
-						class="choice-options"
-						optionClass="choice-option"
+						variant="short"
 						onSelect={(value) => actions.setDiagramSetting("linkColor", value)}
-						renderLabel={(option) => (
-							<>
-								<Icon id={option.iconId} />
-								<span class="choice-option-label">{option.shortLabel}</span>
-							</>
-						)}
 					/>
 				</div>
 
 				<div class="dialog-section">
 					<h4 id="display-alignment-heading">Alignment</h4>
-					<ChoiceGroup
-						options={ALIGNMENT_CHOICES}
+					<AlignmentChoices
 						value={settings.alignment}
 						labelledBy="display-alignment-heading"
-						class="choice-options"
-						optionClass="choice-option"
+						variant="list"
 						onSelect={(value) => actions.setDiagramSetting("alignment", value)}
-						renderLabel={(option) => (
-							<>
-								<Icon id={option.iconId} />
-								<span class="choice-option-label">{option.label}</span>
-							</>
-						)}
 					/>
 				</div>
 
 				<div class="dialog-section">
 					<h4 id="display-aspect-ratio-heading">Aspect ratio</h4>
-					<ChoiceGroup
-						options={ASPECT_RATIO_CHOICES}
+					<AspectRatioChoices
 						value={settings.aspectRatio}
 						labelledBy="display-aspect-ratio-heading"
-						class="choice-options aspect-ratio-options"
-						optionClass="choice-option"
 						onSelect={(value) => actions.setDiagramSetting("aspectRatio", value)}
-						renderLabel={(option) => (
-							<>
-								<span
-									class={`ratio-preview ${RATIO_PREVIEW_CLASSES[option.value]}`}
-									aria-hidden="true"
-								/>
-								<span class="choice-option-label">{option.label}</span>
-							</>
-						)}
 					/>
 				</div>
 
