@@ -38,10 +38,10 @@ through in a real browser after any change.
 
 ## Development
 
-Developing the app needs [bun](https://bun.sh) — that's the only required
-tool. Install dependencies once with `bun install`. Tooling runs on Node 24
-(managed via nvm / `.nvmrc`) and Bun 1.3.14 (already pinned in CI); linting
-and formatting run on Biome, and tests run on Vitest against happy-dom.
+Bun 1.3.14 (pinned in `.bun-version`) runs the dev server and the
+production build. Vitest and `tsc` run on Node 24, managed via nvm
+(`.nvmrc`). Install dependencies once with `bun install`. Linting and
+formatting run on Biome, and tests run on Vitest against happy-dom.
 
 The app is written in TypeScript under `src/`, entered via `src/main.ts` and
 loaded straight from `index.html` as an ES module — there's no committed
