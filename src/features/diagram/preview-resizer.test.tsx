@@ -18,7 +18,7 @@ function mount(): { diagramEl: HTMLElement; container: HTMLElement } {
 	const diagramEl = document.createElement("div");
 	const container = document.createElement("div");
 	document.body.append(diagramEl, container);
-	render(<PreviewResizer diagramRef={{ current: diagramEl }} win={window} />, container);
+	render(<PreviewResizer diagramRef={{ current: diagramEl }} />, container);
 	return { diagramEl, container };
 }
 

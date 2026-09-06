@@ -1,3 +1,4 @@
+import type { JSX } from "preact";
 import { useRef } from "preact/hooks";
 import type { NodeView } from "../../app/view";
 import type { Diagram, Link, State } from "../../model/graph";
@@ -16,8 +17,6 @@ export interface DataPanelActions extends IoNoticeActions {
 }
 
 export interface DataPanelProps {
-	doc: Document;
-	win: Window;
 	/** The live domain state — read directly (not a projected view) so JSON export serializes exactly what diagram-file.ts's serializeState already defines. */
 	state: State;
 	nodes: readonly NodeView[];
@@ -25,7 +24,7 @@ export interface DataPanelProps {
 	nodeActions: NodeEditorActions;
 	linkActions: LinkEditorActions;
 	actions: DataPanelActions;
-	/** The owning app instance's AbortSignal — guards the async import file read; see diagram-panel.tsx's exportPng for the same pattern. */
+	/** The owning app instance's AbortSignal — aborted on destroy, so a file read that completes afterward publishes nothing. */
 	signal: AbortSignal;
 }
 
@@ -35,8 +34,6 @@ export interface DataPanelProps {
  * than a DOM id lookup, matching how DiagramPanel owns its own dialogs/refs.
  */
 export function DataPanel({
-	doc,
-	win,
 	state,
 	nodes,
 	links,
@@ -47,10 +44,10 @@ export function DataPanel({
 }: DataPanelProps) {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	function handleExport(): void {
+	function handleExport(event: JSX.TargetedMouseEvent<HTMLButtonElement>): void {
 		actions.clearIoNotice();
 		const blob = new Blob([serializeState(state)], { type: "application/json" });
-		download(doc, win, blob, EXPORT_JSON_FILENAME);
+		download(event.currentTarget.ownerDocument, blob, EXPORT_JSON_FILENAME);
 	}
 
 	async function handleFileChange(): Promise<void> {

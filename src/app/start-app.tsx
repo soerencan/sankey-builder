@@ -43,36 +43,24 @@ function requireRoot(doc: Document, id: string): HTMLElement {
 }
 
 /**
- * Boots one application instance against `doc`. Every setup module below is
- * markup-agnostic and reads no ambient `window`/`document`/`localStorage`
- * itself — this is the sole owner of state, the action objects, and the
- * app-scoped AbortController, so a second `startApp` call after `destroy()`
- * on the first never shares mutable state or duplicated listeners with it.
- * Calling `startApp` again without destroying the first instance is not
- * supported — both instances would bind listeners to the same document.
+ * Boots one application instance against `doc`, the one point where a test
+ * can hand it a fresh document. This is the sole owner of state, the action
+ * objects, and the app-scoped AbortController, so a second `startApp` call
+ * after `destroy()` on the first never shares mutable state or duplicated
+ * listeners with it. Calling `startApp` again without destroying the first
+ * instance is not supported — both instances would bind listeners to the
+ * same document.
  */
 export function startApp(doc: Document = globalThis.document): AppHandle {
-	const view = doc.defaultView;
-	if (!view) throw new Error("startApp: document has no defaultView/window to bind to");
-	// Re-bound to a non-nullable type (rather than relying on narrowing of
-	// `view`) so closures below — renderApp() and the action objects — don't
-	// need their own null checks.
-	const win: Window = view;
-
 	// The single Preact root — resolved once, up front, so a markup regression
 	// fails loudly at boot rather than silently no-op-ing on every render below.
 	const appRoot = requireRoot(doc, "app");
 
-	// win.AbortController, not the bare global: `doc` may belong to a window
-	// other than this module's own ambient one (e.g. a second startApp()
-	// instance mounted into another window). The `?? globalThis.AbortController`
-	// fallback only matters for a window lacking its own constructor — not a
-	// case any real browser hits, but cheap insurance.
-	const controller = new (win.AbortController ?? globalThis.AbortController)();
+	const controller = new AbortController();
 	const { signal } = controller;
 	let destroyed = false;
 
-	const state: State = loadState(win.localStorage);
+	const state: State = loadState(localStorage);
 
 	// The last-valid diagram render request. Reassigned wholesale, never
 	// mutated in place, so SankeyCanvas can key its redraw off reference
@@ -94,8 +82,6 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	function renderApp(): void {
 		render(
 			<App
-				doc={doc}
-				win={win}
 				state={state}
 				theme={state.settings.theme}
 				nodes={projectNodes(state)}
@@ -122,7 +108,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	 */
 	function persist(io?: Notice): void {
 		notices.io = io;
-		const saved = saveState(win.localStorage, state);
+		const saved = saveState(localStorage, state);
 		notices.storage = saved
 			? undefined
 			: { kind: "storage", tone: "warning", message: STORAGE_NOTICE };

@@ -41,8 +41,6 @@ export interface PreviewResizerProps {
 	 * and event handlers below, never during render.
 	 */
 	diagramRef: RefObject<HTMLElement>;
-	/** The realm to read/write localStorage on and to attach the window-level drag listeners to. */
-	win: Window;
 }
 
 interface DragState {
@@ -69,9 +67,9 @@ interface DragState {
  * stale value for a second interaction landing before that microtask flush
  * (e.g. two quick clicks, or successive pointermoves during one drag).
  */
-export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
+export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 	const splitterRef = useRef<HTMLDivElement>(null);
-	const [height, setHeight] = useState(() => loadPreviewHeight(win.localStorage));
+	const [height, setHeight] = useState(() => loadPreviewHeight(localStorage));
 	const heightRef = useRef(height);
 	const dragRef = useRef<DragState | null>(null);
 
@@ -79,7 +77,7 @@ export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 		const clamped = clampPreviewHeight(next);
 		heightRef.current = clamped;
 		setHeight(clamped);
-		persistPreviewHeight(win.localStorage, clamped);
+		persistPreviewHeight(localStorage, clamped);
 	}
 
 	// Keyed on height (and the stable diagramRef), so it also covers the
@@ -92,8 +90,9 @@ export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 
 	// Mount-once effect (empty dependency array): owns the window-level
 	// pointermove/pointerup/pointercancel listeners a drag needs even once the
-	// pointer leaves the splitter.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: win is a per-instance prop that never changes.
+	// pointer leaves the splitter. `apply` only touches refs and the stable
+	// setHeight, so a stale closure over it behaves identically to a fresh one.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: apply is effectively stable; see above.
 	useLayoutEffect(() => {
 		const onPointerMove = (event: PointerEvent) => {
 			const drag = dragRef.current;
@@ -115,14 +114,14 @@ export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 		const onPointerUp = (event: PointerEvent) => endDrag(event.pointerId);
 		const onPointerCancel = (event: PointerEvent) => endDrag(event.pointerId);
 
-		win.addEventListener("pointermove", onPointerMove);
-		win.addEventListener("pointerup", onPointerUp);
-		win.addEventListener("pointercancel", onPointerCancel);
+		window.addEventListener("pointermove", onPointerMove);
+		window.addEventListener("pointerup", onPointerUp);
+		window.addEventListener("pointercancel", onPointerCancel);
 
 		return () => {
-			win.removeEventListener("pointermove", onPointerMove);
-			win.removeEventListener("pointerup", onPointerUp);
-			win.removeEventListener("pointercancel", onPointerCancel);
+			window.removeEventListener("pointermove", onPointerMove);
+			window.removeEventListener("pointerup", onPointerUp);
+			window.removeEventListener("pointercancel", onPointerCancel);
 			// An AbortSignal-driven teardown can't unwind a drag already in
 			// flight — release capture and drop the drag state explicitly so a
 			// pointerup/pointercancel that arrives after unmount is inert.

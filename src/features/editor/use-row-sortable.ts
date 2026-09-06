@@ -1,7 +1,6 @@
 import type { RefObject } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
 import Sortable from "sortablejs";
-import { isHTMLElement } from "../../shared/dom";
 import { destroySortable } from "./row-reorder";
 
 export interface UseRowSortableOptions {
@@ -70,7 +69,9 @@ export function useRowSortable(
 				// (some do, even for a single atomic insertBefore/appendChild).
 				const activeElement = item.ownerDocument.activeElement;
 				const focusedHandle =
-					isHTMLElement(activeElement) && item.contains(activeElement) ? activeElement : null;
+					activeElement instanceof HTMLElement && item.contains(activeElement)
+						? activeElement
+						: null;
 
 				// Sortable has already moved `item` in the live DOM by the time onEnd
 				// fires. Put it back where Preact last rendered it BEFORE dispatching
@@ -91,7 +92,7 @@ export function useRowSortable(
 
 		const onKeyDown = (event: KeyboardEvent) => {
 			const target = event.target;
-			if (!isHTMLElement(target) || !target.classList.contains("drag-handle")) return;
+			if (!(target instanceof HTMLElement) || !target.classList.contains("drag-handle")) return;
 			if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
 			const row = target.closest<HTMLElement>(rowSelector);
 			if (!row) return;

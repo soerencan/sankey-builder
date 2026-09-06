@@ -49,13 +49,15 @@ function makeCountingStorage(): { storage: Storage; setItemCalls: string[] } {
 }
 
 /**
- * Wraps document.createElement to capture every `<img>`/`<a>` it creates
- * while still delegating to the real implementation — happy-dom has no
- * network stack (an `<img>` never fires a real load event) and no canvas
- * adapter (`getContext("2d")` always returns null), so PNG rasterization's
- * pending state has to be driven and inspected by hand through this.
+ * Wraps document.createElement (for the `<a>` download.ts creates) and the
+ * ambient `Image` constructor (for the `<img>` rasterizeSvg constructs) to
+ * capture every instance while still delegating to the real implementation —
+ * happy-dom has no network stack (an `<img>` never fires a real load event)
+ * and no canvas adapter (`getContext("2d")` always returns null), so PNG
+ * rasterization's pending state has to be driven and inspected by hand
+ * through this.
  */
-function interceptCreateElement(): {
+function interceptExportElements(): {
 	images: HTMLImageElement[];
 	anchors: HTMLAnchorElement[];
 	restore: () => void;
@@ -67,11 +69,25 @@ function interceptCreateElement(): {
 		.spyOn(document, "createElement")
 		.mockImplementation((tagName: string, options?: ElementCreationOptions) => {
 			const el = original(tagName, options);
-			if (tagName === "img") images.push(el as HTMLImageElement);
 			if (tagName === "a") anchors.push(el as HTMLAnchorElement);
 			return el;
 		});
-	return { images, anchors, restore: () => spy.mockRestore() };
+	const OriginalImage = globalThis.Image;
+	class TrackedImage extends OriginalImage {
+		constructor(...args: ConstructorParameters<typeof OriginalImage>) {
+			super(...args);
+			images.push(this);
+		}
+	}
+	vi.stubGlobal("Image", TrackedImage);
+	return {
+		images,
+		anchors,
+		restore: () => {
+			spy.mockRestore();
+			vi.unstubAllGlobals();
+		},
+	};
 }
 
 function clickPngExport(): void {
@@ -83,7 +99,7 @@ describe("application lifecycle", () => {
 	it("destroy mid-PNG-rasterization: revokes the object URL exactly once and downloads/reports nothing", async () => {
 		const { app } = mountApp();
 		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
-		const { anchors, restore } = interceptCreateElement();
+		const { anchors, restore } = interceptExportElements();
 		try {
 			clickPngExport();
 			// Destroy lands before any load/error event — this app instance's
@@ -111,7 +127,7 @@ describe("application lifecycle", () => {
 		installMarkup();
 		const first = startApp(document);
 		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
-		const { images, anchors, restore } = interceptCreateElement();
+		const { images, anchors, restore } = interceptExportElements();
 		try {
 			clickPngExport();
 			expect(images).toHaveLength(1);

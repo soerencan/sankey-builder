@@ -66,8 +66,6 @@ export interface DiagramPanelActions extends IoNoticeActions {
 }
 
 export interface DiagramPanelProps {
-	doc: Document;
-	win: Window;
 	/**
 	 * The #diagram host: SankeyCanvas's mount point and the SVG/PNG export
 	 * source. A ref, not the element directly: App renders #diagram and this
@@ -141,16 +139,6 @@ function SwatchStrip({ palette }: { palette: Palette }) {
 }
 
 /**
- * A realm-safe stand-in for `instanceof SVGSVGElement`. Only the root `<svg>`
- * element has this exact tag name; nothing downstream needs an SVG-specific
- * API (serializeDiagramSvg/svgViewBoxSize only call generic Element/Node
- * methods), so tagName alone is enough to duck-type it.
- */
-function isSvgSvgElement(target: Element | null): target is SVGSVGElement {
-	return !!target && target.tagName === "svg";
-}
-
-/**
  * Grabs the on-screen diagram svg and serializes it (see serializeDiagramSvg
  * for why: explicit dimensions, resolved colors, opaque background), shared
  * by both the SVG and PNG export handlers below. Exports whatever is on
@@ -163,11 +151,10 @@ function isSvgSvgElement(target: Element | null): target is SVGSVGElement {
  */
 function serializeVisibleDiagram(
 	diagramEl: HTMLElement,
-	win: Window,
 	actions: DiagramPanelActions,
 ): { svg: SVGSVGElement; xml: string } | null {
 	const svgEl = diagramEl.querySelector("svg");
-	if (!isSvgSvgElement(svgEl)) {
+	if (!svgEl) {
 		actions.reportIoError("Nothing to export — the diagram is empty.");
 		return null;
 	}
@@ -177,8 +164,8 @@ function serializeVisibleDiagram(
 	// the svg is detached from the page. svgEl.parentElement is the
 	// SankeyCanvas host (.sankey-canvas, nested inside diagramEl), since
 	// renderDiagram appends the svg directly into it.
-	const labelColor = win.getComputedStyle(svgEl).color;
-	const background = win.getComputedStyle(svgEl.parentElement as Element).backgroundColor;
+	const labelColor = getComputedStyle(svgEl).color;
+	const background = getComputedStyle(svgEl.parentElement as Element).backgroundColor;
 	return { svg: svgEl, xml: serializeDiagramSvg(svgEl, { labelColor, background }) };
 }
 
@@ -190,14 +177,7 @@ function serializeVisibleDiagram(
  * component, all sharing the `diagramRef` App owns (see app.tsx): this
  * component owns only the controls/dialogs portion of the panel.
  */
-export function DiagramPanel({
-	doc,
-	win,
-	diagramRef,
-	settings,
-	actions,
-	signal,
-}: DiagramPanelProps) {
+export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramPanelProps) {
 	const paletteDialog = useDialog();
 	const linksDialog = useDialog();
 	const aspectRatioDialog = useDialog();
@@ -217,9 +197,13 @@ export function DiagramPanel({
 			dialog.close();
 			return;
 		}
-		const result = serializeVisibleDiagram(diagramEl, win, actions);
+		const result = serializeVisibleDiagram(diagramEl, actions);
 		if (result) {
-			download(doc, win, new Blob([result.xml], { type: "image/svg+xml" }), EXPORT_SVG_FILENAME);
+			download(
+				diagramEl.ownerDocument,
+				new Blob([result.xml], { type: "image/svg+xml" }),
+				EXPORT_SVG_FILENAME,
+			);
 		}
 		dialog.close();
 	}
@@ -231,17 +215,17 @@ export function DiagramPanel({
 			dialog.close();
 			return;
 		}
-		const result = serializeVisibleDiagram(diagramEl, win, actions);
+		const result = serializeVisibleDiagram(diagramEl, actions);
 		if (result) {
 			const { width, height } = svgViewBoxSize(result.svg);
-			rasterizeSvg(doc, win, result.xml, width, height, PNG_EXPORT_SCALE, signal)
+			rasterizeSvg(result.xml, width, height, PNG_EXPORT_SCALE, signal)
 				.then((blob) => {
 					// A stale completion (this app instance destroyed while rasterizing)
 					// must do nothing user-visible. rasterizeSvg itself already rejects
 					// on abort, so this only guards a resolve that raced destroy() in
 					// the same tick.
 					if (signal.aborted) return;
-					download(doc, win, blob, EXPORT_PNG_FILENAME);
+					download(diagramEl.ownerDocument, blob, EXPORT_PNG_FILENAME);
 				})
 				.catch((err) => {
 					if (signal.aborted) return;

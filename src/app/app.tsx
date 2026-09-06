@@ -18,8 +18,6 @@ import { NoticeRegion } from "../shared/notice";
 import type { NodeView } from "./view";
 
 export interface AppProps {
-	doc: Document;
-	win: Window;
 	/** The live domain state — handed straight through to DataPanel for JSON export. */
 	state: State;
 	theme: Theme;
@@ -48,8 +46,6 @@ export interface AppProps {
  * #diagram element.
  */
 export function App({
-	doc,
-	win,
 	state,
 	theme,
 	nodes,
@@ -92,8 +88,6 @@ export function App({
 			<main class="app-layout">
 				<section class="diagram-panel" aria-labelledby="diagram-heading">
 					<DiagramPanel
-						doc={doc}
-						win={win}
 						diagramRef={diagramRef}
 						settings={settings}
 						actions={diagramActions}
@@ -107,14 +101,12 @@ export function App({
 						class="preview-resizer"
 						aria-label="Diagram preview size controls"
 					>
-						<PreviewResizer diagramRef={diagramRef} win={win} />
+						<PreviewResizer diagramRef={diagramRef} />
 					</div>
 				</section>
 
 				<section id="data-panel" class="data-card" aria-labelledby="data-heading">
 					<DataPanel
-						doc={doc}
-						win={win}
 						state={state}
 						nodes={nodes}
 						links={links}

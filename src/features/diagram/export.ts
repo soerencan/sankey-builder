@@ -60,9 +60,7 @@ function rasterizeAbortError(): DOMException {
 /**
  * Rasterizes a standalone svg document (as produced by serializeDiagramSvg)
  * into a PNG blob via an offscreen canvas, drawn at width*scale by
- * height*scale. `win`'s own `URL` creates/revokes the intermediate object
- * URL — not the ambient global — since `doc`/`win` may belong to a window
- * other than this module's own ambient one.
+ * height*scale.
  *
  * `signal` is the owning application instance's AbortSignal. Already aborted,
  * it settles without creating anything; aborted while the image is loading,
@@ -71,8 +69,6 @@ function rasterizeAbortError(): DOMException {
  * destroy can neither call back into this promise nor double-revoke its URL.
  */
 export function rasterizeSvg(
-	doc: Document,
-	win: Window,
 	xml: string,
 	width: number,
 	height: number,
@@ -81,7 +77,7 @@ export function rasterizeSvg(
 ): Promise<Blob> {
 	if (signal.aborted) return Promise.reject(rasterizeAbortError());
 	return new Promise((resolve, reject) => {
-		const url = win.URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
+		const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
 		// Tracked explicitly because the abort path and the img's own
 		// load/error path can both reach a revoke call once the async gap
 		// between onload firing and its canvas/toBlob work finishing lets an
@@ -90,10 +86,10 @@ export function rasterizeSvg(
 		const revoke = () => {
 			if (revoked) return;
 			revoked = true;
-			win.URL.revokeObjectURL(url);
+			URL.revokeObjectURL(url);
 		};
 
-		const img = doc.createElement("img");
+		const img = new Image();
 
 		// Shared by every settle path so a completion racing an abort (or vice
 		// versa) can't call back into this already-settled promise, and so the
@@ -118,7 +114,7 @@ export function rasterizeSvg(
 			// event — the URL leaks and the promise never settles, so the caller's
 			// error notice never shows.
 			try {
-				const canvas = doc.createElement("canvas");
+				const canvas = document.createElement("canvas");
 				canvas.width = width * scale;
 				canvas.height = height * scale;
 				const ctx = canvas.getContext("2d");
