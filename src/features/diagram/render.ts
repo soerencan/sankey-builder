@@ -1,26 +1,9 @@
-import {
-	sankey,
-	sankeyCenter,
-	sankeyJustify,
-	sankeyLeft,
-	sankeyLinkHorizontal,
-	sankeyRight,
-} from "d3-sankey";
-import type { SankeyLink, SankeyNode } from "d3-sankey";
 import { select } from "d3-selection";
-import type { CompleteLink, Link, Node } from "../../model/graph";
-import { isComplete } from "../../model/graph";
-import type { Alignment, DiagramSettings, LinkColorMode } from "../../model/settings";
-import { aspectRatioOption } from "../../model/settings";
+import type { LinkColorMode } from "../../model/settings";
 import { createNodeColorResolver } from "./colors";
 import type { NodeColorResolver } from "./colors";
-
-/** A point-in-time view rather than the live `State`, so nothing the renderer calls can mutate domain data. */
-export interface DiagramSnapshot {
-	readonly nodes: readonly Readonly<Node>[];
-	readonly links: readonly Readonly<Link>[];
-	readonly settings: Readonly<DiagramSettings>;
-}
+import { layoutDiagram } from "./layout";
+import type { DiagramSnapshot, LayoutLink } from "./layout";
 
 /**
  * Wraps the snapshot so SankeyCanvas can key its redraw off reference
@@ -29,68 +12,6 @@ export interface DiagramSnapshot {
  */
 export interface DiagramRenderRequest {
 	readonly state: DiagramSnapshot;
-}
-
-// Not `Record<string, unknown>`: SankeyLink<N, L> is `L & SankeyLinkMinimal`,
-// and `Link`, an interface without an index signature, can't satisfy that
-// intersection. `object` has no index signature to satisfy.
-type LinkExtra = object;
-
-type SankeyGraphNode = SankeyNode<Node, LinkExtra>;
-type SankeyGraphLink = SankeyLink<Node, LinkExtra>;
-
-// @types/d3-sankey marks every layout-computed field optional. Post-layout
-// they are always present, and `??` fallbacks would paper over a real
-// layout bug.
-type LayoutNode = SankeyGraphNode & {
-	x0: number;
-	x1: number;
-	y0: number;
-	y1: number;
-};
-type LayoutLink = Omit<SankeyGraphLink, "source" | "target"> & {
-	source: LayoutNode;
-	target: LayoutNode;
-	width: number;
-	index: number;
-};
-
-const ALIGN_FNS: Partial<Record<Alignment, typeof sankeyJustify>> = {
-	left: sankeyLeft,
-	right: sankeyRight,
-	center: sankeyCenter,
-};
-
-function alignFn(name: Alignment): typeof sankeyJustify {
-	return ALIGN_FNS[name] ?? sankeyJustify;
-}
-
-/**
- * d3-sankey mutates its input (rewrites link endpoints to node objects, adds
- * layout fields), hence the copies. `Node` and `Link` are flat, so a spread
- * is a full copy.
- */
-function layout(
-	nodes: readonly Readonly<Node>[],
-	sourceLinks: readonly CompleteLink[],
-	alignment: Alignment,
-	width: number,
-	height: number,
-): { nodes: LayoutNode[]; links: LayoutLink[] } {
-	const working = {
-		nodes: nodes.map((n) => ({ ...n })),
-		links: sourceLinks.map((l) => ({ ...l })),
-	};
-	const graph = sankey<Node, LinkExtra>()
-		.nodeId((d) => d.id)
-		.nodeAlign(alignFn(alignment))
-		.nodeWidth(15)
-		.nodePadding(10)
-		.extent([
-			[1, 5],
-			[width - 1, height - 5],
-		])(working);
-	return graph as unknown as { nodes: LayoutNode[]; links: LayoutLink[] };
 }
 
 function linkStroke(mode: LinkColorMode, nodeColor: NodeColorResolver): (d: LayoutLink) => string {
@@ -104,22 +25,11 @@ export function renderDiagram(container: HTMLElement, snapshot: DiagramSnapshot)
 	const root = select(container);
 	root.html("");
 
-	// d3-sankey throws a RangeError (`new Array(-1)`) on an empty node list.
-	if (snapshot.nodes.length === 0) return;
-	// With zero complete links d3-sankey produces NaN geometry instead of
-	// throwing.
-	const completeLinks = snapshot.links.filter(isComplete);
-	if (completeLinks.length === 0) return;
+	const layout = layoutDiagram(snapshot);
+	if (!layout) return;
+	const { width, height, nodes, links } = layout;
 
 	const nodeColor = createNodeColorResolver(snapshot.nodes, snapshot.settings.palette);
-	const { width, height } = aspectRatioOption(snapshot.settings.aspectRatio);
-	const { nodes, links } = layout(
-		snapshot.nodes,
-		completeLinks,
-		snapshot.settings.alignment,
-		width,
-		height,
-	);
 
 	const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
 
@@ -157,7 +67,7 @@ export function renderDiagram(container: HTMLElement, snapshot: DiagramSnapshot)
 
 	linkGroup
 		.append("path")
-		.attr("d", sankeyLinkHorizontal())
+		.attr("d", (d) => d.d)
 		.attr("stroke", linkStroke(snapshot.settings.linkColor, nodeColor))
 		.attr("stroke-width", (d) => Math.max(1, d.width));
 
