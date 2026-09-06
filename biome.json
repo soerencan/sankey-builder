@@ -2,7 +2,7 @@
 	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
 	"organizeImports": { "enabled": true },
 	"files": {
-		"ignore": ["dist/**", "style.css"]
+		"ignore": ["dist/**"]
 	},
 	"formatter": {
 		"indentStyle": "tab",
