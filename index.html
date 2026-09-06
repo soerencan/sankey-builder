@@ -152,8 +152,15 @@
 
   <!-- The single Preact application root — startApp() (src/app/start-app.tsx)
        renders the header, notices, diagram panel, and data panel into this
-       element. No other static application markup lives in this document. -->
+       element. The footer stays static: it has no state and no reason to
+       re-render. -->
   <div id="app"></div>
+
+  <footer class="app-footer">
+    <a href="https://github.com/soerencan/sankey-builder">Source on GitHub</a>
+    <a href="https://github.com/soerencan/sankey-builder/blob/main/LICENSE">MIT License</a>
+    <a href="./third-party-licenses.html">Third-party licenses</a>
+  </footer>
 
   <script type="module" src="./src/main.ts"></script>
 </body>

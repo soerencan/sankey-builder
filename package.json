@@ -10,7 +10,7 @@
 		"format": "biome check --write .",
 		"check": "tsc --noEmit",
 		"dev": "bun ./index.html",
-		"build": "rm -rf dist && bun build ./index.html --minify --outdir=dist && bun scripts/third-party-licenses.ts dist/THIRD_PARTY_LICENSES.md",
+		"build": "rm -rf dist && bun build ./index.html --minify --outdir=dist && bun scripts/third-party-licenses.ts dist/third-party-licenses.html",
 		"test": "vitest run",
 		"test:dist": "vitest run tests/build/dist.test.ts",
 		"test:unit": "vitest run --exclude tests/build/dist.test.ts"

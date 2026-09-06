@@ -46,10 +46,12 @@ repeated here.
 ## Layout feel
 
 - [ ] At wide widths, the diagram panel appears first and spans the available content width; the Data card follows below at the same width.
-- [ ] The actual DOM, visual, screen-reader, and keyboard order all agree: app header → diagram → Data header/actions → Nodes → Links.
+- [ ] The actual DOM, visual, screen-reader, and keyboard order all agree: app header → diagram → Data header/actions → Nodes → Links → footer.
 - [ ] When the Data card is sufficiently wide, Nodes and Links render side by side with balanced usable space; resizing through the Data-card container-query breakpoint stacks them cleanly as Nodes then Links.
 - [ ] The Data header actions do not collide with or wrap the Data title into an awkward multi-line header at 360px, 390px, or 768px.
 - [ ] Scrolling is ordinary document scrolling: the diagram moves out of view naturally before the Data sections, without jumps or content passing beneath it.
+- [ ] The footer (Source on GitHub, MIT License, Third-party licenses) sits below the Data card as one centered line at wide widths and wraps to further lines at 360px rather than overflowing; its links stay legible in both themes and are comfortably tappable on a coarse pointer.
+- [ ] Against a served `dist/`, the Third-party licenses link opens the generated page, which renders in the current OS color scheme, lists every bundled package with its license text, and links back to the app.
 
 ## Responsive
 

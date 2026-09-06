@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { collectProductionNotices, renderThirdPartyLicenses } from "./third-party-licenses";
+import { collectProductionNotices, renderThirdPartyLicensesHtml } from "./third-party-licenses";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -117,10 +117,28 @@ describe("against this repository's installed dependencies", () => {
 	});
 
 	it("renders one section per package with its license text", () => {
-		const markdown = renderThirdPartyLicenses(notices);
+		const html = renderThirdPartyLicensesHtml(notices);
 		for (const notice of notices) {
-			expect(markdown).toContain(`## ${notice.name} ${notice.version} (${notice.license})`);
-			expect(markdown).toContain(notice.licenseText);
+			expect(html).toContain(
+				`<h2>${notice.name} ${notice.version} <small>(${notice.license})</small></h2>`,
+			);
+			// Quotes are left alone, so real license texts survive verbatim.
+			expect(html).toContain(notice.licenseText);
 		}
+	});
+});
+
+describe("renderThirdPartyLicensesHtml", () => {
+	it("escapes markup in license text so a notice can't inject into the page", () => {
+		const html = renderThirdPartyLicensesHtml([
+			{
+				name: "x",
+				version: "1.0.0",
+				license: "MIT",
+				licenseText: "<script>alert(1)</script> & co",
+			},
+		]);
+		expect(html).not.toContain("<script>");
+		expect(html).toContain("&#60;script&#62;alert(1)&#60;/script&#62; &#38; co");
 	});
 });

@@ -54,8 +54,10 @@ describe("production build (dist/)", () => {
 		}
 	});
 
-	it("includes the generated THIRD_PARTY_LICENSES.md", () => {
-		const notices = readFileSync(join(DIST_DIR, "THIRD_PARTY_LICENSES.md"), "utf8");
+	it("includes the generated third-party licenses page the footer links to", () => {
+		const footerLink = /<a href="([^"]+)">Third-party licenses<\/a>/.exec(distHtml)?.[1];
+		expect(footerLink).toBeDefined();
+		const notices = readFileSync(join(DIST_DIR, footerLink as string), "utf8");
 		for (const name of [
 			"d3-sankey",
 			"d3-scale",
@@ -64,7 +66,7 @@ describe("production build (dist/)", () => {
 			"preact",
 			"sortablejs",
 		]) {
-			expect(notices).toContain(`## ${name} `);
+			expect(notices).toContain(`<h2>${name} `);
 		}
 	});
 

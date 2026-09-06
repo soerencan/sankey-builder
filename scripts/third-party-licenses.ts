@@ -94,20 +94,47 @@ export function collectProductionNotices(rootDir: string): PackageNotice[] {
 	);
 }
 
-export function renderThirdPartyLicenses(notices: PackageNotice[]): string {
+function escapeHtml(text: string): string {
+	return text.replace(/[&<>]/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
+/** A self-contained page: the site's stylesheet is content-hashed, and pulling it in for one static page isn't worth coupling the generator to the bundle. */
+export function renderThirdPartyLicensesHtml(notices: PackageNotice[]): string {
 	const sections = notices.map(
 		(notice) =>
-			`## ${notice.name} ${notice.version} (${notice.license})\n\n\`\`\`\n${notice.licenseText}\n\`\`\`\n`,
+			`<section>\n<h2>${escapeHtml(notice.name)} ${escapeHtml(notice.version)} <small>(${escapeHtml(notice.license)})</small></h2>\n<pre>${escapeHtml(notice.licenseText)}</pre>\n</section>`,
 	);
-	return [
-		"# Third-Party Licenses",
-		"",
-		"Generated at build time from the installed production dependency closure",
-		"(every package npm installs for the site's runtime dependencies, whether",
-		"or not the emitted bundle still contains its code). Do not edit by hand.",
-		"",
-		...sections,
-	].join("\n");
+	return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Third-Party Licenses · Sankey Builder</title>
+<style>
+:root { color-scheme: light dark; }
+body {
+  margin: 0 auto;
+  padding: 1.5rem;
+  max-width: 44rem;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+  line-height: 1.5;
+  background: light-dark(#f8f9fa, #16191d);
+  color: light-dark(#0d0f12, #f8f9fa);
+}
+a { color: inherit; }
+h2 { font-size: 1.1rem; margin: 2rem 0 0.5rem; }
+h2 small { font-weight: normal; opacity: 0.7; }
+pre { white-space: pre-wrap; font-size: 0.85rem; margin: 0; }
+</style>
+</head>
+<body>
+<h1>Third-Party Licenses</h1>
+<p>Sankey Builder bundles the packages below. Each notice is reproduced from
+the package as installed when the site was built. <a href="./">Back to the app</a>.</p>
+${sections.join("\n")}
+</body>
+</html>
+`;
 }
 
 const isCliEntry =
@@ -119,5 +146,5 @@ if (isCliEntry) {
 		process.exit(2);
 	}
 	const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-	writeFileSync(outFile, renderThirdPartyLicenses(collectProductionNotices(rootDir)));
+	writeFileSync(outFile, renderThirdPartyLicensesHtml(collectProductionNotices(rootDir)));
 }

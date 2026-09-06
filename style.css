@@ -135,6 +135,20 @@ body {
   padding: 1.5rem;
 }
 
+.app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 1.5rem;
+  padding: 0 1.5rem 1.5rem;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--ink) 70%, var(--surface));
+}
+
+.app-footer a {
+  color: inherit;
+}
+
 .data-card {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -872,5 +886,11 @@ dialog .dialog-section + .dialog-section {
   /* Grows the toolbar row to the 44px buttons rather than clipping. */
   .diagram-panel {
     --toolbar-height: 3.75rem;
+  }
+
+  .app-footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
   }
 }

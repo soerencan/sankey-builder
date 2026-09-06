@@ -47,8 +47,9 @@ The app is written in TypeScript under `src/`, entered via `src/main.ts` and
 loaded straight from `index.html` as an ES module — there's no committed
 bundle. `make dev` runs Bun's own dev server (HMR, on-the-fly TS/bundling)
 for local work. `make build` produces the canonical, clean production build:
-a hashed, minified JS/CSS bundle plus a generated `THIRD_PARTY_LICENSES.md`
-in `dist/`, ready to host statically.
+a hashed, minified JS/CSS bundle plus a generated `third-party-licenses.html`
+in `dist/`, ready to host statically. The footer's "Third-party licenses"
+link only resolves against a build, not under `make dev`.
 
 Available `make` targets:
 
@@ -99,6 +100,6 @@ Except for its third-party dependencies, this project is licensed under the
 [MIT License](LICENSE).
 
 The bundle strips the dependencies' license comments, so `make build`
-generates `dist/THIRD_PARTY_LICENSES.md` (`scripts/third-party-licenses.ts`)
-from the installed production dependency closure and ships it alongside the
-site. None of those packages are relicensed under the MIT License above.
+generates `dist/third-party-licenses.html` (`scripts/third-party-licenses.ts`)
+from the installed production dependency closure and the page footer links to
+it. None of those packages are relicensed under the MIT License above.
