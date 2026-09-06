@@ -11,11 +11,7 @@ export interface AppFixture {
 	app: AppHandle;
 }
 
-/**
- * Installs the real index.html body markup and clears localStorage, without
- * booting the app — for tests that assert on static layout, or that manage
- * their own startApp()/destroy() lifecycle (e.g. booting more than once).
- */
+/** For tests that assert on static layout or manage their own startApp()/destroy() lifecycle. */
 export function installMarkup(): void {
 	document.body.innerHTML = bodyMarkup();
 	localStorage.clear();
@@ -23,19 +19,14 @@ export function installMarkup(): void {
 
 let mounted: AppHandle | undefined;
 
-// Registered once, when a test file imports this module — Vitest's default
-// per-file isolation keeps `mounted` and this hook scoped to that file, so
-// each test's app is destroyed without every test having to do it by hand.
+// Vitest's per-file isolation scopes `mounted` and this hook to the
+// importing test file.
 afterEach(() => {
 	mounted?.destroy();
 	mounted = undefined;
 });
 
-/**
- * Boots a real AppHandle against fresh markup and storage for a single test.
- * Not for tests that boot the app more than once — a second call throws;
- * use installMarkup() + startApp() directly instead.
- */
+/** One boot per test; a second call throws. Tests that boot more than once use installMarkup() + startApp() directly. */
 export function mountApp(): AppFixture {
 	if (mounted) {
 		throw new Error(
@@ -59,7 +50,6 @@ export function fireChange(target: Element | null | undefined): void {
 	target?.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-/** Queries `root` and throws if nothing matches — for elements a test needs to exist. */
 export function requireElement<T extends Element>(
 	selector: string,
 	root: ParentNode = document,

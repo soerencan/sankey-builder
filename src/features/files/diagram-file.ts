@@ -6,12 +6,7 @@ export type ImportResult =
 	| { ok: true; diagram: Diagram; repairs: string[] }
 	| { ok: false; error: string };
 
-/**
- * Serializes to the bare {nodes, links, settings} export schema: complete links
- * only (incomplete rows are local working state and never travel), link ids
- * omitted (in-memory identity, not data), settings without theme,
- * pretty-printed for hand-editability.
- */
+/** Incomplete links are local working state and never travel. Pretty-printed for hand-editability. */
 export function serializeState(state: State): string {
 	const exported = {
 		nodes: state.nodes,
@@ -31,11 +26,8 @@ const NOT_A_DIAGRAM =
 	'This file doesn\'t look like a diagram export (expected "nodes" and "links" arrays).';
 
 /**
- * Parses an imported file leniently. The structural gate (valid JSON, plain
- * object, nodes/links arrays) hard-rejects unrelated files so an import can't
- * silently empty the diagram; field-level problems are repaired and reported
- * using the same normalizers the localStorage load path uses. Any `theme` key
- * in the file is ignored entirely — never applied, never a repair.
+ * The structural gate hard-rejects unrelated files so an import can't
+ * silently empty the diagram; field-level problems are repaired and reported.
  */
 export function parseImport(text: string): ImportResult {
 	let parsed: unknown;

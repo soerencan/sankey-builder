@@ -17,21 +17,15 @@ export interface DataPanelActions extends IoNoticeActions {
 }
 
 export interface DataPanelProps {
-	/** The live domain state — read directly (not a projected view) so JSON export serializes exactly what diagram-file.ts's serializeState already defines. */
+	/** The live state, not a projected view: JSON export must serialize exactly what serializeState defines. */
 	state: State;
 	nodes: readonly NodeView[];
 	nodeActions: NodeEditorActions;
 	linkActions: LinkEditorActions;
 	actions: DataPanelActions;
-	/** The owning app instance's AbortSignal — aborted on destroy, so a file read that completes afterward publishes nothing. */
 	signal: AbortSignal;
 }
 
-/**
- * The Data-panel's header (import/JSON-export controls) plus the node and
- * link editors, all under one root. The file input is owned via ref rather
- * than a DOM id lookup, matching how DiagramPanel owns its own dialogs/refs.
- */
 export function DataPanel({
 	state,
 	nodes,
@@ -52,7 +46,7 @@ export function DataPanel({
 		const input = fileInputRef.current;
 		if (!input) return;
 		const file = input.files?.[0];
-		// Reset now, before the read, so re-picking the same file still re-fires 'change'.
+		// Reset before the read so re-picking the same file still fires 'change'.
 		input.value = "";
 		if (!file) return;
 		actions.clearIoNotice();
@@ -61,16 +55,12 @@ export function DataPanel({
 		try {
 			text = await file.text();
 		} catch {
-			// A disk/read error (permissions, the file vanished mid-pick) rejects
-			// here — surface it rather than leaving an unhandled rejection.
 			if (signal.aborted) return;
 			actions.reportIoError("Could not read the selected file. Please try again.");
 			return;
 		}
-		// File.text() isn't cancellable — a stale completion from a destroyed
-		// app instance must do nothing user-visible. Checked again just below,
-		// right before the dispatch, in case destroy() lands between this check
-		// and the synchronous parse.
+		// File.text() isn't cancellable, so a read that completes after
+		// destroy() must do nothing user-visible.
 		if (signal.aborted) return;
 
 		const result = parseImport(text);

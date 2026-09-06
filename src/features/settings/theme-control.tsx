@@ -13,18 +13,11 @@ export interface ThemeControlProps {
 	actions: ThemeControlActions;
 }
 
-// Runtime iteration order follows THEME_OPTIONS's own declaration order:
-// system, light, dark.
 const THEME_CHOICES = Object.entries(THEME_OPTIONS).map(([value, option]) => ({
 	value: value as Theme,
 	...option,
 }));
 
-/**
- * The header's theme button and its dialog — no validation/redraw on
- * selection, since theme is a per-browser preference, not diagram data (see
- * ThemeControlActions.setTheme's caller in start-app.tsx).
- */
 export function ThemeControl({ theme, actions }: ThemeControlProps) {
 	const dialog = useDialog();
 	const { label, iconId } = THEME_OPTIONS[theme];

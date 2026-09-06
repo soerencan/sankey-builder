@@ -4,31 +4,23 @@ import Sortable from "sortablejs";
 import { destroySortable } from "./row-reorder";
 
 export interface UseRowSortableOptions {
-	/** Row element class within the rows container (e.g. "node-row"); also used as the Sortable `group` name. */
+	/** Also the Sortable `group` name. */
 	rowClass: string;
 	onMove(from: number, to: number): void;
 }
 
-// Touch-only hold before a drag arms (delayOnTouchOnly below) — matches the
-// hold-to-lift feel of native mobile list reordering; mouse drags still start
-// immediately. Below this many pixels of finger movement *during* that hold,
-// Sortable cancels the pending drag rather than starting one, so a scroll
-// gesture that starts on a row still scrolls instead of lifting it.
-// touchStartThreshold has no effect without a delay (touch or otherwise) —
-// SortableJS only consults it from the delayed-drag path.
+// Hold-to-lift on touch, so a scroll gesture that starts on a row still
+// scrolls. touchStartThreshold only takes effect together with a delay:
+// SortableJS consults it from the delayed-drag path alone.
 const TOUCH_HOLD_DELAY_MS = 150;
 const TOUCH_START_THRESHOLD_PX = 4;
 
 /**
- * Owns one SortableJS instance (pointer/touch drag) plus the keyboard
- * ArrowUp/ArrowDown reorder path for a Preact-rendered rows container.
- *
- * The rows container is never torn down on a committed move — Preact keeps
- * it and diffs its keyed rows in place across the controller's synchronous
- * re-render — so this effect runs once on mount and cleans up once on
- * unmount (`useLayoutEffect` with an empty dependency array), rather than
- * being recreated on every render. `onMove` is read through a ref so a new
- * closure each render never forces that recreation either.
+ * The effect must run once per mount: Preact keeps the rows container and
+ * diffs its keyed rows in place, so recreating the Sortable instance on
+ * every render would be wasted work and would drop a drag in progress.
+ * `onMove` is read through a ref so a new closure each render doesn't force
+ * that either.
  */
 export function useRowSortable(
 	containerRef: RefObject<HTMLElement>,
@@ -37,12 +29,7 @@ export function useRowSortable(
 	const onMoveRef = useRef(onMove);
 	onMoveRef.current = onMove;
 
-	// containerRef is a ref, not reactive state: adding containerRef.current to
-	// the dependency array below would break the mount-once guarantee this
-	// effect depends on — its value differs between the pre-commit render
-	// pass (still null) and every later one, which would recreate the Sortable
-	// instance on the very next render.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: see above
+	// biome-ignore lint/correctness/useExhaustiveDependencies: containerRef.current is null during the first render pass and set afterwards; depending on it would recreate the Sortable instance on the very next render.
 	useLayoutEffect(() => {
 		const container = containerRef.current;
 		if (!container) return;
@@ -62,27 +49,17 @@ export function useRowSortable(
 			onEnd(event) {
 				const { item, oldIndex, newIndex } = event;
 				if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) return;
-				// A drag can start from a keyboard-focused handle (e.g. Tab, then
-				// pointer/touch drag the same row) — captured before the DOM edit
-				// below so it can be restored afterward regardless of whether this
-				// engine blurs an element on any DOM move of one of its ancestors
-				// (some do, even for a single atomic insertBefore/appendChild).
+				// Some engines blur an element when an ancestor is moved in the
+				// DOM, so a focused handle is captured before the edit below.
 				const activeElement = item.ownerDocument.activeElement;
 				const focusedHandle =
 					activeElement instanceof HTMLElement && item.contains(activeElement)
 						? activeElement
 						: null;
 
-				// Sortable has already moved `item` in the live DOM by the time onEnd
-				// fires. Put it back where Preact last rendered it BEFORE dispatching
-				// the move, so the controller's synchronous re-render reconciles its
-				// keyed list against the DOM order it previously produced — not
-				// against Sortable's own edit, which would otherwise race it.
-				//
-				// `siblings` excludes `item` to reconstruct that pre-drag order, but
-				// the actual DOM edit below is a single insertBefore — which, given a
-				// node already in the tree, moves it there atomically — rather than a
-				// separate remove() followed by a later insert.
+				// Sortable has already moved `item` in the DOM. Put it back where
+				// Preact last rendered it before dispatching, so the synchronous
+				// re-render reconciles against the order it produced, not Sortable's.
 				const siblings = Array.from(container.children).filter((child) => child !== item);
 				container.insertBefore(item, siblings[oldIndex] ?? null);
 				onMoveRef.current(oldIndex, newIndex);
@@ -102,9 +79,8 @@ export function useRowSortable(
 			const to = event.key === "ArrowUp" ? from - 1 : from + 1;
 			if (from < 0 || to < 0 || to >= rows.length) return;
 			onMoveRef.current(from, to);
-			// onMove's controller path renders synchronously, and Preact reuses
-			// this same handle element across the keyed re-render, so it can be
-			// refocused immediately rather than deferred to a later effect.
+			// The re-render is synchronous and keyed, so this is still the same
+			// handle element.
 			target.focus();
 		};
 		container.addEventListener("keydown", onKeyDown);
@@ -113,8 +89,5 @@ export function useRowSortable(
 			container.removeEventListener("keydown", onKeyDown);
 			destroySortable(instance);
 		};
-		// rowClass is a stable literal for the lifetime of one mounted editor —
-		// this dependency array is effectively mount-once, not a signal that the
-		// effect is meant to react to it changing.
 	}, [rowClass]);
 }

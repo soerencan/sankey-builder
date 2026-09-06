@@ -66,7 +66,6 @@ describe("renderDiagram", () => {
 		renderDiagram(diagram, snapshotOf(state));
 
 		expect(diagram.querySelector("svg")).not.toBeNull();
-		// All 4 nodes still render; only the 3 complete links become paths.
 		expect(diagram.querySelectorAll("rect")).toHaveLength(4);
 		expect(diagram.querySelectorAll("path")).toHaveLength(3);
 	});

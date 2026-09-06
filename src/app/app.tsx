@@ -19,7 +19,6 @@ import type { NodeView } from "./view";
 export interface AppProps {
 	state: State;
 	nodes: readonly NodeView[];
-	/** At most one per NoticeKind, in the display order NoticeRegion itself fixes. */
 	notices: readonly Notice[];
 	lastValidRequest: DiagramRenderRequest | null;
 	themeActions: ThemeControlActions;
@@ -27,18 +26,14 @@ export interface AppProps {
 	nodeActions: NodeEditorActions;
 	linkActions: LinkEditorActions;
 	dataActions: DataPanelActions;
-	/** The owning app instance's AbortSignal — threaded through to every effect/async call that must ignore a stale generation. */
+	/** Aborted on destroy; async work that completes afterwards must check it. */
 	signal: AbortSignal;
 }
 
 /**
- * The single Preact application root. Composes the header/theme control, the
- * consolidated notice region, the diagram panel (toolbar, D3-owned canvas,
- * and preview resizer), and the data panel — one DOM owner per subtree, D3
- * confined to SankeyCanvas's own host div. `diagramRef` is owned here (not by
- * any single child) because DiagramPanel, SankeyCanvas's host, and
- * PreviewResizer are siblings in this same tree that all read or write the
- * #diagram element.
+ * `diagramRef` lives here rather than in a child because DiagramPanel,
+ * SankeyCanvas's host, and PreviewResizer are siblings that all read or
+ * write the #diagram element.
  */
 export function App({
 	state,
@@ -54,14 +49,10 @@ export function App({
 }: AppProps) {
 	const diagramRef = useRef<HTMLDivElement>(null);
 
-	// The renderer's own viewBox (render.ts) is driven directly by
-	// settings.aspectRatio; these custom properties only size the *preview*
-	// box around that svg. Declared as an ordinary style prop rather than
-	// written imperatively:
-	// Preact's style diff only touches the keys present in the vnode's own
-	// style object across renders, so it never reads or clears
-	// --diagram-preview-height, which PreviewResizer writes straight to the
-	// DOM below.
+	// These size only the preview box; the svg's own viewBox comes from
+	// render.ts. Safe as a style prop even though PreviewResizer writes
+	// --diagram-preview-height to the same element imperatively: Preact's
+	// style diff touches only the keys present in the vnode's style object.
 	const aspectRatio = aspectRatioOption(state.settings.aspectRatio);
 	const diagramStyle = {
 		"--diagram-aspect-ratio": `${aspectRatio.width} / ${aspectRatio.height}`,

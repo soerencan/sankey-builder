@@ -51,12 +51,9 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: make test-unit
 
-  # Artifact boot coverage: runs the canonical production build (make build,
-  # via tests/build/dist.test.ts) and boots the emitted dist/ bundle against a
-  # fresh document, asserting the default diagram renders. dist/ is left in
-  # place afterward (the build runs in beforeAll, nothing cleans up after),
-  # so the Pages artifact uploaded below ships exactly what this check
-  # exercised — deploy never builds a second time.
+  # tests/build/dist.test.ts builds dist/ and leaves it in place, so the
+  # Pages artifact ships exactly the bundle that was boot-tested and deploy
+  # never builds a second time.
   artifact:
     runs-on: ubuntu-latest
     steps:
@@ -73,9 +70,7 @@ jobs:
         with:
           path: dist
 
-  # Deploys the dist/ built and boot-tested by the artifact job. Runs on a
-  # push to main, or a manual redeploy (still gated on main and on every
-  # check job passing), so a commit whose checks fail can't reach Pages.
+  # Gated on every check job so a commit whose checks fail can't reach Pages.
   deploy:
     needs: [lint, typecheck, tests, artifact]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

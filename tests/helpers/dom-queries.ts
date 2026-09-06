@@ -1,9 +1,6 @@
 /**
- * Accessible-role-and-name element queries — the one convention every test
- * uses to locate elements. Only the roles this app's suites actually query
- * are implemented (native HTML semantics plus this app's own explicit
- * role="group"); it's a small hand-written stand-in for testing-library's
- * getByRole, not a general ARIA implementation.
+ * A small stand-in for testing-library's getByRole, not a general ARIA
+ * implementation: only the roles this app's suites query are covered.
  */
 
 const IMPLICIT_ROLE_SELECTORS: Record<string, string> = {
@@ -18,7 +15,7 @@ function roleSelector(role: string): string {
 	return implicit ? `${implicit}, ${explicit}` : explicit;
 }
 
-/** The element's accessible name: aria-labelledby's referenced text, then aria-label, then trimmed text content — the accname spec's own precedence. */
+/** aria-labelledby, then aria-label, then text content: the accname spec's precedence. */
 export function accessibleName(el: Element): string {
 	const labelledBy = el.getAttribute("aria-labelledby");
 	if (labelledBy) {
@@ -30,7 +27,6 @@ export function accessibleName(el: Element): string {
 	return (el.textContent ?? "").trim();
 }
 
-/** Every descendant of `root` matching `role`, optionally filtered to those whose accessible name is exactly `name`. */
 export function allByRole<T extends Element = HTMLElement>(
 	root: ParentNode,
 	role: string,
@@ -40,7 +36,7 @@ export function allByRole<T extends Element = HTMLElement>(
 	return name === undefined ? matches : matches.filter((el) => accessibleName(el) === name);
 }
 
-/** The one descendant of `root` matching `role` (and `name`, if given) — throws if there isn't exactly one. */
+/** Throws unless exactly one element matches. */
 export function byRole<T extends Element = HTMLElement>(
 	root: ParentNode,
 	role: string,

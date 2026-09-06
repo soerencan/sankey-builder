@@ -9,7 +9,7 @@ export function loadState(storage: Storage): State {
 	try {
 		raw = storage.getItem(STORAGE_KEY);
 	} catch {
-		// Unavailable (file://, private mode) — fall back to the default graph.
+		// Storage unavailable (file://, private mode).
 		return defaultState();
 	}
 	if (!raw) return defaultState();
@@ -21,14 +21,9 @@ export function loadState(storage: Storage): State {
 }
 
 /**
- * Best-effort: quota exceeded, private mode, or file:// with storage
- * disabled shouldn't break the app. DOM-free by design — the caller
- * (app/start-app.ts) owns surfacing/clearing the storage notice from this
- * result. Serializes an explicit `{ nodes, links, settings }` shape rather
- * than `state` itself, since `JSON.stringify(state)` would otherwise leak
- * links' in-memory-only ids into storage. Theme and incomplete links (null
- * endpoints) are still persisted — there is no "last-good state" in storage,
- * only the editor's current one, valid or not.
+ * Best-effort: a full quota or private mode must not break the app. Persists
+ * the editor's current state, valid or not and incomplete links included:
+ * there is no "last-good state" in storage.
  */
 export function saveState(storage: Storage, state: State): boolean {
 	try {

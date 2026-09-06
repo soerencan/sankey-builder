@@ -11,12 +11,7 @@ import {
 } from "./settings";
 import { MAX_LINK_VALUE } from "./validation";
 
-/**
- * Normalizes settings, optionally collecting human-readable repair strings for
- * the import path. When `repairs` is omitted (the localStorage load path) the
- * behavior is unchanged and silent. `theme` is normalized silently and never
- * reported — the import path drops it, the load path keeps it.
- */
+/** `theme` is never reported in `repairs`: the import path drops it and the load path keeps it. */
 export function normalizeSettings(settings: unknown, repairs?: string[]): Settings {
 	const s = settings && typeof settings === "object" ? (settings as Record<string, unknown>) : {};
 
@@ -24,17 +19,12 @@ export function normalizeSettings(settings: unknown, repairs?: string[]): Settin
 	if (isPaletteKey(s.palette)) palette = s.palette;
 	else if (s.palette !== undefined) repairs?.push("settings: unknown palette — using default");
 
-	// colorMode: "manual" isn't a supported setting — manual per-node colors
-	// don't exist — so an export/localStorage entry carrying it falls back to
-	// the saved palette. Any other stray colorMode value is ignored silently,
-	// since none of them is a real setting either.
+	// colorMode is a legacy setting; only its "manual" value is worth a repair
+	// notice, since the user loses per-node colors.
 	if (s.colorMode === "manual") {
 		repairs?.push("settings: manual colors are no longer supported — using the saved palette");
 	}
 
-	// An unrecognized linkColor would otherwise render as url() references to
-	// gradients that don't exist — invisible links — so it falls back rather
-	// than passing through like alignment/palette do downstream.
 	let linkColor: LinkColorMode = DEFAULT_SETTINGS.linkColor;
 	if (isLinkColorMode(s.linkColor)) linkColor = s.linkColor;
 	else if (s.linkColor !== undefined) repairs?.push("settings: unknown link color — using default");
@@ -72,11 +62,6 @@ function isRawLink(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object";
 }
 
-/**
- * Normalizes raw nodes, dropping malformed rows (missing id/name). Any other
- * field — including a stray `color` from a manual-color export — is ignored
- * silently by construction: only id/name are copied over.
- */
 export function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] {
 	const nodes: Node[] = [];
 	rawNodes.forEach((value, index) => {
@@ -90,14 +75,8 @@ export function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] 
 }
 
 /**
- * Normalizes raw links against the known node ids. An endpoint that isn't a
- * string or references a missing node is coerced to null (the link becomes an
- * incomplete, inert row) rather than dropping the whole link — no data loss
- * from typo'd or hand-edited storage. A malformed value (legacy `null`,
- * negative, zero, out of range, non-number) is coerced to 1. Reports each
- * coercion when `repairs` is provided. Every link gets a fresh id from
- * nextLinkId(); any `id` present in the input is ignored — it's in-memory
- * identity, not data, so there's nothing to repair or report.
+ * A bad endpoint or value is coerced (to null, i.e. an incomplete row, or to
+ * 1) rather than dropping the link, so hand-edited storage loses no data.
  */
 export function normalizeLinks(
 	rawLinks: unknown[],
@@ -126,12 +105,7 @@ export function normalizeLinks(
 	return links;
 }
 
-/**
- * Shape-validates an unknown parsed payload into a State, dropping/coercing
- * individual malformed rows rather than failing the whole thing. Silent — the
- * import path (features/files/diagram-file.ts) reuses these same normalizers
- * with a repair collector.
- */
+/** The silent load path; import reuses the same normalizers with a repair collector. */
 export function normalizeState(parsed: unknown): State {
 	if (!isRawState(parsed)) return defaultState();
 	const nodes = normalizeNodes(parsed.nodes);
@@ -140,12 +114,10 @@ export function normalizeState(parsed: unknown): State {
 	return { nodes, links, settings: normalizeSettings(parsed.settings) };
 }
 
-/** A non-string or dangling endpoint becomes null; the link stays as an incomplete row. */
 function normalizeEndpoint(value: unknown, nodeIds: Set<string>): string | null {
 	return typeof value === "string" && nodeIds.has(value) ? value : null;
 }
 
-/** State never holds NaN now; only a finite number in (0, MAX_LINK_VALUE] is kept as-is. */
 function isValidLinkValue(value: unknown): value is number {
 	return typeof value === "number" && value > 0 && value <= MAX_LINK_VALUE;
 }

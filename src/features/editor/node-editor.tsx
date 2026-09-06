@@ -14,12 +14,6 @@ export interface NodeEditorProps {
 	actions: NodeEditorActions;
 }
 
-/**
- * Rows are keyed by node id, so a rename/palette-driven re-render patches the
- * existing DOM in place (preserving focus/caret and the Sortable-owned rows
- * container) instead of rebuilding — see use-row-sortable.ts for the
- * container's Sortable/keyboard-reorder ownership.
- */
 export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 	const rowsRef = useRef<HTMLDivElement>(null);
 	useRowSortable(rowsRef, { rowClass: "node-row", onMove: actions.moveNode });
@@ -39,10 +33,8 @@ export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 							class="node-name"
 							aria-label={`Name for ${node.name}`}
 							value={node.name}
-							// Preact sets `value` as a DOM property, not an attribute, but
-							// Sortable's drag ghost is built via cloneNode, which copies
-							// attributes only — mirror it explicitly so the ghost doesn't
-							// degrade to a blank field mid-drag.
+							// Mirrored as an attribute so Sortable's cloneNode drag ghost is
+							// not a blank field.
 							ref={(el) => el?.setAttribute("value", node.name)}
 							onInput={(event) => actions.renameNode(node.id, event.currentTarget.value)}
 						/>

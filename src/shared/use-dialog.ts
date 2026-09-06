@@ -2,9 +2,8 @@ import type { RefObject } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
 
 export interface DialogHandle {
-	/** Attach to the JSX-rendered <dialog>. */
 	ref: RefObject<HTMLDialogElement>;
-	/** Opens the dialog modally and moves focus in; `trigger` is refocused on close. */
+	/** `trigger` is refocused on close. */
 	open(trigger: HTMLElement): void;
 	/** No-op if the dialog isn't currently open. */
 	close(): void;
@@ -14,11 +13,8 @@ const FOCUSABLE_SELECTOR =
 	'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /**
- * Preact-owned open/close/focus wiring for a JSX-rendered <dialog>. Keeps no
- * open state in Preact — showModal()/close() run imperatively on the ref so
- * callers (and tests) stay synchronous. Every caller mounts one <dialog> per
- * hook call, so a single mount-once effect can own its listeners for the
- * component's lifetime.
+ * Open state is not Preact state: showModal()/close() run imperatively on
+ * the ref so callers and tests stay synchronous.
  */
 export function useDialog(): DialogHandle {
 	const dialogRef = useRef<HTMLDialogElement>(null);
@@ -35,20 +31,16 @@ export function useDialog(): DialogHandle {
 		if (!dialog) return;
 		triggerRef.current = trigger;
 		dialog.showModal();
-		// Prefers the currently selected option (aria-pressed) so reopening a
-		// chooser lands on the active setting, falling back to the first
-		// focusable control (e.g. the export dialog, which has none pressed).
+		// Focus lands on the active setting, or the first control in dialogs
+		// without one (export).
 		const pressed = dialog.querySelector<HTMLElement>('[aria-pressed="true"]');
 		const initial = pressed ?? dialog.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
 		initial?.focus();
 	}
 
-	// One native "close" listener covers every close path (explicit close(),
-	// a backdrop click below, or the browser's own Escape handling) with a
-	// single focus-restore site. The delegated click listener covers only the
-	// backdrop path; a dialog's own close button wires its own onClick to
-	// close() instead of relying on a class here.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: mount-once by design — the dialog element's identity is stable for this hook's lifetime, and `close` reads dialogRef.current fresh on every close path rather than needing to be a dependency.
+	// Focus is restored from the native "close" event, the one point every
+	// close path (close(), backdrop click, Escape) goes through.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the dialog element is stable for the hook's lifetime and `close` reads dialogRef.current fresh each call.
 	useLayoutEffect(() => {
 		const dialog = dialogRef.current;
 		if (!dialog) return;

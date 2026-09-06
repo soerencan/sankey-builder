@@ -37,10 +37,7 @@ describe("SankeyCanvas", () => {
 		expect(host?.childElementCount).toBe(0);
 	});
 
-	// Preact effects are keyed on request identity, not on every commit — a
-	// rerender with the *same* request (e.g. from an unrelated theme change)
-	// must not re-run D3, so an existing element's identity and drawing work
-	// both survive untouched.
+	// E.g. a theme change re-renders App with the same request.
 	it("does not rerun D3 on a rerender with the same request identity", () => {
 		const spy = vi.spyOn(renderModule, "renderDiagram");
 		try {

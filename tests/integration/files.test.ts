@@ -21,16 +21,14 @@ import {
 	tick,
 } from "../helpers/mount-app";
 
-// start-app.tsx's own renderApp() calls Preact's render() directly, so
-// wrapping the real implementation (rather than replacing it) lets a test
-// count an import's renders without changing what actually gets committed to
-// the DOM.
+// Wrapping rather than replacing render() lets a test count renders without
+// changing what reaches the DOM.
 vi.mock("preact", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("preact")>();
 	return { ...actual, render: vi.fn(actual.render) };
 });
 
-/** Any delete-node button, identified by its "Delete <name>" accessible name rather than a specific one — scoped to #node-editor so it can't match a link row's "Delete link N" button. */
+/** Scoped to #node-editor so it can't match a link row's "Delete link N". */
 function anyDeleteNodeButton(): HTMLButtonElement | undefined {
 	const nodeEditor = document.getElementById("node-editor") as HTMLElement;
 	return allByRole<HTMLButtonElement>(nodeEditor, "button").find((button) =>
@@ -39,8 +37,7 @@ function anyDeleteNodeButton(): HTMLButtonElement | undefined {
 }
 
 function removeAllNodes(): void {
-	// Query fresh each time: deleting a node rebuilds the editor rows wholesale,
-	// detaching any earlier button reference from the document.
+	// Queried fresh each time: the deleted row's button is detached.
 	let deleteButton = anyDeleteNodeButton();
 	while (deleteButton) {
 		click(deleteButton);
@@ -48,12 +45,7 @@ function removeAllNodes(): void {
 	}
 }
 
-/**
- * A File whose text() resolves only when the returned resolver is called —
- * `File.text()` isn't natively cancellable/controllable, so this shadows the
- * instance method to drive destroy/reboot races against the pending read by
- * hand.
- */
+/** A File whose text() resolves only on demand, to drive destroy/reboot races against the pending read. */
 function deferredFile(): { file: File; resolveText: (text: string) => void } {
 	let resolveText: (text: string) => void = () => {};
 	const textPromise = new Promise<string>((resolve) => {
@@ -72,7 +64,7 @@ describe("import & export", () => {
 	it("imports a constructed file: replaces state, rebuilds editors and diagram, preserves theme", async () => {
 		mountApp();
 
-		// Set a distinct current theme so import-preserves-theme is unambiguous.
+		// A non-default theme so "preserved" is unambiguous.
 		click(document.getElementById("theme-button"));
 		const themeDialog = document.getElementById("theme-dialog") as HTMLDialogElement;
 		click(byRole(themeDialog, "button", "Light"));
@@ -99,15 +91,12 @@ describe("import & export", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
-		// handleFileChange's own clearIoNotice() renders synchronously, before
-		// the async read below even starts — cleared here so the assertion
-		// below counts only the import's own commit().
+		// clearIoNotice() has already rendered synchronously; only the import's
+		// own commit() should count.
 		vi.mocked(render).mockClear();
-		// Flush the async file.text() + parseImport chain.
 		await settle();
 
-		// One commit() call renders the replaced diagram, its notices, and the
-		// preserved theme all at once — not a second render for the notice.
+		// Diagram, notices, and theme land in one render.
 		expect(render).toHaveBeenCalledTimes(1);
 
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(3);
@@ -119,9 +108,7 @@ describe("import & export", () => {
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n1", "n2", "n3"]);
 		expect(stored.settings.palette).toBe("set2");
 		expect(stored.settings.linkColor).toBe("static");
-		// Theme stays the pre-import "light", NOT the file's "dark".
 		expect(stored.settings.theme).toBe("light");
-		// DiagramPanel's carousel preview and links button follow the import too (both from the same commit()).
 		expect(document.getElementById("palette-preview")?.getAttribute("aria-label")).toBe(
 			"Palette: Set 2",
 		);
@@ -129,8 +116,8 @@ describe("import & export", () => {
 			"Links: Neutral",
 		);
 
-		// Import without repairs isn't announced — the changed data is
-		// sufficient feedback.
+		// An import without repairs isn't announced; the changed data is the
+		// feedback.
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 
@@ -142,9 +129,7 @@ describe("import & export", () => {
 				{ id: "n1", name: "X" },
 				{ id: "n2", name: "Y" },
 			],
-			// A dangling target is repaired to null, which installs the warning
-			// this test needs — a plain, repair-free import (see the test above)
-			// installs no notice at all to seed from.
+			// The dangling target's repair installs the warning this test needs.
 			links: [{ source: "n1", target: "gone", value: 3 }],
 			settings: {},
 		};
@@ -158,12 +143,9 @@ describe("import & export", () => {
 		const repairMessage =
 			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.";
 		expect(notice()).toBe(repairMessage);
-		// A repair warning's tone is always "warning".
 		expect(document.getElementById("io-notice")?.className).toBe("notice-warning");
 
-		// An invalid or empty draft never reaches actions.updateLinkValue (see
-		// link-row.tsx's commitDraft), so commit() — and its unconditional
-		// #io-notice clear — never runs; the import notice must stand.
+		// An invalid draft never commits, so it must not clear the notice.
 		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		valueInput.value = "abc";
 		fireInput(valueInput);
@@ -173,9 +155,7 @@ describe("import & export", () => {
 		fireInput(valueInput);
 		expect(notice()).toBe(repairMessage);
 
-		// The import notice is one-shot: the next committed action (here, a
-		// rename) runs commit(), which retires it. n1's name is "X" post-import,
-		// not the original fixture's "Coal".
+		// The notice is one-shot: the next committed action retires it.
 		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for X");
 		nameInput.value = "Renamed";
 		fireInput(nameInput);
@@ -223,9 +203,7 @@ describe("import & export", () => {
 		await settle();
 
 		expect(document.getElementById("io-notice")?.textContent).toContain("diagram export");
-		// An import/export failure's tone is always "error".
 		expect(document.getElementById("io-notice")?.className).toBe("notice-error");
-		// Nothing changed: same storage payload, same diagram, same editor rows.
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
 		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(rectsBefore);
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
@@ -239,7 +217,6 @@ describe("import & export", () => {
 				{ id: "n1", name: "A" },
 				{ id: "n2", name: "B" },
 			],
-			// A dangling target is repaired to null (kept as an incomplete row).
 			links: [{ source: "n1", target: "gone", value: 1 }],
 			settings: {},
 		};
@@ -247,14 +224,12 @@ describe("import & export", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
-		// handleFileChange's own clearIoNotice() renders synchronously, before
-		// the async read below even starts — cleared here so the assertion
-		// below counts only the import's own commit().
+		// clearIoNotice() has already rendered synchronously; only the import's
+		// own commit() should count.
 		vi.mocked(render).mockClear();
 		await settle();
 
-		// One commit() call installs both the replaced diagram and the repair
-		// notice — not a second render for the notice.
+		// Diagram and repair notice land in one render.
 		expect(render).toHaveBeenCalledTimes(1);
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.",
@@ -272,9 +247,7 @@ describe("import & export", () => {
 				{ id: "n1", name: "A" },
 				{ id: "n2", name: "B" },
 			],
-			// n1 -> n2 -> n1 closes a 2-node cycle. link 1's negative value also
-			// needs a repair, so the io notice has something to report alongside
-			// the graph error.
+			// A cycle plus a repairable value, so both notices have content.
 			links: [
 				{ source: "n1", target: "n2", value: -3 },
 				{ source: "n2", target: "n1", value: 2 },
@@ -287,8 +260,7 @@ describe("import & export", () => {
 		fireChange(input);
 		await settle();
 
-		// State is replaced and saved regardless of validity — there is no
-		// "last-good state" in storage, only the last-good diagram.
+		// There is no "last-good state" in storage, only a last-good diagram.
 		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n1", "n2"]);
 		expect(
@@ -300,9 +272,7 @@ describe("import & export", () => {
 
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
-		// commit() leaves lastValidRequest untouched on an invalid graph, so
-		// SankeyCanvas's layout effect never reruns and the previously
-		// rendered diagram is untouched.
+		// Same request reference on an invalid graph, so no redraw.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
@@ -317,14 +287,14 @@ describe("import & export", () => {
 		const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
 		const createElement = vi.spyOn(document, "createElement");
 
-		// Capture mock data before mockRestore() below, which clears mock.calls.
+		// mockRestore() clears mock.calls, so capture first.
 		let blob: Blob | undefined;
 		let createUrlCalls = 0;
 		let revokedUrl: string | undefined;
 		let downloadName: string | undefined;
 		try {
 			click(document.getElementById("export-button"));
-			// revoke is deferred via setTimeout(0) — let it fire before capturing.
+			// download() defers the revoke to a macrotask.
 			await settle();
 		} finally {
 			createUrlCalls = createObjectURL.mock.calls.length;
@@ -368,9 +338,7 @@ describe("import & export", () => {
 	it("starting a new export clears a prior io notice", async () => {
 		mountApp();
 
-		// Seed #io-notice with an import failure — a failed import reports
-		// directly, without going through commit(), so nothing else has
-		// cleared it yet.
+		// Seed #io-notice with an import failure.
 		const file = new File(['{"totally":"unrelated"}'], "notes.json", { type: "application/json" });
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
@@ -403,8 +371,7 @@ describe("import & export", () => {
 			"Nothing to export — the diagram is empty.",
 		);
 
-		// Restore a valid, exportable diagram via import (a complete link, so
-		// renderDiagram draws an svg — a linkless graph draws none).
+		// A complete link, so an svg renders again.
 		const payload = {
 			nodes: [
 				{ id: "n1", name: "X" },
@@ -471,11 +438,8 @@ describe("import & export", () => {
 		fireChange(cycleTarget);
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
-		// A second committed edit while still invalid: state changes (n1's name),
-		// but the graph stays invalid, so the on-screen svg — and therefore the
-		// export below — must keep showing the OLD label. Node count doesn't
-		// change (rectsBefore alone can't tell stale from fresh), so this label
-		// swap is the real discriminator for "export what you see".
+		// A rename while still invalid: the export must show the old label,
+		// which discriminates stale from fresh where the rect count can't.
 		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
 		const oldName = nameInput.value;
 		nameInput.value = "Renamed For Export Test";
@@ -501,20 +465,17 @@ describe("import & export", () => {
 
 		expect(blob).toBeDefined();
 		const svgText = await (blob as Blob).text();
-		// +1: serializeDiagramSvg adds one opaque background rect ahead of the
-		// node rects, not itself a node.
+		// +1 for the background rect serializeDiagramSvg adds.
 		expect((svgText.match(/<rect/g) ?? []).length).toBe(rectsBefore + 1);
 		expect(svgText).toContain(oldName);
 		expect(svgText).not.toContain("Renamed For Export Test");
-		// A successful export installs no visible notice — the download itself
-		// is the feedback.
+		// The download itself is the feedback.
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 
 	it("wires both wide and narrow export choices; empty PNG closes the Diagram dialog", () => {
-		// Rasterization itself (Image/canvas) isn't exercisable under happy-dom —
-		// this only proves the empty-diagram guard fires before any of that runs,
-		// same as the SVG export's guard.
+		// Rasterization isn't exercisable under happy-dom; this only proves the
+		// empty-diagram guard fires first.
 		mountApp();
 
 		expect(allByRole(document, "button", "SVG")).toHaveLength(2);
@@ -545,8 +506,7 @@ describe("import & export", () => {
 		fireChange(input);
 
 		app.destroy();
-		// Unmounts the whole App tree, including the notice region — nothing
-		// left to publish a stale notice into.
+		// The notice region is unmounted: nothing left to publish into.
 		expect(document.getElementById("io-notice")).toBeNull();
 		resolveText(
 			JSON.stringify({
@@ -555,8 +515,6 @@ describe("import & export", () => {
 				settings: {},
 			}),
 		);
-		// Flush the guarded file.text()-then-parseImport chain (same wait files.test.ts's
-		// other import tests use) before asserting on its absent effects.
 		await settle();
 
 		expect(document.getElementById("io-notice")).toBeNull();

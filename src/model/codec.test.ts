@@ -3,11 +3,10 @@ import { normalizeState } from "./codec";
 import type { State } from "./graph";
 import { defaultState, withoutLinkId } from "./graph";
 
-// No import from features/diagram/colors.ts (or anything importing it) in this file — proves
-// codec.ts (and its model/settings.ts dependency, isPaletteKey) stay d3-free at
-// both module-eval and call time.
+// Deliberately imports nothing from features/diagram/colors.ts: proves
+// codec.ts stays d3-free at module-eval and call time.
 
-/** For comparing two independently-produced States whose link ids necessarily differ (nextLinkId never repeats). */
+/** Link ids from two independent loads necessarily differ. */
 function stripLinkIds(state: State) {
 	return { ...state, links: state.links.map(withoutLinkId) };
 }

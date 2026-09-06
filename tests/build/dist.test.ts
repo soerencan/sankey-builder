@@ -14,13 +14,7 @@ const DIST_DIR = join(REPO_ROOT, "dist");
 
 let distHtml: string;
 
-/**
- * Extracts every `<link ... href="...">` / `<script ... src="...">`
- * reference from the built HTML — external or not. Callers assert externality
- * themselves (rather than this function silently dropping externals), so a
- * regression that reintroduces a CDN reference fails loudly instead of just
- * vanishing from the list.
- */
+/** Returns external references too, so a reintroduced CDN reference fails an assertion instead of vanishing from the list. */
 function assetRefs(html: string): string[] {
 	const refs: string[] = [];
 	const tagPattern = /<(?:link|script)\b[^>]*>/gi;
@@ -32,14 +26,12 @@ function assetRefs(html: string): string[] {
 	return refs;
 }
 
-/** True for scheme-relative (`//host/...`) or absolute (`https://...`) URLs. */
 function isExternal(ref: string): boolean {
 	return /^[a-z][a-z0-9+.-]*:/i.test(ref) || ref.startsWith("//");
 }
 
 beforeAll(() => {
-	// The canonical clean production build — same command CI's artifact job
-	// runs via `make test-dist` — so this test exercises exactly what ships.
+	// The same build CI's artifact job ships.
 	execFileSync("bun", ["run", "build"], { cwd: REPO_ROOT });
 	distHtml = readFileSync(join(DIST_DIR, "index.html"), "utf8");
 });
@@ -50,14 +42,13 @@ describe("production build (dist/)", () => {
 		expect(refs.length).toBeGreaterThan(0);
 
 		for (const ref of refs) {
-			// No CDN/external references — everything the build emits must be
-			// local, so the site works with zero runtime third-party trust.
+			// Everything must be local: no runtime third-party trust.
 			expect(isExternal(ref)).toBe(false);
 			expect(ref.startsWith("/")).toBe(false);
 			expect(existsSync(join(DIST_DIR, ref))).toBe(true);
 
-			// A relative URL must resolve underneath whatever subpath the site is
-			// hosted at (e.g. GitHub Pages project sites), not escape it.
+			// Must stay under whatever subpath the site is hosted at (GitHub
+			// Pages project sites).
 			const resolved = new URL(ref, "https://example.test/sankey-builder/");
 			expect(resolved.pathname.startsWith("/sankey-builder/")).toBe(true);
 		}
@@ -68,22 +59,17 @@ describe("production build (dist/)", () => {
 	});
 
 	it("boots the emitted entry against the built markup and renders the default diagram", async () => {
-		// startApp() (invoked by the entry's own top-level call, not a manual
-		// re-invocation here) runs on import — see src/main.ts — so the fixture
-		// document must be installed and already be the global happy-dom
-		// document (per the @vitest-environment pragma above) before the
-		// dynamic import below executes.
+		// The entry calls startApp() at import time, so the markup must be in
+		// place before the dynamic import below.
 		document.body.innerHTML = stripToBodyMarkup(distHtml);
 
 		const entryRef = assetRefs(distHtml).find((ref) => !isExternal(ref) && ref.endsWith(".js"));
 		if (!entryRef) throw new Error("dist/index.html has no local script entry");
 
-		// Rejection fails the test on its own — no wrapping matcher needed.
 		await import(pathToFileURL(join(DIST_DIR, entryRef)).href);
 
 		const diagram = document.getElementById("diagram");
-		// defaultState (src/model/graph.ts) has 4 nodes / 3 links — mirrors
-		// tests/integration/boot.test.ts's "boots without throwing" assertions.
+		// defaultState has 4 nodes / 3 links.
 		expect(diagram?.querySelector("svg")).not.toBeNull();
 		expect(diagram?.querySelectorAll("svg rect")).toHaveLength(4);
 		expect(diagram?.querySelectorAll("svg path")).toHaveLength(3);

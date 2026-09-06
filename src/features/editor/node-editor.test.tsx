@@ -41,8 +41,7 @@ describe("NodeEditor", () => {
 
 			const nameInput = byRole<HTMLInputElement>(row, "textbox", `Name for ${node.name}`);
 			expect(nameInput.value).toBe(node.name);
-			// Mirrored as an attribute too — Sortable's cloneNode drag ghost
-			// copies attributes only, not the live `value` property.
+			// The attribute mirror feeds Sortable's cloneNode drag ghost.
 			expect(nameInput.getAttribute("value")).toBe(node.name);
 
 			byRole(row, "button", `Delete ${node.name}`);

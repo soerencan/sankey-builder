@@ -1,26 +1,19 @@
 /**
- * Every closed application-setting domain, each declared exactly once. D3-free —
- * features/diagram/colors.ts (which owns the actual d3 scheme arrays and ordinal-
- * scale construction) imports this module rather than the other way around, so
- * platform/storage.ts's validation stays d3-free too.
+ * Deliberately d3-free: colors.ts depends on this module, not the reverse,
+ * so storage validation never pulls d3 in.
  */
 
 // --- Palette ---
 
-/** Display order for the toolbar carousel — also features/diagram/colors.ts's PALETTES' full key set. */
+/** Carousel display order; colors.ts's PALETTES must cover exactly this set. */
 export const PALETTE_ORDER = ["observable10", "tableau10", "category10", "set2", "dark2"] as const;
 
 export type Palette = (typeof PALETTE_ORDER)[number];
 
 const PALETTE_KEYS: ReadonlySet<string> = new Set(PALETTE_ORDER);
 
-/**
- * Own-property guard against the prototype chain (e.g. a palette key of
- * "toString" resolving to `Object.prototype.toString` instead of failing
- * the lookup). Backed by a set derived from PALETTE_ORDER, not a labels
- * map — presentation metadata lives in the settings feature's options module,
- * which this module must not depend on.
- */
+// A Set rather than `key in record`, which would accept prototype keys such
+// as "toString".
 export function isPaletteKey(key: unknown): key is Palette {
 	return typeof key === "string" && PALETTE_KEYS.has(key);
 }
@@ -37,7 +30,6 @@ export function isLinkColorMode(value: unknown): value is LinkColorMode {
 
 // --- Alignment ---
 
-/** Canonical value set — the rendered alignment buttons' set is contract-tested against this. */
 export const ALIGNMENTS = ["left", "right", "center", "justify"] as const;
 export type Alignment = (typeof ALIGNMENTS)[number];
 const ALIGNMENT_SET: ReadonlySet<string> = new Set(ALIGNMENTS);
@@ -67,9 +59,8 @@ export interface AspectRatioOption {
 }
 
 // A fixed logical height keeps typography, node width, and padding stable
-// between presets. Integer widths make SVG and canvas export dimensions
-// predictable; A-series and 16:9 are rounded by less than one logical pixel.
-// Display labels live in the settings feature's options module's ASPECT_RATIO_LABELS.
+// between presets. Integer widths make export dimensions predictable;
+// A-series and 16:9 are rounded by less than one logical pixel.
 export const ASPECT_RATIO_OPTIONS: readonly AspectRatioOption[] = [
 	{ value: "a-series", width: 679, height: 480 },
 	{ value: "3:2", width: 720, height: 480 },
@@ -87,7 +78,6 @@ export function isAspectRatio(value: unknown): value is AspectRatio {
 }
 
 export function aspectRatioOption(value: AspectRatio): AspectRatioOption {
-	// Every AspectRatio member has an entry, built from the same array above.
 	return ASPECT_RATIO_OPTIONS_BY_VALUE.get(value) as AspectRatioOption;
 }
 

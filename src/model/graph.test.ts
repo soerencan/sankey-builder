@@ -71,7 +71,6 @@ describe("nextNodeId", () => {
 
 	it("increments past the highest existing numeric suffix", () => {
 		const state = defaultState();
-		// Highest id among n1..n4 is n4.
 		expect(nextNodeId(state)).toBe("n5");
 	});
 

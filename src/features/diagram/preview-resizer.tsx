@@ -27,19 +27,12 @@ function persistPreviewHeight(storage: Storage, value: number): void {
 	try {
 		storage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, String(value));
 	} catch {
-		// Preview sizing remains usable when browser storage is unavailable; it
-		// simply returns to the default in the next session.
+		// Without storage the height simply resets next session.
 	}
 }
 
 export interface PreviewResizerProps {
-	/**
-	 * The #diagram root, which the current height is written to as
-	 * --diagram-preview-height. A ref, not the element directly: App renders
-	 * #diagram and this component as siblings in one tree, so the element
-	 * only exists once the whole tree has committed — read only from effects
-	 * and event handlers below, never during render.
-	 */
+	/** A sibling in App's tree, so it exists only after commit: read it from effects and handlers, never during render. */
 	diagramRef: RefObject<HTMLElement>;
 }
 
@@ -50,22 +43,13 @@ interface DragState {
 }
 
 /**
- * The desktop preview splitter. The preference is intentionally kept outside
- * diagram State: it changes only the displayed viewport, never D3's logical
- * extent or exported JSON/SVG/PNG dimensions — which is also why applying a
- * height writes directly to `diagramRef` below rather than flowing back
- * through the controller's `state`/commit().
+ * The preview height lives outside diagram State and is written straight to
+ * `diagramRef`: it changes only the displayed viewport, never the layout
+ * extent or exported dimensions.
  *
- * `height` is render state: `aria-valuenow`/`aria-valuetext` are JSX
- * expressions derived from it, and the CSS custom-property write on
- * `diagramRef` happens in the layout effect below, keyed on `height` — so
- * both land on the DOM together, on the next render, after any apply().
- * `heightRef` is a separate, synchronously-updated mirror of the same value:
- * a click, keydown, or pointermove computes its next height from "the last
- * height apply() was called with", and Preact's state updates are batched
- * into a microtask, so reading `height` itself inside apply() would see a
- * stale value for a second interaction landing before that microtask flush
- * (e.g. two quick clicks, or successive pointermoves during one drag).
+ * `heightRef` mirrors `height` synchronously because Preact batches state
+ * updates into a microtask: a second click or pointermove landing before the
+ * flush would otherwise compute from a stale height.
  */
 export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 	const splitterRef = useRef<HTMLDivElement>(null);
@@ -80,19 +64,13 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 		persistPreviewHeight(localStorage, clamped);
 	}
 
-	// Keyed on height (and the stable diagramRef), so it also covers the
-	// initial render: diagramRef is a sibling element this component doesn't
-	// render, so JSX alone can't reach it, but by the time any layout effect
-	// runs the whole App tree — including that sibling — has committed.
 	useLayoutEffect(() => {
 		diagramRef.current?.style.setProperty("--diagram-preview-height", `${height}px`);
 	}, [height, diagramRef]);
 
-	// Mount-once effect (empty dependency array): owns the window-level
-	// pointermove/pointerup/pointercancel listeners a drag needs even once the
-	// pointer leaves the splitter. `apply` only touches refs and the stable
-	// setHeight, so a stale closure over it behaves identically to a fresh one.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: apply is effectively stable; see above.
+	// Window-level listeners, since a drag continues once the pointer leaves
+	// the splitter.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: apply only touches refs and the stable setHeight, so a stale closure behaves identically to a fresh one.
 	useLayoutEffect(() => {
 		const onPointerMove = (event: PointerEvent) => {
 			const drag = dragRef.current;
@@ -100,11 +78,8 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 			apply(drag.startHeight + event.clientY - drag.startY);
 		};
 
-		// Shared by pointerup and pointercancel: both simply disarm the drag.
-		// The height already applied mid-drag (via onPointerMove above) is left
-		// as-is — a canceled gesture (e.g. an incoming call or an edge-swipe
-		// interrupting a touch drag) ends the drag at its current position
-		// exactly like a pointerup there would, it just isn't followed by one.
+		// A canceled gesture keeps the height applied so far, like a pointerup
+		// at that position would.
 		const endDrag = (pointerId: number) => {
 			if (!dragRef.current) return;
 			dragRef.current = null;
@@ -122,9 +97,7 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 			window.removeEventListener("pointermove", onPointerMove);
 			window.removeEventListener("pointerup", onPointerUp);
 			window.removeEventListener("pointercancel", onPointerCancel);
-			// This cleanup runs on unmount, which can land mid-drag — release
-			// capture and drop the drag state explicitly so a pointerup/
-			// pointercancel that arrives after unmount is inert.
+			// Unmount can land mid-drag.
 			const drag = dragRef.current;
 			if (drag) {
 				splitterRef.current?.releasePointerCapture?.(drag.pointerId);

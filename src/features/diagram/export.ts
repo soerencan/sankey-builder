@@ -12,13 +12,10 @@ export function svgViewBoxSize(svg: SVGSVGElement): { width: number; height: num
 }
 
 /**
- * Turns the live, on-screen diagram svg into a standalone document: explicit
- * pixel dimensions (the live svg only has a viewBox, which opens at an
- * arbitrary size in a bare viewer), currentColor labels resolved to a
- * concrete color (currentColor falls back to black outside the page), and an
- * opaque background rect (the live svg is transparent, relying on the page's
- * surface color showing through). Operates on a clone — never mutates the
- * svg passed in.
+ * Makes the on-screen svg standalone: explicit dimensions (a viewBox alone
+ * opens at an arbitrary size in a bare viewer), currentColor resolved (it
+ * falls back to black outside the page), and an opaque background (the live
+ * svg relies on the page's surface color showing through).
  */
 export function serializeDiagramSvg(
 	svg: SVGSVGElement,
@@ -46,27 +43,14 @@ export function serializeDiagramSvg(
 	return `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
 }
 
-/**
- * Rejected by rasterizeSvg on every abort path. A caller that needs to tell
- * this apart from a real rasterization failure can check `.name ===
- * "AbortError"`; DiagramPanel's exportPng instead checks its own
- * `signal.aborted` after the promise settles, which is true for the same
- * cases and also covers a stale success racing destroy.
- */
 function rasterizeAbortError(): DOMException {
 	return new DOMException("PNG rasterization was aborted.", "AbortError");
 }
 
 /**
- * Rasterizes a standalone svg document (as produced by serializeDiagramSvg)
- * into a PNG blob via an offscreen canvas, drawn at width*scale by
- * height*scale.
- *
- * `signal` is the owning application instance's AbortSignal. Already aborted,
- * it settles without creating anything; aborted while the image is loading,
- * it detaches the img's handlers, clears its `src` to stop the pending load,
- * and revokes the object URL — so a browser completion that arrives after
- * destroy can neither call back into this promise nor double-revoke its URL.
+ * An abort while the image is loading detaches the img's handlers, stops
+ * the pending load, and revokes the object URL, so a browser completion that
+ * arrives after destroy can neither settle this promise nor double-revoke.
  */
 export function rasterizeSvg(
 	xml: string,
@@ -78,10 +62,8 @@ export function rasterizeSvg(
 	if (signal.aborted) return Promise.reject(rasterizeAbortError());
 	return new Promise((resolve, reject) => {
 		const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
-		// Tracked explicitly because the abort path and the img's own
-		// load/error path can both reach a revoke call once the async gap
-		// between onload firing and its canvas/toBlob work finishing lets an
-		// abort land in between — revoke must still only run once.
+		// An abort can land in the async gap between onload and toBlob, so
+		// both paths may reach revoke.
 		let revoked = false;
 		const revoke = () => {
 			if (revoked) return;
@@ -91,9 +73,8 @@ export function rasterizeSvg(
 
 		const img = new Image();
 
-		// Shared by every settle path so a completion racing an abort (or vice
-		// versa) can't call back into this already-settled promise, and so the
-		// abort listener never outlives this call on the long-lived app signal.
+		// Also detaches the abort listener so it never outlives this call on
+		// the long-lived app signal.
 		const settle = () => {
 			signal.removeEventListener("abort", onAbort);
 			img.onload = null;
@@ -109,10 +90,9 @@ export function rasterizeSvg(
 		signal.addEventListener("abort", onAbort);
 
 		img.onload = () => {
-			// drawImage and toBlob can throw synchronously (e.g. SecurityError on a
-			// tainted canvas); without the catch, that escapes as an uncaught error
-			// event — the URL leaks and the promise never settles, so the caller's
-			// error notice never shows.
+			// drawImage and toBlob can throw synchronously (e.g. SecurityError on
+			// a tainted canvas); uncaught, the URL leaks and the promise never
+			// settles.
 			try {
 				const canvas = document.createElement("canvas");
 				canvas.width = width * scale;

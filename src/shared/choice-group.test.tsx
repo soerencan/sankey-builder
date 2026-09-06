@@ -120,10 +120,7 @@ describe("ChoiceGroup", () => {
 		);
 		const after = allByRole<HTMLButtonElement>(container, "button");
 
-		// Same elements, not new ones — a rerender with a different `value`
-		// patches aria-pressed on the existing buttons rather than remounting.
-		// toEqual would pass on structurally-identical clones too, so identity
-		// is asserted per element with toBe instead.
+		// toBe per element: toEqual would pass on structurally identical clones.
 		expect(after).toHaveLength(before.length);
 		after.forEach((button, index) => expect(button).toBe(before[index]));
 		expect(pressedBefore).toEqual(["true", "false", "false"]);

@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 
-/** An accessible name comes from a visible label (aria-label) or a heading elsewhere in the DOM (aria-labelledby) — never both, never neither. */
+/** Exactly one of aria-label or aria-labelledby. */
 export type AccessibleName =
 	| { label: string; labelledBy?: undefined }
 	| { label?: undefined; labelledBy: string };
@@ -9,24 +9,13 @@ export type ChoiceGroupProps<Option extends { value: string }> = {
 	options: readonly Option[];
 	value: Option["value"];
 	onSelect(value: Option["value"]): void;
-	/** Each option button's content — icon, text, or both; ChoiceGroup owns only the button and its aria-pressed wiring. */
 	renderLabel(option: Option): ComponentChildren;
-	/** Class on the wrapping group element. */
 	class?: string;
-	/** Class on every option button. */
 	optionClass?: string;
-	/** Per-option aria-label, for icon-only buttons that render no visible text (e.g. alignment). Omit when renderLabel's own content already names the button. */
+	/** For icon-only buttons; omit when renderLabel's content already names the button. */
 	ariaLabel?(option: Option): string;
 } & AccessibleName;
 
-/**
- * A "pick one of N" option list rendered as pressed toggle buttons — the one
- * shape every settings chooser (palette, link color, alignment, aspect
- * ratio, theme) and the narrow display sheet's copies of them are built
- * from. Keying by option.value keeps each button's DOM identity stable
- * across a value change, so only aria-pressed (and any renderLabel content
- * derived from `value`) needs to update.
- */
 export function ChoiceGroup<Option extends { value: string }>({
 	options,
 	value,

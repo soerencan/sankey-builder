@@ -1,11 +1,7 @@
-/* Design-token primitives below (gray/indigo/red steps, font-sans, radii,
-   ease-2, shadow-2/shadow-3) are literal values copied from Open Props
-   1.7.14 rather than sourced from a vendored Open Props stylesheet — see
-   THIRD_PARTY_LICENSES.md. The local semantic names — --surface/--ink/
-   --border/--accent/--danger — and the light/dark theme-switching structure
-   are unchanged; only where the raw values come from differs. --border
-   stays a color-mix() off --ink rather than its own step, since that
-   formula already tracks whatever --ink resolves to. */
+/* The token primitives (gray/indigo/red steps, font-sans, radii, ease-2,
+   shadow-2/shadow-3) are literal values copied from Open Props 1.7.14 rather
+   than a vendored stylesheet; see THIRD_PARTY_LICENSES.md. --border is a
+   color-mix() off --ink rather than its own step so it tracks the theme. */
 /* Chromium's UA [hidden] { display: none } rule is scoped to the HTML
    namespace and doesn't reach an SVG-namespace root, so index.html's icon
    sprite (<svg hidden>) needs an explicit rule or it renders as an empty
@@ -40,12 +36,9 @@ svg[hidden] {
   --danger: #c92a2a; /* red-9 */
 }
 
-/* Open Props's own shadow-2/shadow-3 tokens (which shadow-2/shadow-3 above
-   are copied from) resolve through a shadow-color/shadow-strength pair that
-   Open Props itself darkens under this same OS-level media query,
-   independent of any app-level theme toggle — so this override, unlike the
-   ones below, isn't gated by :not([data-theme="light"]); replicating that
-   keeps rendering identical to when Open Props supplied these values. */
+/* Not gated by :not([data-theme="light"]) like the overrides below: Open
+   Props darkens its shadow tokens on the OS media query alone, independent
+   of any app theme toggle, and this replicates that. */
 @media (prefers-color-scheme: dark) {
   :root {
     --shadow-2:
@@ -60,14 +53,10 @@ svg[hidden] {
   }
 }
 
-/* :not([data-theme="light"]) lets an explicit light override win even when
-   the OS prefers dark; the plain [data-theme="dark"] rule below (outside
-   any media query) does the same for the opposite case. Accent/danger get
-   lighter OP steps here rather than reusing the light-mode indigo-7/red-9 —
-   those hold ~3.5:1 and ~3.2:1 against --gray-10, short of the ~4.5:1 AA
-   text threshold that --danger in particular needs (#error, delete buttons
-   render it as text, not just a border). --indigo-3/--red-5 clear ~7.7:1 and
-   ~6.3:1 against --gray-10. */
+/* :not([data-theme="light"]) lets an explicit light choice win even when
+   the OS prefers dark. Accent/danger use lighter steps than light mode's
+   indigo-7/red-9, which fall short of the 4.5:1 AA text contrast against
+   --gray-10 that --danger needs as text (#error, delete buttons). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
@@ -94,9 +83,7 @@ svg[hidden] {
   box-sizing: border-box;
 }
 
-/* Visible to assistive tech, invisible on screen — for headings that give a
-   region its accessible name without duplicating a heading already shown
-   elsewhere (e.g. the diagram toolbar's own "Diagram" h2). */
+/* For headings that name a region without duplicating one already shown. */
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -116,8 +103,6 @@ body {
   color: var(--ink);
 }
 
-/* One line at every supported width: h1 + the theme button, space-between so
-   the button stays pinned to the trailing edge. */
 .app-header {
   display: flex;
   align-items: center;
@@ -136,15 +121,11 @@ body {
   font-size: 1.25rem;
 }
 
-/* Sized to match the diagram toolbar's own buttons (.toolbar-button, shared
-   class) even though this one sits outside .diagram-panel. */
 #theme-button {
   flex: 0 0 auto;
 }
 
-/* One consolidated, full-width region instead of three independently
-   styled/positioned containers — no floating toast, no animation. Each kind
-   slot shares this base styling; only color varies by tone below. */
+/* One in-flow region rather than floating toasts; only color varies by tone. */
 .notice-region > div {
   padding: 0.75rem 1.5rem;
   font-size: 0.85rem;
@@ -236,10 +217,9 @@ input[type="number"],
 select {
   font: inherit;
   accent-color: var(--accent);
-  /* One shared control height: native selects ignore some padding and render
-     shorter than text inputs, which made the stacked control rows look
-     cramped next to the editor boxes. 2.25rem = 36px at the default font
-     size; the pointer-coarse block below still raises everything to 44px. */
+  /* Native selects ignore some padding and render shorter than text inputs,
+     so a shared height keeps stacked control rows even. The pointer-coarse
+     block below raises it to 44px. */
   min-height: 2.25rem;
 }
 
@@ -367,9 +347,8 @@ select {
   box-shadow: 0 0 0 2px var(--danger);
 }
 
-/* Paired with .link-value's aria-describedby. Spans the full row width below
-   the inputs regardless of the current column count, so it works unchanged
-   in both the default 5-column row and the narrow container-query wrap. */
+/* Spans the full row width regardless of column count, so it works unchanged
+   in both the 5-column row and the narrow container-query wrap. */
 .field-error {
   grid-column: 1 / -1;
   color: var(--danger);
@@ -385,10 +364,8 @@ select {
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
 }
 
-/* Row reordering: a grab handle plus drag/keyboard affordances. SortableJS
-   (forceFallback mode) drives the drag itself; the classes below are the
-   ones it toggles via the matching ghostClass/chosenClass/fallbackClass
-   options (src/features/editor/use-row-sortable.ts). */
+/* .row-ghost/.row-chosen/.row-fallback are the classes SortableJS toggles
+   via its ghostClass/chosenClass/fallbackClass options. */
 .drag-handle {
   border: none;
   border-radius: var(--radius-1);
@@ -419,33 +396,28 @@ select {
   cursor: grabbing;
 }
 
-/* The in-list placeholder left at the drop target while the floating clone
-   (.row-fallback, below) tracks the pointer. */
+/* The in-list placeholder at the drop target. */
 .node-row.row-ghost,
 .link-row.row-ghost {
   opacity: 0.4;
 }
 
-/* The source row, styled while it's the active drag target — mirrors the
-   handle's :active cursor onto the whole row so the affordance reads even
-   mid-drag, once the pointer has moved off the handle itself. */
+/* The handle's :active cursor is mirrored onto the whole row so it holds
+   once the pointer has moved off the handle mid-drag. */
 .node-row.row-chosen,
 .link-row.row-chosen {
   cursor: grabbing;
 }
 
-/* The floating clone that follows the pointer (forceFallback mode). A
-   raised shadow reads as "lifted" out of the list, matching the ghost
-   placeholder left behind at the drop target. */
+/* The floating clone that follows the pointer (forceFallback mode). */
 .node-row.row-fallback,
 .link-row.row-fallback {
   box-shadow: var(--shadow-3);
   cursor: grabbing;
 }
 
-/* Card wrapper around the toolbar + diagram. Keeping the border and radius
-   outside .sankey-canvas lets the renderer clear that element wholesale
-   without wiping out the toolbar. */
+/* Border and radius live outside .sankey-canvas so the renderer can clear
+   that element wholesale. */
 .diagram-panel {
   min-width: 0;
   display: flex;
@@ -474,14 +446,9 @@ select {
   border-bottom: 1px solid var(--border);
 }
 
-/* #diagram is just Preact's static mount point for SankeyCanvas — its own
-   box carries no sizing so SankeyCanvas's rendered .sankey-canvas div (the
-   D3-owned host, sole child) can be the real #diagram-panel flex item without
-   an extra nested box. It keeps receiving the --diagram-aspect-ratio/
-   --diagram-aspect-number custom properties app.tsx sets via its style prop
-   and the --diagram-preview-height property preview-resizer.tsx writes
-   directly to it; those inherit into .sankey-canvas unaffected by
-   display: contents. */
+/* display: contents so .sankey-canvas, the sole child, is the real flex item
+   without a nested box. The custom properties app.tsx and preview-resizer.tsx
+   set on #diagram still inherit into it. */
 #diagram {
   display: contents;
 }
@@ -495,14 +462,13 @@ select {
   );
   aspect-ratio: var(--diagram-aspect-ratio, 2 / 1);
   align-self: center;
-  /* Read directly by features/diagram/diagram-panel.tsx (getComputedStyle of
-     the svg's parentElement) as the SVG/PNG export background, so it stays
-     opaque. */
+  /* Read via getComputedStyle as the SVG/PNG export background, so it must
+     stay opaque. */
   background: var(--surface);
 }
 
-/* Match the rendered SVG's 2:1 viewBox when renderDiagram() has no content to
-   append, instead of collapsing the full-width preview to a toolbar sliver. */
+/* Keeps the empty preview at the SVG's aspect instead of collapsing it to a
+   sliver. */
 .sankey-canvas:empty {
   aspect-ratio: var(--diagram-aspect-ratio, 2 / 1);
 }
@@ -559,7 +525,6 @@ select {
    Diagram toolbar: the palette carousel, link-color chooser, and alignment
    group, all in the same row.
    ========================================================================== */
-
 .toolbar-button {
   flex: 0 0 auto;
   display: inline-flex;
@@ -574,9 +539,6 @@ select {
   background: var(--border);
 }
 
-/* The links chooser trigger carries a visible "Links" label alongside its
-   icon, unlike the icon-only carousel buttons above — extra inline padding
-   keeps the label from crowding the button's edges. */
 #links-button,
 #display-button,
 #aspect-ratio-button,
@@ -584,30 +546,22 @@ select {
   padding-inline: 0.6rem;
 }
 
-/* Wide/narrow toolbar swap: .toolbar-wide holds the Links button +
-   alignment group; .toolbar-narrow is the single Diagram trigger. Both live
-   in the DOM at all times (so tests under happy-dom, which doesn't evaluate
-   container queries, can exercise either); only one is shown at a time,
-   switched by the @container rule below. */
+/* Both toolbars stay in the DOM and only one is shown, switched by the
+   @container rule below: happy-dom doesn't evaluate container queries, so
+   tests must be able to reach either. */
 .toolbar-wide {
   display: flex;
   align-items: center;
-  /* Inherits .diagram-toolbar's own gap value rather than hardcoding it a
-     second time, so the two rows of controls space out identically. */
   gap: inherit;
   min-width: 0;
 }
 
 .toolbar-narrow {
   display: none;
-  /* Pushes the Diagram button to the toolbar's trailing edge. Harmless
-     while display:none above. */
   margin-inline-start: auto;
 }
 
-/* The carousel's central trigger — a button, not a plain icon, so its
-   swatch-strip content can also shrink/scroll rather than forcing the
-   toolbar to wrap. */
+/* min-width: 0 so the swatch strip shrinks instead of wrapping the toolbar. */
 #palette-preview {
   flex: 0 1 auto;
   min-width: 0;
@@ -636,9 +590,8 @@ select {
   border: 1px solid var(--border);
 }
 
-/* Segmented toggle group: adjoining buttons share their inner borders (each
-   non-first button overlaps its neighbor by 1px rather than doubling the
-   line), with rounding only at the group's outer ends. */
+/* Segmented toggle: adjoining buttons overlap by 1px so inner borders don't
+   double. */
 .align-group {
   display: flex;
   flex: 0 0 auto;
@@ -647,9 +600,8 @@ select {
 .align-option {
   padding: 0.35rem;
   border-radius: 0;
-  /* Establishes a stacking context so the focus/hover z-index bump below can
-     lift this button's border and focus ring above its neighbors', instead
-     of the shared 1px overlap or the later DOM sibling painting over them. */
+  /* A stacking context so the z-index bump below can lift a button's border
+     and focus ring above the neighbor overlapping it. */
   position: relative;
 }
 
@@ -677,19 +629,16 @@ select {
   z-index: 2;
 }
 
-/* Selected state must not rely on color alone — same fill-plus-inset-ring
-   treatment as .choice-option[aria-pressed="true"], and box-shadow rather
-   than outline so it doesn't collide with the :focus-visible ring below. */
+/* Same fill-plus-inset-ring treatment as .choice-option[aria-pressed="true"];
+   see the rationale there. */
 .align-option[aria-pressed="true"] {
   background: var(--border);
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-/* Narrow toolbar: swap the wide Links button + alignment/export group for the
-   single Diagram trigger once the diagram panel's own inline size (not the
-   viewport) gets tight. 820px is tuned to include the grouped Export action
-   without crowding the other controls; see VERIFICATION.md's "Diagram
-   toolbar" section if it needs adjusting; this is its only definition. */
+/* Keyed on the diagram panel's inline size, not the viewport. 820px fits the
+   grouped Export action without crowding; VERIFICATION.md's "Diagram
+   toolbar" section covers retuning it. */
 @container diagram-panel (max-width: 820px) {
   .toolbar-wide {
     display: none;
@@ -713,7 +662,6 @@ select {
    link color/theme dialogs, and the narrow Diagram surface all share
    these base styles.
    ========================================================================== */
-
 dialog {
   border: 1px solid var(--border);
   border-radius: var(--radius-2);
@@ -724,10 +672,9 @@ dialog {
   max-width: min(90vw, 22rem);
 }
 
-/* Theme is a lightweight app preference on wide screens, so its modal is
-   visually anchored to the control that opens it instead of floating in the
-   middle of the workspace. Native dialog behavior still supplies focus
-   trapping, Escape handling, and the backdrop. */
+/* On wide screens the theme dialog reads as a popover anchored to its
+   trigger rather than a centered modal; native <dialog> still supplies
+   focus trapping and Escape. */
 #theme-dialog {
   position: fixed;
   inset: 4.25rem 1.5rem auto auto;
@@ -735,8 +682,7 @@ dialog {
   width: min(15rem, calc(100vw - 3rem));
 }
 
-/* The desktop treatment reads as a lightweight anchored popover. It remains
-   modal for focus management, but does not visually dim the whole workspace. */
+/* Still modal for focus management, but without dimming the workspace. */
 #theme-dialog::backdrop {
   background: transparent;
 }
@@ -750,10 +696,8 @@ dialog h3 {
   font-size: 1rem;
 }
 
-/* Sub-group headings inside the Diagram dialog, which (unlike the other
-   dialogs) holds four labelled sections under one h3 — Link colors,
-   Alignment, Aspect ratio, and Export diagram each need their own visible
-   heading to stay distinguishable. */
+/* Section headings inside the Diagram dialog, the one dialog with several
+   labelled groups under one h3. */
 dialog h4 {
   margin: 0 0 0.4rem;
   font-size: 0.85rem;
@@ -764,11 +708,10 @@ dialog .dialog-section + .dialog-section {
   margin-top: 1rem;
 }
 
-/* .choice-options/.choice-option generalize the palette dialog's row styling
-   for other labelled choosers (link colors, aspect ratio, theme, and their
-   narrow display-sheet copies) — same full-width tappable row and
-   non-color-reliant selected state, just with the icon+label pairing
-   left-aligned instead of the palette row's label/swatch split. */
+/* The palette dialog's row styling generalized for the other choosers (link
+   colors, alignment, aspect ratio, theme, and the narrow sheet's copies):
+   icon and label left-aligned instead of the palette row's label/swatch
+   split. */
 .palette-options,
 .choice-options {
   display: flex;
@@ -789,12 +732,9 @@ dialog .dialog-section + .dialog-section {
   justify-content: space-between;
 }
 
-/* Selected state must not rely on color alone: a background fill plus an
-   inset ring (not just a border-color swap) so it also reads under
-   grayscale/contrast-reduced rendering. box-shadow instead of outline so
-   it doesn't collide with the global :focus-visible outline below — the
-   dialog helper focuses the selected option on open, and that focus ring
-   needs to stay visible alongside the selection ring. */
+/* Fill plus inset ring so the selected state doesn't rely on color alone.
+   box-shadow rather than outline: useDialog focuses the selected option on
+   open, and the :focus-visible outline must stay visible alongside. */
 .palette-option[aria-pressed="true"],
 .choice-option[aria-pressed="true"] {
   background: var(--border);
@@ -809,9 +749,8 @@ dialog .dialog-section + .dialog-section {
   opacity: 0.7;
 }
 
-/* One rule per preset, including the default 2:1 — no aspect-ratio on the
-   base .ratio-preview above, so every preset's rule is equally authoritative
-   rather than one being an implicit fallback the others override. */
+/* No aspect-ratio on the base .ratio-preview: every preset, the default
+   included, gets its own equally authoritative rule. */
 .ratio-preview-a-series {
   aspect-ratio: 679 / 480;
 }
@@ -846,7 +785,6 @@ dialog .dialog-section + .dialog-section {
    Responsive layout. The page itself always follows normal document flow;
    only the Data card's internal columns and modal presentation adapt.
    ========================================================================== */
-
 @media (max-width: 820px) {
   .app-layout {
     padding: 1rem;
@@ -933,14 +871,11 @@ dialog .dialog-section + .dialog-section {
 
   .drag-handle {
     min-width: 44px;
-    /* The glyph reads as a stray speck in the enlarged 44px touch target at
-       the desktop 1rem size — scale it up to actually fill the target. */
+    /* At 1rem the glyph is a stray speck in the 44px touch target. */
     font-size: 1.4rem;
   }
 
-  /* The chevron buttons (palette-prev/palette-next) and the alignment group
-     are narrow icon-only buttons — min-height alone leaves them ~32px wide,
-     so pin min-width too. */
+  /* Icon-only buttons stay ~32px wide under min-height alone. */
   .toolbar-button,
   .align-option,
   .preview-size-button {
@@ -952,8 +887,7 @@ dialog .dialog-section + .dialog-section {
     gap: 0.75rem;
   }
 
-  /* Toolbar buttons are already 44px tall via the shared `button` rule above;
-     grow the toolbar row to fit them rather than clipping. */
+  /* Grows the toolbar row to the 44px buttons rather than clipping. */
   .diagram-panel {
     --toolbar-height: 3.75rem;
   }

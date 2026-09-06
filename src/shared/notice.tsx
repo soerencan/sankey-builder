@@ -7,25 +7,14 @@ export interface Notice {
 	readonly message: string;
 }
 
-/**
- * The shared io-notice contract behind DataPanelActions and
- * DiagramPanelActions: starting a new import or export attempt clears any
- * notice left by a previous one, and a failure of either kind reports
- * through the one `reportIoError`. The controller (start-app.tsx) implements
- * both members.
- */
+/** Starting a new import or export clears the previous attempt's notice. */
 export interface IoNoticeActions {
 	clearIoNotice(): void;
 	reportIoError(message: string): void;
 }
 
-// Display order; also the fixed slot order — every kind renders its own
-// always-present div (empty when inactive) so the ids below stay stable
-// across renders for :empty CSS and direct-id test lookups.
 const NOTICE_ORDER: readonly NoticeKind[] = ["graph", "storage", "io"];
 
-// Fixed ids (#error/#storage-notice/#io-notice) that tests use as stable
-// landmarks to look up each notice slot directly.
 const NOTICE_ID: Record<NoticeKind, string> = {
 	graph: "error",
 	storage: "storage-notice",
@@ -37,11 +26,9 @@ export interface NoticeRegionProps {
 }
 
 /**
- * Presentational only — the controller derives `notices` and decides when to
- * re-render. Renders all three kind slots unconditionally (empty ones
- * collapse via style.css's `:empty` rule) so a kind's live region always
- * exists for assistive tech to already be tracking before it ever has
- * content.
+ * Every slot renders unconditionally (empty ones collapse via CSS `:empty`)
+ * so each live region exists for assistive tech before it has content, and
+ * the ids stay stable for tests.
  */
 export function NoticeRegion({ notices }: NoticeRegionProps) {
 	return (

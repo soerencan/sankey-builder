@@ -126,13 +126,9 @@ describe("PreviewResizer", () => {
 		}
 	});
 
-	// Unlike the splitter/buttons themselves — removed from the document on
-	// unmount, so a real pointer event could never reach them again — the
-	// pointermove/pointerup listeners below live on `window`, which never
-	// goes away. Only explicit removal in the effect's cleanup keeps a stray
-	// move/up after unmount from resurrecting drag state, so this asserts the
-	// removal directly rather than through a drag that a null dragRef alone
-	// would already make inert.
+	// The drag listeners live on `window`, which outlives the component, so
+	// removal is asserted directly: a drag after unmount would be inert
+	// through the null dragRef alone and prove nothing.
 	it("removes its window-level drag listeners on unmount", () => {
 		const addSpy = vi.spyOn(window, "addEventListener");
 		const removeSpy = vi.spyOn(window, "removeEventListener");
@@ -152,9 +148,8 @@ describe("PreviewResizer", () => {
 
 			render(null, container);
 
-			// Identity, not just event type — a cleanup that removed the wrong
-			// function reference would leave the real listener attached and
-			// still pass a looser "was some listener removed for this type" check.
+			// Identity, not just event type: removing the wrong function
+			// reference would leave the real listener attached.
 			const removedByType = new Map(
 				removeSpy.mock.calls.map(([type, listener]) => [type, listener] as const),
 			);
@@ -183,19 +178,15 @@ describe("PreviewResizer", () => {
 
 		expect(releaseSpy).toHaveBeenCalledWith(7);
 
-		// A pointermove after unmount neither throws nor changes the last value
-		// — the drag was reset, not just paused.
+		// The drag was reset, not paused.
 		expect(() => window.dispatchEvent(pointerEvent("pointermove", 600, 7))).not.toThrow();
 		expect(splitter.getAttribute("aria-valuenow")).toBe(heightDuringDrag);
 		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe(storedDuringDrag);
 	});
 
-	// A browser-canceled gesture (incoming call, edge swipe) fires pointercancel
-	// instead of pointerup. Without handling it, the drag stays armed and a
-	// later, unrelated pointermove (e.g. from the next gesture) would jump the
-	// preview height using the stale startY/startHeight — this test fails
-	// before the fix because the second pointermove below still changes
-	// aria-valuenow instead of being a no-op.
+	// A browser-canceled gesture (incoming call, edge swipe) fires
+	// pointercancel instead of pointerup; unhandled, the next unrelated
+	// pointermove would resume the stale drag.
 	it("pointercancel ends an in-progress drag and releases pointer capture, leaving the height applied mid-drag in place", async () => {
 		const { container } = mount();
 		const splitter = container.querySelector("#preview-splitter") as HTMLElement;
@@ -212,15 +203,11 @@ describe("PreviewResizer", () => {
 		window.dispatchEvent(pointerEvent("pointercancel", 540, 9));
 
 		expect(releaseSpy).toHaveBeenCalledWith(9);
-		// The height applied mid-drag stays applied — pointercancel disarms the
-		// drag, it doesn't revert it.
+		// pointercancel disarms the drag, it doesn't revert it.
 		expect(splitter.getAttribute("aria-valuenow")).toBe(heightAtCancel);
 
-		// A further pointermove is ignored — the drag was reset, not just
-		// paused, so this must not resume tracking from the canceled gesture's
-		// start position. Persistence is synchronous, so it's a tick-independent
-		// observer of the same fact; aria-valuenow needs the tick below since
-		// it only updates on the next render.
+		// Persistence is synchronous; aria-valuenow only updates on the next
+		// render, hence the tick.
 		window.dispatchEvent(pointerEvent("pointermove", 700, 9));
 		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe(storedAtCancel);
 		await tick();

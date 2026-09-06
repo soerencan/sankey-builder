@@ -23,10 +23,8 @@ function Rows({ ids, onMove }: { ids: string[]; onMove: (from: number, to: numbe
 	);
 }
 
-// Each row's identity is its drag handle's accessible name (its text, the
-// fixture's own row id) — the rows container itself carries no other id, and
-// use-row-sortable.ts doesn't need one: it identifies rows by DOM position,
-// not by attribute.
+// Rows are identified by their handle's accessible name; the hook itself
+// only knows DOM position.
 function rowIds(rows: HTMLElement): string[] {
 	return allByRole<HTMLButtonElement>(rows, "button").map((handle) => handle.textContent ?? "");
 }
@@ -42,9 +40,6 @@ describe("useRowSortable", () => {
 		const instance = Sortable.get(rows);
 		expect(instance).toBeTruthy();
 
-		// A rerender must not recreate the instance: the effect that creates it
-		// is keyed on `rowClass`, a stable literal for the life of this render,
-		// so it never re-runs after mount.
 		render(<Rows ids={["a", "b"]} onMove={() => {}} />, container);
 		expect(Sortable.get(rows)).toBe(instance);
 
@@ -61,9 +56,7 @@ describe("useRowSortable", () => {
 		const rows = container.querySelector<HTMLElement>(".rows");
 		if (!rows) throw new Error("unreachable");
 
-		// A new onMove closure each render, same as a real caller's inline
-		// action-object method — the effect that creates the Sortable instance
-		// runs once, but onMoveRef.current must still track this.
+		// A new closure each render, as a real caller's inline method would be.
 		const onMoveB = vi.fn();
 		render(<Rows ids={["a", "b"]} onMove={onMoveB} />, container);
 
@@ -74,15 +67,8 @@ describe("useRowSortable", () => {
 		expect(onMoveB).toHaveBeenCalledWith(0, 1);
 	});
 
-	/**
-	 * The one invariant that's awkward to observe through the full app (see
-	 * tests/integration/reorder.test.ts for the end-to-end version of this
-	 * scenario, including focus and the final model-order DOM): `onMove`
-	 * itself is the dispatch, so reading the DOM synchronously from inside it
-	 * proves the restore step ran first, not merely that the final state
-	 * happens to look right after everything (including a caller re-render)
-	 * has settled.
-	 */
+	// Reading the DOM from inside onMove proves the restore ran first, not
+	// merely that the final state looks right once everything has settled.
 	it("restores the pre-drag DOM order before invoking onMove, which already observes that restored order", () => {
 		const container = document.createElement("div");
 		document.body.appendChild(container);
@@ -98,10 +84,8 @@ describe("useRowSortable", () => {
 		const onEnd = Sortable.get(rows)?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
-		// Reproduce Sortable's mid-drag DOM edit directly: row "a" (oldIndex 0)
-		// dragged down to land at [b, c, a, d], as a real drag would leave it by
-		// the time onEnd fires. Built via sequential appendChild (each an atomic
-		// move), not a separate remove() + insert.
+		// The DOM as Sortable leaves it by the time onEnd fires: "a" dragged
+		// down to [b, c, a, d].
 		for (const id of ["b", "c", "a", "d"]) {
 			const row = byRole<HTMLButtonElement>(rows, "button", id).closest(".row");
 			if (row) rows.appendChild(row);

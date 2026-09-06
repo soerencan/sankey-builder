@@ -50,10 +50,7 @@ describe("node & link editing", () => {
 
 		valueInput.value = "abc";
 		fireInput(valueInput);
-		// The row-local draft's aria-invalid marker is set by a Preact render,
-		// which — unlike a committed action's controller commit() — is only
-		// scheduled on the next microtask, not run synchronously within this
-		// event, hence the await below.
+		// Draft state renders on the next microtask, unlike a committed action.
 		await tick();
 
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
@@ -61,17 +58,15 @@ describe("node & link editing", () => {
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(getStoredState().links[0].value).toBe(10);
 
-		// Blur restoration, like per-keystroke draft feedback, is state that
-		// only reaches the DOM on the next Preact render.
+		// Blur restoration is draft state too, rendered on the next microtask.
 		fireChange(valueInput);
 		await tick();
 		expect(valueInput.value).toBe("10");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 
-		// After a *valid* edit, blur must not rewrite the text — "5." parses to
-		// 5 but the trailing dot is preserved so the user can keep typing.
-		// handleChange returns before touching draft state on a valid value, so
-		// no render is scheduled and no tick() is needed here.
+		// Blur must not rewrite a valid draft: "5." parses to 5 but the trailing
+		// dot stays so the user can keep typing. No render is scheduled, so no
+		// tick is needed.
 		valueInput.value = "5.";
 		fireInput(valueInput);
 		expect(getStoredState().links[0].value).toBe(5);
@@ -110,8 +105,7 @@ describe("node & link editing", () => {
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
-		// Further invalid keystrokes keep the message (not cleared on every
-		// keypress, only when the value actually becomes valid or blank).
+		// The message clears only once the value becomes valid or blank.
 		valueInput.value = "abcd";
 		fireInput(valueInput);
 		await tick();
@@ -130,8 +124,7 @@ describe("node & link editing", () => {
 		await tick();
 		expect(errorEl.textContent).toBe("Enter a number no greater than 1000000000000000.");
 
-		// Over 4 fractional digits, set directly (bypassing beforeinput's
-		// keystroke/paste interception), still reaches the message branch.
+		// Set directly, bypassing beforeinput's interception.
 		valueInput.value = "0.00001";
 		fireInput(valueInput);
 		await tick();
@@ -153,27 +146,21 @@ describe("node & link editing", () => {
 		expect(errorEl).not.toBeNull();
 		if (!errorEl) throw new Error("unreachable");
 
-		// Exponent notation isn't the plain-decimal format parseLinkValue
-		// requires, so it falls to the generic catch-all message rather than
-		// the maximum-value one, even though 1e20 is itself above MAX_LINK_VALUE.
+		// Format wins over above-maximum.
 		valueInput.value = "1e20";
 		fireInput(valueInput);
 		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
-		// A zero value with excess fractional precision hits the precision
-		// message first — exceedsFractionDigits is checked ahead of the
-		// non-positive rule in linkValueErrorMessage, so this is NOT the
-		// "greater than 0" message despite the parsed value being 0.
+		// Precision wins over non-positive.
 		valueInput.value = "0.00000";
 		fireInput(valueInput);
 		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a number with up to 4 decimal places.");
 
-		// Above the maximum AND over-precise: the precision message still
-		// wins, same ordering as above.
+		// Precision wins over above-maximum.
 		valueInput.value = "1000000000000001.00001";
 		fireInput(valueInput);
 		await tick();
@@ -193,9 +180,9 @@ describe("node & link editing", () => {
 
 		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 
-		// happy-dom does not run the native editing pipeline for beforeinput, so
-		// these assert defaultPrevented (+ programmatic effects the handler
-		// applies itself), never a value the browser would have inserted.
+		// happy-dom has no native editing pipeline for beforeinput, so these
+		// assert defaultPrevented and the handler's own DOM writes, never a
+		// value the browser would have inserted.
 		const beforeinput = (init: InputEventInit) => {
 			const ev = new InputEvent("beforeinput", { bubbles: true, cancelable: true, ...init });
 			valueInput.dispatchEvent(ev);
@@ -211,8 +198,7 @@ describe("node & link editing", () => {
 		valueInput.setSelectionRange(5, 5);
 		expect(beforeinput({ inputType: "insertText", data: "5" }).defaultPrevented).toBe(false);
 
-		// Deletions carry no data, so they're never intercepted — even from an
-		// already over-precise value.
+		// Deletions are never intercepted, even from an over-precise value.
 		valueInput.value = "1.23456";
 		valueInput.setSelectionRange(7, 7);
 		expect(beforeinput({ inputType: "deleteContentBackward", data: null }).defaultPrevented).toBe(
@@ -230,8 +216,7 @@ describe("node & link editing", () => {
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(getStoredState().links[0].value).toBe(1.2345);
 
-		// A mid-string selection (not just a caret) exercises the
-		// slice+data+slice splice non-degenerately.
+		// A mid-string selection, not just a caret.
 		valueInput.value = "12.3400";
 		valueInput.setSelectionRange(5, 7);
 		expect(beforeinput({ inputType: "insertFromPaste", data: "56789" }).defaultPrevented).toBe(
@@ -246,18 +231,14 @@ describe("node & link editing", () => {
 		expect(beforeinput({ inputType: "insertFromPaste", data: "0.00001" }).defaultPrevented).toBe(
 			true,
 		);
-		// The truncated value/caret are synchronous DOM writes the beforeinput
-		// handler must make itself (having just prevented the browser's own
-		// insertion) — but the invalid draft's aria-invalid marker is a Preact
-		// render, scheduled on the next microtask rather than run inline, hence
-		// the await below.
+		// The truncated value and caret are synchronous DOM writes; the
+		// aria-invalid marker is a render on the next microtask.
 		expect(valueInput.value).toBe("0.0000");
 		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(getStoredState().links[0].value).toBe(12.3456);
 
-		// A garbage paste is not intercepted — it falls through to the input
-		// handler's highlight path.
+		// A garbage paste falls through to the input handler's highlight path.
 		valueInput.value = "";
 		valueInput.setSelectionRange(0, 0);
 		expect(beforeinput({ inputType: "insertFromPaste", data: "abc" }).defaultPrevented).toBe(false);
@@ -274,17 +255,14 @@ describe("node & link editing", () => {
 		expect(svgBefore).not.toBeNull();
 		const svgHtmlBefore = svgBefore?.outerHTML;
 
-		// Retargeting the third link to n1 closes a 2-node cycle without
-		// touching node count/shape — isolates the cycle-invalid path from any
-		// other validation failure.
+		// Retargeting the third link to n1 closes a 2-node cycle.
 		const target = byRole<HTMLSelectElement>(document, "combobox", "Target for link 3");
 		target.value = "n1";
 		fireChange(target);
 
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
-		// The invalid graph is still committed to storage — there is no
-		// "last-good state" in storage, only the last-good diagram.
+		// There is no "last-good state" in storage, only a last-good diagram.
 		const stored = getStoredState();
 		expect(stored.links[2].target).toBe("n1");
 
@@ -336,26 +314,19 @@ describe("node & link editing", () => {
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
-		// The link row's draft is row-local state, keyed by the link's id
-		// rather than array index — an unrelated rename's re-render patches this
-		// row's DOM in place instead of rebuilding it, so the draft/error state
-		// must survive intact.
+		// An unrelated rename's re-render must leave the row's draft intact.
 		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
 		nameInput.value = "Lignite";
 		fireInput(nameInput);
 
-		// Identity, not just value/attribute equality: if the link row were ever
-		// rebuilt instead of patched, the rebuilt row would carry the same
-		// default value/attributes on a *detached* node and these assertions
-		// would pass while the visible draft was actually lost.
+		// Identity, not attribute equality: a rebuilt row would carry the same
+		// defaults on a detached node and pass while the draft was lost.
 		expect(byRole<HTMLInputElement>(document, "textbox", "Value for link 1")).toBe(valueInput);
 		expect(valueInput.value).toBe("abc");
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
-		// Confirms the rename itself actually reached the app (and the link
-		// editor's re-projected node options picked it up) rather than the
-		// assertions above merely tolerating a no-op rename.
+		// The rename must actually have reached the app.
 		const n1Option = requireElement<HTMLOptionElement>(
 			'#link-editor option.node-option[value="n1"]',
 		);
@@ -365,9 +336,8 @@ describe("node & link editing", () => {
 	it("invalid draft: no persist, no notice change, no redraw", async () => {
 		mountApp();
 
-		// Give #io-notice non-empty content first (a repaired import's warning,
-		// since a successful export installs no notice) so "the notice doesn't
-		// change" below is a real assertion rather than two empty strings.
+		// Seed #io-notice via a repaired import so "unchanged" below is a real
+		// assertion, not two empty strings.
 		const payload = {
 			nodes: [
 				{ id: "n1", name: "X" },
@@ -391,9 +361,6 @@ describe("node & link editing", () => {
 		const errorBefore = document.getElementById("error")?.textContent;
 		const noticeBefore = document.getElementById("io-notice")?.textContent;
 
-		// An invalid draft only ever updates the field's own error state — the
-		// rest of the app (storage, validation banner, I/O notice, diagram) must
-		// be byte-for-byte untouched.
 		valueInput.value = "abc";
 		fireInput(valueInput);
 		await tick();
@@ -418,20 +385,16 @@ describe("node & link editing", () => {
 	it("node deletion cascades: rows for a deleted link disappear, but an invalid draft on a surviving link (whose index shifts) persists", async () => {
 		mountApp();
 
-		// Draft goes on the n3->n4 link at index 2 — AFTER the link that's about
-		// to be cascade-deleted, so its own index shifts (2 -> 1). Keying rows by
-		// array index instead of link identity would make this row (now index 1)
-		// pick up whatever the *previous* index-1 row (n2->n3, deleted) happened
-		// to render, silently discarding the draft instead of carrying it along.
+		// The draft goes on the link after the one about to be deleted, so its
+		// index shifts. Rows keyed by index would hand it the deleted row's
+		// state.
 		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 3");
 		valueInput.value = "abc";
 		fireInput(valueInput);
 		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 
-		// Deleting n2 cascades to remove the n2->n3 link at index 1 (see
-		// model/graph.ts's deleteNode), leaving the edited n3->n4 link — same
-		// Link object, same id — as the new row 1.
+		// Cascades to remove the n2->n3 link, so the edited link becomes row 1.
 		click(byRole<HTMLButtonElement>(document, "button", "Delete Gas"));
 
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(2);
@@ -503,9 +466,7 @@ describe("node & link editing", () => {
 
 		const linkRowElsBefore = Array.from(document.querySelectorAll("#link-editor .link-row"));
 
-		// Snapshot order + selected/disabled attributes of every node-option
-		// across every source/target select — renaming must leave all of this
-		// untouched, only the text should change.
+		// Only option text may change.
 		const optionsBefore = Array.from(
 			document.querySelectorAll<HTMLOptionElement>("#link-editor option.node-option"),
 		).map((option) => ({
@@ -514,7 +475,6 @@ describe("node & link editing", () => {
 			disabled: option.getAttribute("disabled"),
 		}));
 
-		// n1 appears as an option (selected or not) in every source/target select.
 		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
 		nameInput.focus();
 		expect(document.activeElement).toBe(nameInput);
@@ -522,21 +482,13 @@ describe("node & link editing", () => {
 		nameInput.value = "Lignite";
 		fireInput(nameInput);
 
-		// (a) same input element, still focused. happy-dom has no native typing
-		// pipeline, so this harness (like the link-value tests above) simulates
-		// a keystroke by reassigning `.value` wholesale — but browsers (and
-		// happy-dom) collapse the selection to the end of the field whenever
-		// `.value` is reassigned that way, regardless of what the app does with
-		// focus. That makes a mid-string caret-preservation assertion
-		// unfalsifiable through this harness, so it's dropped; selectionStart
-		// is checked only as a smoke check that the property still reads back
-		// (i.e. the app never blurs/reprograms it after the fact).
+		// Reassigning `.value` collapses the selection to the end in every
+		// engine, so mid-string caret preservation is unfalsifiable here;
+		// selectionStart is only a smoke check that the app never reprograms it.
 		expect(document.contains(nameInput)).toBe(true);
 		expect(document.activeElement).toBe(nameInput);
 		expect(nameInput.selectionStart).toBe("Lignite".length);
 
-		// (b) every node-option showing n1, across every select, gets its text
-		// updated.
 		const n1Options = Array.from(
 			document.querySelectorAll<HTMLOptionElement>('#link-editor option.node-option[value="n1"]'),
 		);
@@ -545,15 +497,11 @@ describe("node & link editing", () => {
 			expect(option.textContent).toBe("Lignite");
 		}
 
-		// (c) each link row keeps its own DOM identity: rows are keyed by the
-		// link's id, so the rename's re-render patches existing DOM in
-		// place rather than rebuilding.
+		// Each link row keeps its DOM identity.
 		const linkRowElsAfter = Array.from(document.querySelectorAll("#link-editor .link-row"));
 		expect(linkRowElsAfter.length).toBe(linkRowElsBefore.length);
 		linkRowElsAfter.forEach((row, i) => expect(row).toBe(linkRowElsBefore[i]));
 
-		// (e) option order and selected/disabled attributes are exactly as
-		// before — only textContent changed.
 		const optionsAfter = Array.from(
 			document.querySelectorAll<HTMLOptionElement>("#link-editor option.node-option"),
 		).map((option) => ({
@@ -563,7 +511,6 @@ describe("node & link editing", () => {
 		}));
 		expect(optionsAfter).toEqual(optionsBefore);
 
-		// (d) the diagram still redraws for a still-valid graph.
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
 		expect(svgAfter).not.toBe(svgBefore);

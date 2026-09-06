@@ -34,10 +34,8 @@ describe("NoticeRegion: consolidated notice slots", () => {
 		expect(errorText()).toBe("");
 		expect(storageText()).toBe("");
 
-		// happy-dom's Storage binds each method onto an internal target the
-		// first time it's accessed, which makes vi.spyOn(Storage.prototype, ...)
-		// unreliable once localStorage has already been touched — swap the whole
-		// `localStorage` global for a throwing stub instead.
+		// Swapped rather than spied: happy-dom binds Storage methods per
+		// instance on first access, which defeats vi.spyOn(Storage.prototype).
 		const originalLocalStorage = localStorage;
 		const throwingStorage: Partial<Storage> = {
 			setItem: () => {
@@ -54,13 +52,9 @@ describe("NoticeRegion: consolidated notice slots", () => {
 
 			expect(errorText()).toContain("cycle");
 			expect(storageText()).toBe(STORAGE_NOTICE);
-			// Tone classes on the two active slots: graph is always "error",
-			// storage-unavailable is always "warning".
 			expect(document.getElementById("error")?.className).toBe("notice-error");
 			expect(document.getElementById("storage-notice")?.className).toBe("notice-warning");
-			// Display order — graph, storage, then I/O — is the fixed slot order
-			// NoticeRegion renders, not something either notice's presence can
-			// reorder.
+			// Slot order is fixed regardless of which notices are active.
 			expect(
 				Array.from(document.querySelectorAll<HTMLElement>(".notice-region > div")).map(
 					(slot) => slot.id,
@@ -74,9 +68,8 @@ describe("NoticeRegion: consolidated notice slots", () => {
 			});
 		}
 
-		// A further committed edit with working storage: the graph is still
-		// invalid (the cycle was never fixed), so the graph error persists, but
-		// the storage notice clears now that saves succeed again.
+		// With storage working again the storage notice clears while the
+		// unfixed cycle's error persists.
 		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
 		nameInput.value = "Lignite";
 		fireInput(nameInput);
@@ -98,8 +91,7 @@ describe("NoticeRegion: consolidated notice slots", () => {
 		const io = document.getElementById("io-notice");
 		expect(storage?.textContent).toBe("");
 		expect(io?.textContent).toBe("");
-		// NoticeRegion omits `class` entirely for an inactive slot (see
-		// shared/notice.tsx) rather than assigning an empty string.
+		// An inactive slot has no class attribute at all, not an empty one.
 		expect(storage?.getAttribute("class")).toBeNull();
 		expect(io?.getAttribute("class")).toBeNull();
 	});
@@ -112,13 +104,9 @@ describe("NoticeRegion: consolidated notice slots", () => {
 		const textBefore = errorBefore?.textContent;
 		expect(textBefore).toContain("cycle");
 
-		// add-node is unrelated to the n1/n3 cycle path and doesn't touch either
-		// node's name, so the cycle message (built from node names, see
-		// model/validation.ts) is untouched too — this is the happy-dom proxy for
-		// "no repeated live-region announcement": NoticeRegion always renders all
-		// three fixed-id slots unconditionally, so the real risk this guards is
-		// Preact discarding and rebuilding the slot's div on every render instead
-		// of patching its text in place.
+		// Element identity is the happy-dom proxy for "no repeated live-region
+		// announcement": the risk is the slot's div being rebuilt per render
+		// instead of patched.
 		click(byRole(document, "button", "Add node"));
 
 		const errorAfter = document.getElementById("error");
@@ -142,8 +130,6 @@ describe("NoticeRegion: consolidated notice slots", () => {
 		expect(fieldError).not.toBeNull();
 		if (!fieldError) throw new Error("unreachable");
 		expect(noticeRegion.contains(fieldError)).toBe(false);
-		// The region's only children are its three fixed kind slots — a field
-		// error never lands as a fourth.
 		expect(noticeRegion.children).toHaveLength(3);
 	});
 });

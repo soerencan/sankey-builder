@@ -15,14 +15,9 @@ import { aspectRatioOption } from "../../model/settings";
 import { createNodeColorResolver } from "./colors";
 import type { NodeColorResolver } from "./colors";
 
-// A link with both endpoints assigned — the only kind d3-sankey ever lays out.
 type CompleteLink = Link & { source: string; target: string };
 
-/**
- * The renderer's own input contract, decoupled from the mutable domain
- * `State` — callers hand over a point-in-time view rather than a live
- * reference the renderer (or anything it calls into) could mutate.
- */
+/** A point-in-time view rather than the live `State`, so nothing the renderer calls can mutate domain data. */
 export interface DiagramSnapshot {
 	readonly nodes: readonly Readonly<Node>[];
 	readonly links: readonly Readonly<Link>[];
@@ -30,36 +25,25 @@ export interface DiagramSnapshot {
 }
 
 /**
- * Wraps a `DiagramSnapshot` so `SankeyCanvas` can key its D3 redraw off
- * request *identity* rather than deep-comparing snapshots — the controller
- * only ever hands out a new request when the graph is valid, so an unchanged
- * reference means "don't touch the last-valid SVG" (see start-app.tsx's
- * commit()).
+ * Wraps the snapshot so SankeyCanvas can key its redraw off reference
+ * identity: the controller hands out a new request only when the graph is
+ * valid, so an unchanged reference means "keep the last-valid SVG".
  */
 export interface DiagramRenderRequest {
 	readonly state: DiagramSnapshot;
 }
 
-// No link fields beyond the ones d3-sankey's own SankeyLinkMinimal already
-// declares (source/target/value) — the second type param exists for extras.
-// `Record<string, unknown>` looks like the natural choice here but doesn't
-// compile: SankeyLink<N, L> is `L & SankeyLinkMinimal<N, L>`, and assigning
-// our plain `Link` into that intersection requires L's own index signature
-// to be satisfied — `Link` (declared as an interface with no index
-// signature) can't do that. `object`, the structurally-empty extras type,
-// has no index signature to satisfy.
+// Not `Record<string, unknown>`: SankeyLink<N, L> is `L & SankeyLinkMinimal`,
+// and `Link`, an interface without an index signature, can't satisfy that
+// intersection. `object` has no index signature to satisfy.
 type LinkExtra = object;
 
-// d3-sankey's own node/link types, before layout has run.
 type SankeyGraphNode = SankeyNode<Node, LinkExtra>;
 type SankeyGraphLink = SankeyLink<Node, LinkExtra>;
 
-// @types/d3-sankey marks every layout-computed field optional, since it
-// doesn't know layout() has already run by the time render code touches
-// them. Render code relies on x0/x1/y0/y1/width/index/source/target being
-// present unconditionally — these aliases intersect in the non-optional
-// shape so downstream code reads that way directly, without `??` fallbacks
-// that would silently paper over a real layout bug.
+// @types/d3-sankey marks every layout-computed field optional. Post-layout
+// they are always present, and `??` fallbacks would paper over a real
+// layout bug.
 type LayoutNode = SankeyGraphNode & {
 	x0: number;
 	x1: number;
@@ -73,7 +57,6 @@ type LayoutLink = Omit<SankeyGraphLink, "source" | "target"> & {
 	index: number;
 };
 
-// A name-keyed lookup falling back to justify.
 const ALIGN_FNS: Partial<Record<Alignment, typeof sankeyJustify>> = {
 	left: sankeyLeft,
 	right: sankeyRight,
@@ -85,12 +68,9 @@ function alignFn(name: Alignment): typeof sankeyJustify {
 }
 
 /**
- * Runs d3-sankey layout on a copy of the graph, since d3-sankey mutates
- * whatever it's given: it rewrites each link's `source`/`target` to point at
- * the node objects themselves and adds layout fields (x0/x1/y0/y1/etc.)
- * directly onto the objects it's handed. `Node` and `Link` are flat, so
- * copying each one with a spread is enough — a deep clone would copy nothing
- * a spread doesn't already, since neither type nests objects or arrays.
+ * d3-sankey mutates its input (rewrites link endpoints to node objects, adds
+ * layout fields), hence the copies. `Node` and `Link` are flat, so a spread
+ * is a full copy.
  */
 function layout(
 	nodes: readonly Readonly<Node>[],
@@ -115,12 +95,6 @@ function layout(
 	return graph as unknown as { nodes: LayoutNode[]; links: LayoutLink[] };
 }
 
-/**
- * Per-link stroke accessor for the given link-color mode. `source-target`
- * returns a gradient url referencing the per-link <linearGradient> that
- * renderDiagram appends (its id is keyed by d3-sankey's own `link.index`,
- * so it can't collide within a render).
- */
 function linkStroke(mode: LinkColorMode, nodeColor: NodeColorResolver): (d: LayoutLink) => string {
 	if (mode === "source") return (d) => nodeColor(d.source);
 	if (mode === "target") return (d) => nodeColor(d.target);
@@ -130,17 +104,12 @@ function linkStroke(mode: LinkColorMode, nodeColor: NodeColorResolver): (d: Layo
 
 export function renderDiagram(container: HTMLElement, snapshot: DiagramSnapshot): void {
 	const root = select(container);
-	// Clears only the container's descendants — the container element itself
-	// is caller-owned.
 	root.html("");
 
-	// d3-sankey's internal bin-by-column step does `new Array(-1)` on an
-	// empty node list, throwing RangeError before it ever gets to layout.
+	// d3-sankey throws a RangeError (`new Array(-1)`) on an empty node list.
 	if (snapshot.nodes.length === 0) return;
-	// Only complete links have geometry; incomplete ones are omitted. Zero
-	// complete links collapses every node into a single column with zero value,
-	// which d3-sankey turns into NaN geometry (0 * Infinity) rather than a
-	// throw — nothing meaningful to draw anyway, so bail the same way.
+	// With zero complete links d3-sankey produces NaN geometry instead of
+	// throwing.
 	const completeLinks = snapshot.links.filter(isComplete);
 	if (completeLinks.length === 0) return;
 
@@ -156,9 +125,9 @@ export function renderDiagram(container: HTMLElement, snapshot: DiagramSnapshot)
 
 	const svg = root.append("svg").attr("viewBox", `0 0 ${width} ${height}`);
 
-	// Paint order matches the reference example: link ribbons under node rects.
-	// Each link gets its own <g> so the source-target mode can nest a
-	// per-link <linearGradient> alongside its <path> (id-referenced by url()).
+	// One <g> per link so the source-target mode can nest a per-link
+	// <linearGradient> next to its <path>. Gradient ids use d3-sankey's
+	// `link.index`, unique within a render.
 	const linkGroup = svg
 		.append("g")
 		.attr("fill", "none")

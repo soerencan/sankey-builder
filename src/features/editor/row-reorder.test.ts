@@ -22,17 +22,9 @@ describe("destroySortable", () => {
 		expect(() => destroySortable(null)).not.toThrow();
 	});
 
-	/**
-	 * Sortable's own destroy() calls its internal drop handler with no event,
-	 * which — per the vendored source — skips the branch that removes the
-	 * floating fallback clone from <body>, even though it still resets the
-	 * Sortable.active/ghost/clone statics to null. Reproducing that mid-drag
-	 * precondition through a real pointer/touch gesture isn't practical under
-	 * happy-dom (no real layout, and SortableJS's fallback drag start depends
-	 * on a genuine pointer-event pipeline it doesn't provide) — so this drives
-	 * the real Sortable statics directly rather than mocking Sortable itself,
-	 * exercising the actual cleanup branch in destroySortable.
-	 */
+	// A real mid-drag gesture isn't reproducible under happy-dom (no layout,
+	// no real pointer pipeline), so this sets the real Sortable statics
+	// directly rather than mocking Sortable.
 	it("removes an orphaned floating clone when the instance is destroyed mid-drag", () => {
 		const container = document.getElementById("rows") as HTMLElement;
 		const instance = new Sortable(container, { handle: ".drag-handle" });
@@ -66,8 +58,7 @@ describe("destroySortable", () => {
 
 		destroySortable(instance);
 
-		// `instance` wasn't the active instance, so its destroy() is a normal,
-		// non-mid-drag teardown — the unrelated active drag's ghost is untouched.
+		// `instance` wasn't the active one, so the unrelated drag's ghost stays.
 		expect(document.body.contains(ghost)).toBe(true);
 	});
 });
@@ -98,13 +89,6 @@ describe("removeActiveDragClone", () => {
 		expect(() => removeActiveDragClone()).not.toThrow();
 	});
 
-	/**
-	 * The scenario removeActiveDragClone exists for: destroying an unrelated,
-	 * idle Sortable instance first would otherwise null the shared
-	 * Sortable.active/ghost/clone statics before a later destroySortable() call
-	 * for the actually-active instance can find them — this proves calling it
-	 * first avoids exactly that.
-	 */
 	it("lets a later destroySortable() no-op safely once its own ghost/clone were already removed", () => {
 		const activeContainer = document.getElementById("rows") as HTMLElement;
 		const activeInstance = new Sortable(activeContainer, { handle: ".drag-handle" });
@@ -119,10 +103,7 @@ describe("removeActiveDragClone", () => {
 		Sortable.clone = clone;
 
 		removeActiveDragClone();
-		// An unrelated instance's own teardown, same as another editor root's
-		// unmount — SortableJS's destroy() nulls the shared statics regardless
-		// of which instance called it, which is exactly the hazard
-		// removeActiveDragClone must run ahead of.
+		// Same as another editor root's unmount: nulls the shared statics.
 		destroySortable(idleInstance);
 		destroySortable(activeInstance);
 

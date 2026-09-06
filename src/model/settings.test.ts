@@ -11,9 +11,8 @@ import {
 	isTheme,
 } from "./settings";
 
-// No import from features/diagram/colors.ts in this file — settings.ts (unlike
-// features/diagram/colors.ts) is d3-free at both module-eval and call time, same as
-// platform/storage.ts which depends on that.
+// Deliberately imports nothing from features/diagram/colors.ts: proves
+// settings.ts stays d3-free at module-eval and call time.
 
 describe("isPaletteKey", () => {
 	it.each<[unknown, boolean]>([
@@ -22,7 +21,7 @@ describe("isPaletteKey", () => {
 		["category10", true],
 		["set2", true],
 		["dark2", true],
-		// "toString" resolves via the Object.prototype chain on a naive `in`/property check.
+		// Would resolve through Object.prototype on a naive `in` check.
 		["toString", false],
 		["rainbow", false],
 		[undefined, false],

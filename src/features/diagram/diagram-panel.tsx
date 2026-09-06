@@ -25,19 +25,14 @@ import { rasterizeSvg, serializeDiagramSvg, svgViewBoxSize } from "./export";
 
 const EXPORT_SVG_FILENAME = "sankey.svg";
 const EXPORT_PNG_FILENAME = "sankey.png";
-// Hidpi-crisp output (1920x960 at the diagram's 960x480 base size) without
-// making the caller reason about canvas pixel math.
+// 2x for hidpi-crisp output.
 const PNG_EXPORT_SCALE = 2;
 
-// Number of swatches shown per strip — matches the five named palettes'
-// meaningful prefix; palettes with more entries (e.g. category10's 10) are
-// truncated to keep the preview/dialog rows a consistent width.
+// Palettes with more colors are truncated so preview and dialog rows keep a
+// consistent width.
 const SWATCH_COUNT = 5;
 
-// ChoiceGroup option lists, one per closed setting domain. Runtime iteration
-// order (source, source-target, target, static for link color) is the
-// dialogs' display order, which is each metadata table's own declaration
-// order in options.ts/settings.ts.
+// Object.entries order is the dialogs' display order.
 const PALETTE_CHOICES = PALETTE_ORDER.map((value) => ({ value }));
 const LINK_COLOR_CHOICES = Object.entries(LINK_COLOR_OPTIONS).map(([value, option]) => ({
 	value: value as LinkColorMode,
@@ -45,11 +40,9 @@ const LINK_COLOR_CHOICES = Object.entries(LINK_COLOR_OPTIONS).map(([value, optio
 }));
 
 /**
- * A CSS-safe modifier class per aspect ratio — style.css sets each preset's
- * own aspect-ratio on it. A colon is valid in a class selector only when
- * escaped, so each class swaps ":" for "-" rather than relying on that
- * escaping. A `Record`, not a string-munging function, so adding an
- * `AspectRatio` value without a matching entry here is a compile error.
+ * ":" is swapped for "-" because a colon in a class selector needs escaping.
+ * A `Record` rather than a string-munging function so that a new
+ * `AspectRatio` without a matching style.css rule is a compile error.
  */
 const RATIO_PREVIEW_CLASSES: Record<AspectRatio, string> = {
 	"a-series": "ratio-preview-a-series",
@@ -67,17 +60,10 @@ export interface DiagramPanelActions extends IoNoticeActions {
 }
 
 export interface DiagramPanelProps {
-	/**
-	 * The #diagram host: SankeyCanvas's mount point and the SVG/PNG export
-	 * source. A ref, not the element directly: App renders #diagram and this
-	 * component as siblings in one tree, so the element only exists once the
-	 * whole tree has committed — read only from the export handlers below,
-	 * never during render.
-	 */
+	/** A ref, not the element: #diagram is a sibling in App's tree, so it exists only after commit. Read it from event handlers, never during render. */
 	diagramRef: RefObject<HTMLElement>;
 	settings: Readonly<Settings>;
 	actions: DiagramPanelActions;
-	/** The owning app instance's AbortSignal — guards PNG rasterization. */
 	signal: AbortSignal;
 }
 
@@ -86,13 +72,7 @@ type ExportOptionsProps = {
 	onExportPng(): void;
 } & AccessibleName;
 
-/**
- * The SVG/PNG export pair, shared by the wide export dialog and the narrow
- * display sheet's copy. Not a ChoiceGroup: these are one-shot actions, not a
- * persisted choice, so there is no aria-pressed/current value — just the two
- * buttons under one accessible group name, owning this file's other
- * role="group" suppression.
- */
+/** Not a ChoiceGroup: these are one-shot actions with no current value to mark. */
 function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOptionsProps) {
 	return (
 		<div
@@ -125,15 +105,8 @@ function SwatchStrip({ palette }: { palette: Palette }) {
 }
 
 /**
- * Grabs the on-screen diagram svg and serializes it (see serializeDiagramSvg
- * for why: explicit dimensions, resolved colors, opaque background), shared
- * by both the SVG and PNG export handlers below. Exports whatever is on
- * screen: when state is topologically invalid, the controller keeps the
- * last-valid diagram visible — exporting that stale render is deliberate
- * ("export what you see"), not an oversight. Returns the live svg alongside
- * its serialized xml (exportPng needs the former's viewBox, the latter to
- * rasterize) so callers never re-query or re-cast it. Returns null (after
- * reporting the error) when there's nothing to export.
+ * Exports what is on screen: while the state is invalid the controller keeps
+ * the last-valid diagram visible, and exporting that is deliberate.
  */
 function serializeVisibleDiagram(
 	diagramEl: HTMLElement,
@@ -144,25 +117,14 @@ function serializeVisibleDiagram(
 		actions.reportIoError("Nothing to export — the diagram is empty.");
 		return null;
 	}
-	// Read resolved colors from the live page (theme-aware): currentColor's
-	// on-screen resolution for labels, and the diagram container's own
-	// background — both would otherwise default to black/transparent once
-	// the svg is detached from the page. svgEl.parentElement is the
-	// SankeyCanvas host (.sankey-canvas, nested inside diagramEl), since
-	// renderDiagram appends the svg directly into it.
+	// Detached from the page, currentColor and the background would resolve
+	// to black and transparent; the SankeyCanvas host carries the theme's
+	// background.
 	const labelColor = getComputedStyle(svgEl).color;
 	const background = getComputedStyle(svgEl.parentElement as Element).backgroundColor;
 	return { svg: svgEl, xml: serializeDiagramSvg(svgEl, { labelColor, background }) };
 }
 
-/**
- * The whole diagram panel's toolbar/dialogs — palette carousel, link-color
- * and alignment controls, aspect ratio, and SVG/PNG export — generated from
- * settings.ts/options.ts metadata rather than duplicated per-option markup.
- * `SankeyCanvas` and `PreviewResizer` are App's own siblings of this
- * component, all sharing the `diagramRef` App owns (see app.tsx): this
- * component owns only the controls/dialogs portion of the panel.
- */
 export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramPanelProps) {
 	const paletteDialog = useDialog();
 	const linksDialog = useDialog();
@@ -206,17 +168,14 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 			const { width, height } = svgViewBoxSize(result.svg);
 			rasterizeSvg(result.xml, width, height, PNG_EXPORT_SCALE, signal)
 				.then((blob) => {
-					// A stale completion (this app instance destroyed while rasterizing)
-					// must do nothing user-visible. rasterizeSvg itself already rejects
-					// on abort, so this only guards a resolve that raced destroy() in
-					// the same tick.
+					// rasterizeSvg rejects on abort; this guards a resolve that raced
+					// destroy() in the same tick.
 					if (signal.aborted) return;
 					download(diagramEl.ownerDocument, blob, EXPORT_PNG_FILENAME);
 				})
 				.catch((err) => {
 					if (signal.aborted) return;
-					// The notice stays generic; log the specific cause so a field report
-					// ("PNG export failed") is diagnosable from the console.
+					// The notice stays generic; the console carries the cause.
 					console.error(err);
 					actions.reportIoError("PNG export failed. Try the SVG export instead.");
 				});
@@ -402,14 +361,10 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 				/>
 			</ChoiceDialog>
 
-			{/* Narrow-toolbar equivalent of the wide Links button + align-group
-			    above: COPIES of the same options, not new ids on them, so the
-			    same `actions` callbacks cover both. Unlike the other dialogs,
-			    choosing a link-color/alignment/aspect-ratio option here does NOT
-			    close the dialog — the diagram updates live behind it and the user
-			    dismisses it explicitly (Close, backdrop, Escape). Its SVG/PNG
-			    export buttons are the exception: they DO close it, matching the
-			    wide export dialog above. */}
+			{/* Narrow-toolbar copy of the wide controls. Unlike the dialogs above,
+			    picking an option here keeps the sheet open so several settings can
+			    be adjusted while the diagram updates live behind it; only the
+			    export buttons close it. */}
 			<ChoiceDialog id="display-dialog" heading="Diagram" handle={displayDialog}>
 				<div class="dialog-section">
 					<h4 id="display-link-colors-heading">Link colors</h4>

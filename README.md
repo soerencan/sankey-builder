@@ -64,9 +64,8 @@ Available `make` targets:
 | `test-unit` | Run tests except the dist smoke test — fast local loop |
 | `test-dist` | Run only the dist smoke test (builds `dist/` from scratch, then boots it) |
 
-Unit tests live next to the module they cover, in `src/` (model, codec,
-validation, link-value, colors, export, hooks). `tests/integration/` suites
-are broader: they boot the application through `startApp()`
+Unit tests live next to the module they cover, in `src/`. `tests/integration/`
+suites are broader: they boot the application through `startApp()`
 (`src/app/start-app.tsx`) against the real `index.html` markup with the real
 d3/SortableJS. `tests/build/dist.test.ts` goes one step further: it runs the
 build script (`bun run build`) itself, then boots the actual emitted `dist/`

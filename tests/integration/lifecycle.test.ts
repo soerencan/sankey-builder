@@ -23,11 +23,10 @@ const STORAGE_NOTICE =
 	"try freeing up space or leaving private/incognito mode.";
 
 /**
- * A minimal Storage backed by its own Map, tracking every setItem key. Used
- * to count persisted saves precisely — swapping the whole `localStorage`
- * global rather than `vi.spyOn(Storage.prototype, ...)`, which happy-dom's
- * per-instance method binding makes unreliable once localStorage has already
- * been touched elsewhere (see the storage-notice test below).
+ * Swapped in for the whole `localStorage` global: happy-dom binds Storage
+ * methods per instance on first access, which makes
+ * `vi.spyOn(Storage.prototype, ...)` unreliable once localStorage has been
+ * touched.
  */
 function makeCountingStorage(): { storage: Storage; setItemCalls: string[] } {
 	const store = new Map<string, string>();
@@ -49,13 +48,9 @@ function makeCountingStorage(): { storage: Storage; setItemCalls: string[] } {
 }
 
 /**
- * Wraps document.createElement (for the `<a>` download.ts creates) and the
- * ambient `Image` constructor (for the `<img>` rasterizeSvg constructs) to
- * capture every instance while still delegating to the real implementation —
- * happy-dom has no network stack (an `<img>` never fires a real load event)
- * and no canvas adapter (`getContext("2d")` always returns null), so PNG
- * rasterization's pending state has to be driven and inspected by hand
- * through this.
+ * happy-dom never fires a real `<img>` load event and has no canvas
+ * adapter, so PNG rasterization's pending state is driven by hand through
+ * the captured elements.
  */
 function interceptExportElements(): {
 	images: HTMLImageElement[];
@@ -102,16 +97,12 @@ describe("application lifecycle", () => {
 		const { anchors, restore } = interceptExportElements();
 		try {
 			clickPngExport();
-			// Destroy lands before any load/error event — this app instance's
-			// AbortController aborts synchronously, which is what rasterizeSvg's
-			// own abort handling relies on to settle without a browser event.
+			// Lands before any load/error event; the abort settles rasterizeSvg.
 			app.destroy();
-			// Unmounts the whole App tree, including the notice region — nothing
-			// left to publish a stale notice into.
+			// The notice region is unmounted: nothing left to publish into.
 			expect(document.getElementById("io-notice")).toBeNull();
-			// exportPng's .catch runs as a microtask, after this synchronous test
-			// body would otherwise return — flush it before asserting on its
-			// (absent) effects, or a removed signal.aborted guard would go unnoticed.
+			// exportPng's .catch runs as a microtask; without the flush a removed
+			// signal.aborted guard would go unnoticed.
 			await tick();
 
 			expect(anchors).toHaveLength(0);
@@ -131,9 +122,8 @@ describe("application lifecycle", () => {
 		try {
 			clickPngExport();
 			expect(images).toHaveLength(1);
-			// Captured before destroy() detaches it, so this reference still lets
-			// the test simulate a browser completion racing destroy — exactly the
-			// case rasterizeSvg's exactly-once revoke/settle guards against.
+			// Captured before destroy() detaches it, to simulate a browser
+			// completion racing destroy.
 			const pendingOnload = images[0].onload;
 			expect(pendingOnload).not.toBeNull();
 
@@ -171,8 +161,7 @@ describe("application lifecycle", () => {
 
 		app.destroy();
 
-		// Unmounting SankeyCanvas runs its own layout-effect cleanup
-		// (host.replaceChildren()), the only thing that can remove the svg here.
+		// Only SankeyCanvas's effect cleanup can remove the svg.
 		expect(document.querySelector("#diagram svg")).toBeNull();
 	});
 
@@ -183,26 +172,21 @@ describe("application lifecycle", () => {
 		const nodeRowsBefore = document.querySelectorAll("#node-editor .node-row").length;
 		const storedBefore = localStorage.getItem(STORAGE_KEY);
 
-		// destroy() unmounts the whole App tree, so neither control exists to
-		// click any more — asserted directly, rather than clicking a query that
-		// may or may not have found anything.
+		// Asserted directly rather than clicking a query that may have found
+		// nothing.
 		expect(allByRole(document, "button", "Add node")).toHaveLength(0);
 		expect(allByRole(document, "button", "Next palette")).toHaveLength(0);
 
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(nodeRowsBefore);
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
-		// destroy() unmounts the whole App tree, so the splitter itself is gone —
-		// there's no element left to dispatch a keydown at. Its own listener
-		// teardown (window pointermove/pointerup/pointercancel removal,
-		// in-flight drag cancellation, released pointer capture) is unit-pinned
-		// in preview-resizer.test.tsx, not re-proven here.
+		// The splitter's own listener teardown is pinned in
+		// preview-resizer.test.tsx.
 		expect(document.getElementById("preview-splitter")).toBeNull();
 	});
 
 	it("a second boot on the same document replaces the first without duplicating its callbacks", () => {
-		// Boots more than once against the same DOM — installMarkup()/startApp()
-		// by hand rather than mountApp(), which would reinstall the markup (and
-		// so trivially avoid any leaked-listener bug) between boots.
+		// Not mountApp(): reinstalling the markup between boots would trivially
+		// avoid any leaked-listener bug.
 		installMarkup();
 		const first = startApp(document);
 		first.destroy();
@@ -211,9 +195,8 @@ describe("application lifecycle", () => {
 		try {
 			expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(4);
 
-			// One click should mutate state exactly once — both an intact instance
-			// and a leaked listener from `first` converge on 5 rows, so the real
-			// detectors are the setItem call count and the resizer step value below.
+			// An intact instance and a leaked listener both end at 5 rows, so
+			// the real detectors are the setItem count and the resizer step.
 			const realLocalStorage = localStorage;
 			const { storage: countingStorage, setItemCalls } = makeCountingStorage();
 			Object.defineProperty(globalThis, "localStorage", {
@@ -234,8 +217,7 @@ describe("application lifecycle", () => {
 			expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(5);
 			expect(setItemCalls.filter((key) => key === STORAGE_KEY)).toHaveLength(1);
 
-			// Same proof for the preview resizer's own listeners: one click applies
-			// its step exactly once (360 default + 40 step = 400, not 440).
+			// One click applies the step once (360 + 40 = 400, not 440).
 			click(byRole(document, "button", "Make diagram preview larger"));
 			expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("400");
 		} finally {
@@ -254,12 +236,8 @@ describe("application lifecycle", () => {
 		expect(linkSortable).toBeTruthy();
 		if (!linkSortable) throw new Error("unreachable");
 
-		// Simulate destroy() landing mid-drag on the link box. Sortable's own
-		// destroy() calls its internal drop handler with no event, which skips
-		// the branch that would otherwise remove the floating fallback clone
-		// from <body> — this pins that destroySortable's own explicit
-		// ghost/clone removal still runs for the app's own destroy() path, not
-		// just in isolation.
+		// destroy() landing mid-drag on the link box; pins that the clone
+		// cleanup runs on the app's own destroy path, not just in isolation.
 		const ghost = document.createElement("div");
 		const clone = document.createElement("div");
 		document.body.append(ghost, clone);
@@ -271,7 +249,6 @@ describe("application lifecycle", () => {
 
 		expect(document.body.contains(ghost)).toBe(false);
 		expect(document.body.contains(clone)).toBe(false);
-		// Both instances are gone, not just the one mid-drag.
 		expect(Sortable.get(nodeRows)).toBeNull();
 		expect(Sortable.get(linkRows)).toBeNull();
 	});
@@ -284,12 +261,7 @@ describe("application lifecycle", () => {
 
 		const addNodeButton = byRole<HTMLButtonElement>(document, "button", "Add node");
 
-		// happy-dom's Storage binds each method onto an internal target the
-		// first time it's accessed (see happy-dom's ClassMethodBinder), and by
-		// this point the earlier tests in this file have already forced that —
-		// so `vi.spyOn(Storage.prototype, "setItem")` silently stops taking
-		// effect. Swapping the whole `localStorage` global for a throwing stub
-		// sidesteps that caching rather than fighting it.
+		// Swapped rather than spied: see makeCountingStorage.
 		const originalLocalStorage = localStorage;
 		const throwingStorage: Partial<Storage> = {
 			setItem: () => {
@@ -312,9 +284,6 @@ describe("application lifecycle", () => {
 			});
 		}
 
-		// The failed save above still rebuilt the node editor (editors rebuild
-		// regardless of validity), which tore down and recreated the button —
-		// re-query rather than reuse the now-detached reference.
 		const addNodeButtonAfterFailure = byRole<HTMLButtonElement>(document, "button", "Add node");
 		click(addNodeButtonAfterFailure);
 		expect(notice()).toBe("");
@@ -352,8 +321,7 @@ describe("application lifecycle", () => {
 			});
 		}
 
-		// ThemeControl's onClick closes the dialog after every set-theme click
-		// regardless of the save outcome, so re-open it for the recovery click.
+		// The dialog closes after every choice, save outcome regardless.
 		click(themeButton);
 		const dialogAfterRecovery = document.getElementById("theme-dialog") as HTMLDialogElement;
 		click(byRole<HTMLButtonElement>(dialogAfterRecovery, "button", "Dark"));

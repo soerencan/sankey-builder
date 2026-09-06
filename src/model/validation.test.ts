@@ -94,8 +94,7 @@ describe("validate", () => {
 				],
 				links: [
 					{ id: "l1", source: "n1", target: "n2", value: 1 },
-					// A completing edge back to n1 would close a cycle, but it's
-					// incomplete (null source) so it's ignored.
+					// Would close a cycle if it were complete.
 					{ id: "l2", source: null, target: "n1", value: 1 },
 				],
 				settings: defaultState().settings,
@@ -146,11 +145,8 @@ describe("validate", () => {
 		});
 
 		it("doesn't flag a dangling link (no matching node) as a cycle", () => {
-			// platform/storage.ts normally coerces a dangling endpoint to null before
-			// validate ever sees the state, but validate is defensive here too:
-			// DFS only starts from `state.nodes`, and a dangling target has no
-			// outgoing edges of its own, so it can never close a cycle back to
-			// itself.
+			// The codec normally nulls a dangling endpoint first; validate must
+			// still cope, since DFS starts only from `state.nodes`.
 			const state: State = {
 				nodes: [{ id: "n1", name: "A" }],
 				links: [{ id: "l1", source: "n1", target: "missing", value: 1 }],

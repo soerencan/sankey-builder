@@ -35,7 +35,6 @@ const STORAGE_NOTICE =
 	"The diagram keeps working, but edits won't survive closing or reloading this tab — " +
 	"try freeing up space or leaving private/incognito mode.";
 
-/** Looks up the one static root `startApp` renders the whole app into, throwing a message naming it if it's missing from `doc`. */
 function requireRoot(doc: Document, id: string): HTMLElement {
 	const el = doc.getElementById(id);
 	if (!el) throw new Error(`startApp: missing required "#${id}" element in the document`);
@@ -43,17 +42,14 @@ function requireRoot(doc: Document, id: string): HTMLElement {
 }
 
 /**
- * Boots one application instance against `doc`, the one point where a test
- * can hand it a fresh document. This is the sole owner of state, the action
- * objects, and the app-scoped AbortController, so a second `startApp` call
- * after `destroy()` on the first never shares mutable state or duplicated
- * listeners with it. Calling `startApp` again without destroying the first
- * instance is not supported — both instances would bind listeners to the
- * same document.
+ * Everything mutable (state, actions, the AbortController) lives in this
+ * closure so a second `startApp` after `destroy()` shares nothing with the
+ * first. Two live instances on one document are not supported: both would
+ * bind listeners to it.
  */
 export function startApp(doc: Document = globalThis.document): AppHandle {
-	// The single Preact root — resolved once, up front, so a markup regression
-	// fails loudly at boot rather than silently no-op-ing on every render below.
+	// Resolved up front so a markup regression fails at boot instead of
+	// silently no-op-ing on every render.
 	const appRoot = requireRoot(doc, "app");
 
 	const controller = new AbortController();
@@ -62,23 +58,16 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 
 	const state: State = loadState(localStorage);
 
-	// The last-valid diagram render request. Reassigned wholesale, never
-	// mutated in place, so SankeyCanvas can key its redraw off reference
-	// identity.
+	// Reassigned wholesale, never mutated in place: SankeyCanvas keys its
+	// redraw off reference identity.
 	let lastValidRequest: DiagramRenderRequest | null = null;
 
-	// At most one Notice per kind — plain local state, not Preact state, since
-	// this controller (not any component) owns every committed action and is
-	// the sole source renderApp() below reads.
+	// At most one notice per kind. Plain local state rather than Preact state
+	// because this controller, not a component, owns every action.
 	const notices: Partial<Record<NoticeKind, Notice>> = {};
 
 	applyTheme(doc, state.settings.theme);
 
-	/**
-	 * The one controller render function: projects the current domain state
-	 * and notices into a fresh view snapshot and hands it to `App`. Called
-	 * from exactly three places: commit(), setTheme(), and setIoNotice().
-	 */
 	function renderApp(): void {
 		render(
 			<App
@@ -97,12 +86,6 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		);
 	}
 
-	/**
-	 * Retires the previous I/O notice in favor of the caller's, if any, then
-	 * persists the current state and derives the storage notice from the
-	 * result — shared by commit() and setTheme(), the only two paths that
-	 * save, and the only place either touches `notices.io`/`notices.storage`.
-	 */
 	function persist(io?: Notice): void {
 		notices.io = io;
 		const saved = saveState(localStorage, state);
@@ -111,12 +94,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			: { kind: "storage", tone: "warning", message: STORAGE_NOTICE };
 	}
 
-	/**
-	 * The one path for every diagram-changing action: mutate, validate,
-	 * snapshot the diagram for rendering when (and only when) it's valid,
-	 * persist, set the graph/storage/io notices, and render once. `io` is the
-	 * caller's own outcome notice, if any (e.g. an import's repair summary).
-	 */
+	/** The one path for every diagram-changing action. `io` is the caller's own outcome notice, e.g. an import's repair summary. */
 	function commit(mutation: (state: State) => void, io?: Notice): void {
 		mutation(state);
 
@@ -139,7 +117,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		renderApp();
 	}
 
-	/** Sets the I/O notice and renders — no validation, persistence, or diagram redraw, since the canvas keys its redraw off `lastValidRequest`'s identity, which this never touches. */
+	/** Bypasses commit(): a notice change must neither persist nor redraw the diagram. */
 	function setIoNotice(notice: Notice | undefined): void {
 		notices.io = notice;
 		renderApp();
@@ -181,9 +159,6 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		},
 	};
 
-	// Shared by DataPanel (import/JSON export) and DiagramPanel (SVG/PNG
-	// export) below, so every #io-notice message goes through one
-	// implementation regardless of which control produced it.
 	const ioNoticeActions: IoNoticeActions = {
 		clearIoNotice() {
 			setIoNotice(undefined);
@@ -196,9 +171,6 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	const dataPanelActions: DataPanelActions = {
 		...ioNoticeActions,
 		importDiagram(imported, repairs) {
-			// theme is deliberately untouched — a per-browser preference, not
-			// diagram data, so it survives an import. No notice when nothing
-			// needed adjusting — the changed data is sufficient feedback.
 			commit(
 				(s) => replaceDiagram(s, imported),
 				repairs.length === 0
@@ -213,9 +185,8 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	};
 
 	const themeControlActions: ThemeControlActions = {
-		// Theme is a per-browser preference, not diagram data — unlike the other
-		// settings actions, this skips validation and the diagram/editor redraw
-		// entirely: apply, persist, render once.
+		// Not routed through commit(): the theme is a per-browser preference,
+		// not diagram data, so it needs neither validation nor a diagram redraw.
 		setTheme(value) {
 			state.settings.theme = value;
 			applyTheme(doc, value);
@@ -248,25 +219,16 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		...ioNoticeActions,
 	};
 
-	// Validates and renders the state loaded above, exactly like any other
-	// committed action, so a graph a previous session left invalid shows its
-	// notice immediately instead of an unvalidated diagram.
+	// A graph a previous session left invalid must show its notice at boot.
 	commit(() => {});
 
 	function destroy(): void {
 		if (destroyed) return;
 		destroyed = true;
 		controller.abort();
-		// Must run before unmounting App below: destroying one editor's Sortable
-		// instance first would otherwise poison the other's own mid-drag cleanup.
+		// Must run before unmounting: destroying one editor's Sortable instance
+		// first would poison the other's mid-drag cleanup.
 		removeActiveDragClone();
-		// Unmounts the whole App tree in one pass: DataPanel's own
-		// use-row-sortable.ts cleanup tears down each editor's Sortable instance,
-		// DiagramPanel/ThemeControl's useDialog() hooks tear down their own
-		// listeners, SankeyCanvas's layout-effect cleanup clears the SVG, and
-		// PreviewResizer's layout-effect cleanup cancels any in-progress drag and
-		// releases pointer capture — all as ordinary Preact unmount cleanup, not
-		// via the AbortSignal above.
 		render(null, appRoot);
 	}
 

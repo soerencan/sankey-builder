@@ -8,11 +8,6 @@ export interface ChoiceDialogProps {
 	children: ComponentChildren;
 }
 
-/**
- * The <dialog>/heading/close-button shell every settings chooser dialog
- * shares, wired to a useDialog() handle. Callers supply only their own
- * option list (typically a ChoiceGroup) as children.
- */
 export function ChoiceDialog({ id, heading, handle, children }: ChoiceDialogProps) {
 	const headingId = `${id}-heading`;
 	return (

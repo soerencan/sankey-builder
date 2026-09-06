@@ -12,8 +12,6 @@ describe("application boot", () => {
 		expect(document.getElementById("app")).not.toBeNull();
 		expect(document.getElementById("app")?.children).toHaveLength(0);
 		expect(document.querySelector("svg[hidden] symbol")).not.toBeNull();
-		// Nothing of the booted app (header, notices, diagram/data panels) is
-		// present until startApp() itself renders it.
 		expect(document.querySelector(".app-header")).toBeNull();
 		expect(document.querySelector(".diagram-panel")).toBeNull();
 		expect(document.querySelector(".data-card")).toBeNull();
@@ -39,8 +37,7 @@ describe("application boot", () => {
 		const diagram = document.getElementById("diagram");
 		const viewBoxBefore = diagram?.querySelector("svg")?.getAttribute("viewBox");
 		click(byRole(document, "button", "Make diagram preview larger"));
-		// PreviewResizer's CSS custom-property write happens in a layout effect,
-		// on the next render.
+		// The custom-property write lands in a layout effect on the next render.
 		await tick();
 
 		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
@@ -57,7 +54,7 @@ describe("application boot", () => {
 		const diagram = document.getElementById("diagram");
 		expect(diagram?.querySelector("svg")).not.toBeNull();
 
-		// defaultState (src/model/graph.ts) has 4 nodes / 3 links.
+		// defaultState has 4 nodes / 3 links.
 		expect(diagram?.querySelectorAll("svg rect")).toHaveLength(4);
 		expect(diagram?.querySelectorAll("svg path")).toHaveLength(3);
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(4);

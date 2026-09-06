@@ -3,10 +3,9 @@ import type { State } from "../model/graph";
 import { defaultState, withoutLinkId } from "../model/graph";
 import { STORAGE_KEY, loadState, saveState } from "./storage";
 
-// No import from features/diagram/colors.ts (or anything importing it) in this file — proves
-// storage.ts (and its model/codec.ts dependency) stay d3-free at both module-eval and call time.
+// Deliberately imports nothing from features/diagram/colors.ts: proves
+// storage.ts and codec.ts stay d3-free at module-eval and call time.
 
-/** Minimal in-memory stand-in for the `Storage` interface. */
 function fakeLocalStorage(initial: Record<string, string> = {}): Storage {
 	const store = new Map(Object.entries(initial));
 	return {
@@ -25,7 +24,7 @@ function fakeLocalStorage(initial: Record<string, string> = {}): Storage {
 	};
 }
 
-/** Storage stand-in whose accessors throw, mirroring Safari private mode / file://. */
+/** Accessors throw, as in Safari private mode or file://. */
 function unavailableLocalStorage(): Storage {
 	const unavailable = () => {
 		throw new Error("storage unavailable");
@@ -40,7 +39,7 @@ function unavailableLocalStorage(): Storage {
 	};
 }
 
-/** For comparing two independently-produced States whose link ids necessarily differ (nextLinkId never repeats). */
+/** Link ids from two independent loads necessarily differ. */
 function stripLinkIds(state: State) {
 	return { ...state, links: state.links.map(withoutLinkId) };
 }

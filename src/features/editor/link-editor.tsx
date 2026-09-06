@@ -19,13 +19,6 @@ export interface LinkEditorProps {
 	actions: LinkEditorActions;
 }
 
-/**
- * Rows are keyed by link id, so a value/endpoint edit or a reorder patches
- * the existing DOM in place — preserving an in-progress draft, focus, and
- * the Sortable-owned rows container — while an import's or storage load's
- * fresh Link objects get fresh ids, drawn from a monotonic per-instance
- * sequence, and so correctly reset every row.
- */
 export function LinkEditor({ links, nodes, actions }: LinkEditorProps) {
 	const rowsRef = useRef<HTMLDivElement>(null);
 	useRowSortable(rowsRef, { rowClass: "link-row", onMove: actions.moveLink });

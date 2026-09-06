@@ -5,11 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { byRole } from "../../tests/helpers/dom-queries";
 import { useDialog } from "./use-dialog";
 
-/**
- * Arbitrary fixture markup, not one of the real DiagramPanel/ThemeControl
- * dialogs: this hook is markup-agnostic, so the test proves that rather than
- * exercising just one real consumer.
- */
+/** Arbitrary markup rather than a real consumer's dialog: the hook is markup-agnostic and the test proves that. */
 function Fixture() {
 	const dialog = useDialog();
 	return (

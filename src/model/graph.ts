@@ -7,9 +7,8 @@ export interface Node {
 }
 
 /**
- * `id` is in-memory identity, not data: nothing else references it, the
- * codec assigns a fresh one to every link it normalizes (ignoring any `id`
- * in the input), and export/storage omit it. See nextLinkId.
+ * `id` is in-memory identity, not data: nothing references it, the codec
+ * assigns a fresh one to every link it normalizes, and export/storage omit it.
  */
 export interface Link {
 	id: string;
@@ -19,16 +18,14 @@ export interface Link {
 }
 
 /**
- * A link is complete once both endpoints are assigned. Incomplete links are
- * inert downstream — validate skips them and render filters them out — so an
- * "Add link" click never draws a flow the user didn't choose. Persistence
- * deliberately keeps them, so an in-progress row survives a reload.
+ * Incomplete links are inert (validation skips them, rendering omits them)
+ * so "Add link" never draws a flow the user didn't choose. Persistence keeps
+ * them so an in-progress row survives a reload.
  */
 export function isComplete(link: Link): link is Link & { source: string; target: string } {
 	return link.source !== null && link.target !== null;
 }
 
-/** Sheds the in-memory-only link id before code that treats a Link as data (export, storage). */
 export function withoutLinkId(link: Readonly<Link>): Omit<Link, "id"> {
 	const { source, target, value } = link;
 	return { source, target, value };
@@ -43,12 +40,9 @@ export interface State {
 let linkIdSequence = 0;
 
 /**
- * Fresh link id, drawn from a module-level counter that only ever
- * increments — not derived from `state.links` like nextNodeId's "max
- * existing + 1". A link id is in-memory identity, not data, so a replaced
- * diagram (import, storage load) must never reuse an id that a still-mounted
- * LinkRow already holds; this counter runs for the lifetime of the app
- * instance regardless of how many links have since been deleted.
+ * A monotonic counter rather than nextNodeId's "max existing + 1": a
+ * replaced diagram (import, storage load) must never reuse an id a
+ * still-mounted LinkRow holds.
  */
 export function nextLinkId(): string {
 	linkIdSequence += 1;
@@ -72,11 +66,7 @@ export function defaultState(): State {
 	};
 }
 
-/**
- * Next stable node id, derived from the current max numeric suffix rather
- * than a persisted counter — so ids stay correct after localStorage
- * hydration without any extra bookkeeping.
- */
+/** Derived from the current max suffix rather than a persisted counter, so it stays correct after localStorage hydration. */
 export function nextNodeId(state: State): string {
 	const maxSuffix = state.nodes.reduce((max, n) => {
 		const match = /^n(\d+)$/.exec(n.id);
@@ -97,9 +87,7 @@ export function renameNode(state: State, id: string, name: string): void {
 
 export function deleteNode(state: State, id: string): void {
 	state.nodes = state.nodes.filter((n) => n.id !== id);
-	// Cascade-prune links referencing the node now: d3-sankey throws
-	// Error("missing: <id>") on a dangling reference during layout. Null
-	// endpoints don't match `id`, so incomplete links are left intact.
+	// d3-sankey throws on a dangling reference during layout.
 	state.links = state.links.filter((l) => l.source !== id && l.target !== id);
 }
 
@@ -108,11 +96,6 @@ export function updateLink(state: State, id: string, patch: Partial<Link>): void
 	if (link) Object.assign(link, patch);
 }
 
-/**
- * Adds an unassigned link — both endpoints null, value 1. The user picks
- * source and target from the row's dropdowns; until then the link is
- * incomplete and inert, so this works at any node count (including zero).
- */
 export function addLink(state: State): void {
 	state.links.push({ id: nextLinkId(), source: null, target: null, value: 1 });
 }
@@ -121,12 +104,8 @@ export function deleteLink(state: State, id: string): void {
 	state.links = state.links.filter((l) => l.id !== id);
 }
 
-/**
- * Splice-move: pull the item at `from` and reinsert it at `to`. Out-of-range
- * indices clamp to the valid range; a no-op when the resolved indices match or
- * the array has fewer than two items. Row order IS array order — everything
- * downstream (editor rows, dropdown options, export, persistence) follows.
- */
+// Array order is row order everywhere downstream: editor rows, dropdown
+// options, export, persistence.
 function moveWithin<T>(items: T[], from: number, to: number): void {
 	if (items.length < 2) return;
 	const max = items.length - 1;
@@ -145,20 +124,13 @@ export function moveLink(state: State, from: number, to: number): void {
 	moveWithin(state.links, from, to);
 }
 
-/** The one shape for import and replaceDiagram; settings exclude theme, a per-browser preference rather than diagram data. */
 export interface Diagram {
 	nodes: Node[];
 	links: Link[];
 	settings: DiagramSettings;
 }
 
-/**
- * Whole-diagram replacement, used by import. Mutates nodes/links/settings in
- * place (array length=0+push, not reassignment) rather than replacing
- * `state` itself, so callers that captured the State reference in closures
- * (editors, Sortable) keep seeing live data. `settings.theme` is deliberately
- * left untouched — a per-browser preference, not diagram data.
- */
+/** Mutates in place rather than replacing `state`, so closures holding the State reference keep seeing live data. */
 export function replaceDiagram(state: State, diagram: Diagram): void {
 	state.nodes.length = 0;
 	state.nodes.push(...diagram.nodes);

@@ -23,12 +23,7 @@ import {
 	tick,
 } from "../helpers/mount-app";
 
-/**
- * The wide toolbar's alignment ChoiceGroup — both it and the narrow Diagram
- * dialog's own copy share the accessible name "Alignment" (one via `label`,
- * the other via `labelledBy` a heading with the same text), so the wide copy
- * is the one NOT nested in a <dialog>.
- */
+/** The wide and narrow copies share the accessible name "Alignment"; the wide one is the copy not nested in a <dialog>. */
 function wideAlignmentGroup(): HTMLElement {
 	const group = allByRole(document, "group", "Alignment").find(
 		(candidate) => !candidate.closest("dialog"),
@@ -77,8 +72,7 @@ describe("toolbar & settings", () => {
 
 		expect(dialog.open).toBe(true);
 
-		// Pin the dialog's rendered option labels against PALETTE_LABELS
-		// (src/features/settings/options.ts) so the two can't drift apart.
+		// Pinned against PALETTE_LABELS so the two can't drift apart.
 		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
 		expect(options.map((option) => accessibleName(option))).toEqual(
 			PALETTE_ORDER.map((value) => PALETTE_LABELS[value]),
@@ -118,9 +112,7 @@ describe("toolbar & settings", () => {
 
 		expect(dialog.open).toBe(true);
 
-		// Pin the dialog's rendered option labels against LINK_COLOR_OPTIONS
-		// (src/features/settings/options.ts) so the two can't drift apart —
-		// byRole throws if a labelled option is missing.
+		// Pinned against LINK_COLOR_OPTIONS so the two can't drift apart.
 		for (const option of Object.values(LINK_COLOR_OPTIONS)) {
 			byRole(dialog, "button", option.label);
 		}
@@ -143,14 +135,12 @@ describe("toolbar & settings", () => {
 		const stored = getStoredState();
 		expect(stored.settings.linkColor).toBe("static");
 
-		// Only the chosen option is pressed.
 		expect(staticOption.getAttribute("aria-pressed")).toBe("true");
 		const group = byRole(dialog, "group");
 		for (const option of allByRole<HTMLButtonElement>(group, "button")) {
 			if (option !== staticOption) expect(option.getAttribute("aria-pressed")).toBe("false");
 		}
 
-		// Re-renders link paths with the static stroke (src/features/diagram/render.ts's linkStroke "static" case).
 		const paths = document.querySelectorAll("#diagram svg path");
 		expect(paths.length).toBeGreaterThan(0);
 		for (const path of Array.from(paths)) {
@@ -169,9 +159,8 @@ describe("toolbar & settings", () => {
 		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
 		const diagram = document.getElementById("diagram");
 
-		// Start from "static" (defaultState().linkColor is already
-		// "source-target", so asserting the post-click state alone wouldn't
-		// prove the click handler ran) — this leg proves the click landed.
+		// The default is already "source-target", so start from "static" to
+		// prove the click handler ran.
 		click(linksButton);
 		const staticOption = byRole<HTMLButtonElement>(
 			dialog,
@@ -186,7 +175,6 @@ describe("toolbar & settings", () => {
 			expect(path.getAttribute("stroke")).toBe("#aaa");
 		}
 
-		// Now transition to the gradient option and assert the change actually took.
 		click(linksButton);
 		const gradientOption = byRole<HTMLButtonElement>(
 			dialog,
@@ -206,10 +194,8 @@ describe("toolbar & settings", () => {
 	it("boots with exactly one alignment value pressed, matching the default alignment, on both the wide and narrow copies", () => {
 		mountApp();
 
-		// Two DOM copies of each alignment button exist (the wide toolbar's
-		// group and the narrow Diagram dialog's own copy) — DiagramPanel renders
-		// both from the same settings, so every pressed button must share the
-		// same value.
+		// The wide toolbar's group and the narrow dialog's copy render from the
+		// same settings, so every pressed button must share one value.
 		const alignmentGroups = allByRole(document, "group", "Alignment");
 		expect(alignmentGroups).toHaveLength(2);
 		const defaultLabel = ALIGNMENT_OPTIONS.find(
@@ -234,7 +220,6 @@ describe("toolbar & settings", () => {
 		const stored = getStoredState();
 		expect(stored.settings.alignment).toBe("left");
 
-		// Only options with the chosen value are pressed, across both copies.
 		for (const group of allByRole(document, "group", "Alignment")) {
 			for (const option of allByRole<HTMLButtonElement>(group, "button")) {
 				expect(option.getAttribute("aria-pressed")).toBe(
@@ -243,8 +228,7 @@ describe("toolbar & settings", () => {
 			}
 		}
 
-		// A fresh <svg> replaces the old one — same re-render evidence the
-		// value-edit and link-color tests above rely on.
+		// A fresh <svg> is the re-render evidence.
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
 		expect(svgAfter).not.toBe(svgBefore);
@@ -288,18 +272,14 @@ describe("toolbar & settings", () => {
 		expect(document.activeElement).toBe(trigger);
 	});
 
-	// Pins App's own style-prop write against PreviewResizer's imperative one:
-	// Preact's per-render style diff only ever touches the keys present in the
-	// vnode's style object, so a later aspect-ratio-driven rerender must not
-	// clobber the height PreviewResizer wrote straight to the DOM outside that
-	// diff.
+	// App's style-prop diff must not clobber the height PreviewResizer writes
+	// to the same element outside Preact.
 	it("changing aspect ratio after resizing the preview leaves --diagram-preview-height untouched", async () => {
 		mountApp();
 
 		const diagram = document.getElementById("diagram");
 		click(byRole(document, "button", "Make diagram preview larger"));
-		// PreviewResizer's CSS custom-property write happens in a layout effect,
-		// on the next render.
+		// The custom-property write lands in a layout effect on the next render.
 		await tick();
 		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
 
@@ -345,18 +325,14 @@ describe("toolbar & settings", () => {
 		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		const linksDialog = document.getElementById("links-dialog") as HTMLDialogElement;
 
-		// Start from "static" (defaultState().linkColor is already
-		// "source-target") so the later transition back to source-target
-		// actually proves the click handler ran, same rationale as the wide
-		// links-dialog gradient test above.
+		// The default is already "source-target", so start from "static" to
+		// prove the click handler ran.
 		click(byRole(displayDialog, "button", LINK_COLOR_OPTIONS.static.shortLabel));
 
 		const storedAfterStatic = getStoredState();
 		expect(storedAfterStatic.settings.linkColor).toBe("static");
 		expect(displayDialog.open).toBe(true);
 
-		// The narrow display dialog's copy uses the abbreviated shortLabel
-		// ("Gradient") while the wide links dialog keeps the full label.
 		const gradientOption = byRole<HTMLButtonElement>(
 			displayDialog,
 			"button",
@@ -373,8 +349,7 @@ describe("toolbar & settings", () => {
 			document.getElementById("diagram")?.querySelector('path[stroke="url(#link-grad-0)"]'),
 		).not.toBeNull();
 
-		// Both copies of the choice — the Diagram dialog's own and the wide
-		// toolbar's #links-dialog — must reflect the new value.
+		// Both copies must reflect the new value.
 		expect(gradientOption.getAttribute("aria-pressed")).toBe("true");
 		const linksDialogGradientOption = byRole<HTMLButtonElement>(
 			linksDialog,
@@ -505,10 +480,7 @@ describe("toolbar & settings", () => {
 	});
 });
 
-// Link color, alignment, and aspect ratio are diagram-only settings — they
-// redraw the diagram and persist without touching either editor. (The rows
-// container/Sortable-instance survival invariant itself is asserted once, in
-// reorder.test.ts.)
+// Diagram-only settings redraw and persist without touching either editor.
 describe("diagram-only settings redraw and persist", () => {
 	it("changing link color redraws the diagram and persists", () => {
 		mountApp();
@@ -548,16 +520,12 @@ describe("diagram-only settings redraw and persist", () => {
 	});
 });
 
-// The last-valid render request is only replaced when the graph validates
-// (see start-app.tsx's commit()) — a diagram-setting change made while
-// invalid must still persist and update controls, but leaves the request
-// (and therefore the on-screen SVG) exactly as it was.
+// The last-valid render request is only replaced when the graph validates.
 describe("a diagram-setting change made while the graph is invalid", () => {
 	it("persists and updates controls but leaves the last-valid SVG element and markup untouched", () => {
 		mountApp();
 
-		// Retargeting the third link to n1 closes a 2-node cycle, same setup as
-		// the theme-while-invalid test above.
+		// Retargeting the third link to n1 closes a 2-node cycle.
 		const target = byRole<HTMLSelectElement>(document, "combobox", "Target for link 3");
 		target.value = "n1";
 		fireChange(target);
@@ -573,16 +541,15 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 		expect(leftOption.getAttribute("aria-pressed")).toBe("true");
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
-		// Identity, not just markup equality: commit() passed SankeyCanvas the
-		// same `lastValidRequest` reference, so its layout effect never reran.
+		// Identity, not markup equality: the same request reference means the
+		// layout effect never reran.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 	});
 });
 
-// Unlike the diagram-only settings above, palette changes DO affect the node
-// editor — its swatches must show the new colors — but that's a style patch
-// on the existing `.node-swatch` elements, not a rebuild.
+// Unlike the diagram-only settings, a palette change reaches the node
+// editor's swatches, but as a style patch, not a rebuild.
 describe("palette changes patch node-editor swatches", () => {
 	it("choosing a palette from the dialog updates swatch colors, replaces the SVG, and persists", () => {
 		mountApp();
@@ -604,35 +571,28 @@ describe("palette changes patch node-editor swatches", () => {
 	});
 });
 
-// Unlike the diagram-only settings above, theme is not diagram data —
-// changing it must skip validation and the redraw entirely (only
-// palette/link-color/alignment/aspect-ratio redraw), just apply the theme,
-// persist, and clear the one-shot I/O notice.
+// Theme is not diagram data: a change applies, persists, and clears the
+// one-shot I/O notice, without validation or a redraw.
 describe("theme changes skip validation and the redraw", () => {
 	it("on a valid graph: persists, clears a seeded I/O notice, applies data-theme, and leaves the rendered SVG untouched", async () => {
 		mountApp();
 
-		// Seed #io-notice the same way files.test.ts's repair-warning import test
-		// does — a repaired import installs a notice via its own commit() (an
-		// import without repairs installs none under the current policy) — so
-		// "cleared by the theme change" below is a real assertion, not two empty
-		// strings.
+		// Seed #io-notice via a repaired import so "cleared" below is a real
+		// assertion, not two empty strings.
 		const payload = {
 			nodes: [
 				{ id: "n1", name: "X" },
 				{ id: "n2", name: "Y" },
 			],
 			links: [{ source: "n1", target: "n2", value: 3 }],
-			// An unrecognized palette is repaired to the default, which installs
-			// the warning — the link itself must stay complete so the diagram
-			// below still renders an svg (a linkless graph draws none).
+			// Repaired to the default, which installs the warning. The link stays
+			// complete so an svg still renders.
 			settings: { palette: "not-a-real-palette" },
 		};
 		const file = new File([JSON.stringify(payload)], "sankey.json", { type: "application/json" });
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
-		// Flush the async file.text() + parseImport chain.
 		await settle();
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
@@ -650,15 +610,14 @@ describe("theme changes skip validation and the redraw", () => {
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 		expect(getStoredState().settings.theme).toBe("light");
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
-		// No re-render: same <svg> element, not just equivalent markup.
+		// Same <svg> element, not just equivalent markup.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 	});
 
 	it("on an invalid graph (cycle): leaves the error banner and the last valid diagram untouched", () => {
 		mountApp();
 
-		// Retargeting the third link to n1 closes a 2-node cycle, same setup as
-		// editor.test.ts's cycle test.
+		// Retargeting the third link to n1 closes a 2-node cycle.
 		const target = byRole<HTMLSelectElement>(document, "combobox", "Target for link 3");
 		target.value = "n1";
 		fireChange(target);
@@ -672,9 +631,7 @@ describe("theme changes skip validation and the redraw", () => {
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
 		click(byRole(dialog, "button", THEME_OPTIONS.light.label));
 
-		// The theme change didn't re-run validation: the same cycle error is
-		// still showing, verbatim, and the diagram (SVG identity, the main
-		// proxy for "no render happened") is untouched.
+		// Same error verbatim and same svg element: validation didn't re-run.
 		expect(document.getElementById("error")?.textContent).toBe(errorBefore);
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 
@@ -683,17 +640,10 @@ describe("theme changes skip validation and the redraw", () => {
 	});
 });
 
-// DiagramPanel and ThemeControl render their dialogs directly from
-// src/features/settings/options.ts's (and model/settings.ts's) metadata, so
-// most cases below pin option wiring/completeness — every entry in the
-// source table is actually present in the rendered DOM with the right
-// accessible name/label/icon — rather than checking two independent sources
-// against each other. The alignment value-set check is the exception: it
-// still compares the rendered DOM against model/settings.ts's ALIGNMENTS
-// directly, since options.ts's own ALIGNMENT_OPTIONS deliberately reorders
-// that set for the dialog's display order and could still drift from it.
-// The tests above already exercise behavior around a handful of these rows
-// in passing; this block is the exhaustive, dedicated contract.
+// The dialogs render from the options.ts tables, so these pin that every
+// table entry is wired into the DOM. Alignment is the exception: its
+// rendered set is compared against model/settings' ALIGNMENTS, the one
+// independent source, since ALIGNMENT_OPTIONS reorders it and could drift.
 describe("dialog markup vs settings metadata contract", () => {
 	it("palette dialog: rendered option order and labels match PALETTE_ORDER / PALETTE_LABELS", () => {
 		mountApp();
@@ -723,10 +673,8 @@ describe("dialog markup vs settings metadata contract", () => {
 	it("display dialog's narrow link-color copy: rendered option set matches LINK_COLOR_OPTIONS", () => {
 		mountApp();
 
-		// The narrow Diagram-dialog copy uses deliberately abbreviated labels
-		// (e.g. "Gradient" instead of "Source to target (gradient)"), so only
-		// shortLabels are pinned here — the links-dialog test above already pins
-		// the full labels/icons for the one copy that owns the canonical text.
+		// The narrow copy uses shortLabels; the links-dialog test pins the full
+		// labels and icons.
 		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		const group = byRole(displayDialog, "group", "Link colors");
 		const options = allByRole<HTMLButtonElement>(group, "button");
@@ -738,10 +686,8 @@ describe("dialog markup vs settings metadata contract", () => {
 	it("alignment buttons: each DOM copy's rendered option set matches the model's ALIGNMENTS", () => {
 		mountApp();
 
-		// Two DOM copies of the alignment group — the wide toolbar's own copy
-		// and the narrow Diagram dialog's own copy — checked separately so a
-		// missing/extra button in just one copy can't hide behind the other's
-		// count in a merged set.
+		// Each copy is checked separately so a missing button in one can't
+		// hide behind the other's count in a merged set.
 		const alignmentLabelByValue = new Map(
 			ALIGNMENT_OPTIONS.map((option) => [option.value, option.label]),
 		);

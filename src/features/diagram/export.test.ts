@@ -5,15 +5,11 @@ import { rasterizeSvg, serializeDiagramSvg } from "./export";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-// Arbitrary fixture dimensions — serializeDiagramSvg only reads whatever
-// viewBox the live svg happens to have, so these have no relationship to
-// render.ts's own aspect-ratio-derived sizes.
+// Arbitrary: serializeDiagramSvg reads whatever viewBox the svg has.
 const FIXTURE_WIDTH = 960;
 const FIXTURE_HEIGHT = 480;
 
-// Mirrors the shape renderDiagram produces: a viewBox-only root, a
-// currentColor label, and a link path — enough to exercise every
-// transformation without depending on d3-sankey layout.
+// The shape renderDiagram produces, without depending on d3-sankey layout.
 function buildFixture(): SVGSVGElement {
 	const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
 	svg.setAttribute("viewBox", `0 0 ${FIXTURE_WIDTH} ${FIXTURE_HEIGHT}`);
@@ -83,8 +79,8 @@ describe("serializeDiagramSvg", () => {
 	});
 
 	it("declares xmlns exactly once", () => {
-		// setAttribute("xmlns") plus XMLSerializer's own namespace handling is
-		// engine-dependent; a duplicate attribute would make the file malformed XML.
+		// XMLSerializer's namespace handling is engine-dependent; a duplicate
+		// attribute would be malformed XML.
 		const svg = buildFixture();
 
 		const xml = serializeDiagramSvg(svg, { labelColor: "#123456", background: "#fff" });
@@ -93,9 +89,6 @@ describe("serializeDiagramSvg", () => {
 	});
 
 	it("keeps nested gradient defs and their url() references intact", () => {
-		// The source-target link mode nests per-link <linearGradient> elements
-		// inside the svg, referenced by stroke="url(#id)" — the PNG slice's
-		// rasterization depends on both surviving serialization.
 		const svg = buildFixture();
 		const gradient = document.createElementNS(SVG_NS, "linearGradient");
 		gradient.setAttribute("id", "link-grad-0");
@@ -141,12 +134,7 @@ class FakeCanvas {
 	}
 }
 
-/**
- * Stubs the ambient globals rasterizeSvg actually calls — real `<img>`/canvas
- * loading isn't exercisable under happy-dom (no network, no canvas adapter),
- * so this drives the img/canvas callbacks by hand instead. `imgs` collects
- * every `new Image()` rasterizeSvg constructs, in call order.
- */
+/** happy-dom has no image loading or canvas adapter, so the img/canvas callbacks are driven by hand. `imgs` collects every `new Image()` in call order. */
 function stubRasterizeGlobals() {
 	const imgs: FakeImg[] = [];
 	class TrackedFakeImg extends FakeImg {
@@ -234,9 +222,7 @@ describe("rasterizeSvg", () => {
 		controller.abort();
 		await expect(promise).rejects.toMatchObject({ name: "AbortError" });
 
-		// Detached, so the app can't actually re-invoke it through `img` anymore
-		// — but a race where the browser's own load event was already about to
-		// fire (already queued the moment abort ran) must still be harmless.
+		// A load event already queued when abort ran must still be harmless.
 		onload?.call(imgs[0]);
 
 		expect(revokeObjectURL).toHaveBeenCalledTimes(1);
@@ -258,9 +244,8 @@ describe("rasterizeSvg", () => {
 	it("clears the img's onerror before clearing src, so a browser that fires error-on-clear can't re-enter it", async () => {
 		const { revokeObjectURL } = stubRasterizeGlobals();
 
-		// Unlike FakeImg above, this fake's own `src` setter mimics a real
-		// browser that synchronously fires `error` when a pending load's `src`
-		// is cleared — pinning that onAbort detaches handlers *first*.
+		// Mimics a browser that fires `error` synchronously when a pending
+		// load's `src` is cleared, pinning that onAbort detaches handlers first.
 		class FakeImgFiresErrorOnSrcClear {
 			onload: (() => void) | null = null;
 			#onerror: (() => void) | null = null;

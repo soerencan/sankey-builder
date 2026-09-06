@@ -15,17 +15,13 @@ describe("parseLinkValue", () => {
 		["exactly the cap", "1000000000000000", { kind: "valid", value: MAX_LINK_VALUE }],
 		["zero", "0", { kind: "invalid", reason: "non-positive" }],
 		["all-zero decimal", "0.0000", { kind: "invalid", reason: "non-positive" }],
-		// A leading "-" isn't part of the plain-decimal format at all, so this
-		// is a format error, never reaching the non-positive check.
+		// A sign isn't part of the plain-decimal format, so never non-positive.
 		["negative value", "-1", { kind: "invalid", reason: "format" }],
-		// Exponent notation isn't the plain-decimal format at all, so it's a
-		// format error, not an above-maximum one, even though 1e20 exceeds
-		// MAX_LINK_VALUE.
+		// Format wins over above-maximum.
 		["exponent notation", "1e5", { kind: "invalid", reason: "format" }],
 		["exponent notation above the cap", "1e20", { kind: "invalid", reason: "format" }],
 		["more than 4 fractional digits", "0.12345", { kind: "invalid", reason: "precision" }],
-		// Excess precision wins over non-positive: the parsed value is 0, but
-		// the format-level precision rule is checked first.
+		// Precision wins over non-positive.
 		["all-zero decimal with excess precision", "0.00000", { kind: "invalid", reason: "precision" }],
 		["thousands separator", "1,000", { kind: "invalid", reason: "format" }],
 		["inner whitespace", "1 0", { kind: "invalid", reason: "format" }],

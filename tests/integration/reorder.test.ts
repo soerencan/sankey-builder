@@ -29,21 +29,18 @@ describe("row reordering", () => {
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
-		// Coal (n1) moved down one position.
 		expect(nodeNames()).toEqual(["Gas", "Coal", "Electricity", "Homes"]);
 
 		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n1", "n3", "n4"]);
 
-		// Link dropdown option order follows the new node order.
+		// Dropdown option order follows node order.
 		const firstSource = byRole<HTMLSelectElement>(document, "combobox", "Source for link 1");
 		const options = Array.from(firstSource.querySelectorAll("option.node-option")).map(
 			(o) => o.textContent,
 		);
 		expect(options).toEqual(["Gas", "Coal", "Electricity", "Homes"]);
 
-		// Focus is back on the moved row's handle — already proven at index 1 by
-		// the nodeNames() order check above.
 		const moved = byRole<HTMLButtonElement>(document, "button", "Reorder Coal");
 		expect(document.activeElement).toBe(moved);
 	});
@@ -67,25 +64,14 @@ describe("row reordering", () => {
 		const stored = getStoredState();
 		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([6, 10, 14]);
 
-		// Focus lands on the moved link's handle, now at index 1.
 		const moved = byRole<HTMLButtonElement>(document, "button", "Reorder link 2");
 		expect(document.activeElement).toBe(moved);
 	});
 
-	// Pointer/touch dragging is delegated to SortableJS
-	// (src/features/editor/use-row-sortable.ts), which happy-dom can construct
-	// but can't be driven through a realistic pointer/touch gesture (no real
-	// layout, no native drag/touch pipeline) — see VERIFICATION.md for what
-	// still needs a real browser. These tests instead cover the wiring: a real
-	// Sortable instance is attached to each rows container with the intended
-	// options, the two boxes can never share a drop target, and invoking the
-	// registered onEnd (as Sortable itself would once a real drag completes)
-	// commits the same state/DOM/storage change a keyboard reorder does.
-	//
-	// use-row-sortable.ts's onEnd handler also reads `item` to restore pre-drag
-	// DOM order before dispatching the move, so the no-op-guard tests below
-	// that only exercise oldIndex/newIndex omit it; fakeSortableEvent casts
-	// past that rather than constructing a full Event.
+	// happy-dom can construct SortableJS but can't drive a real drag gesture
+	// (no layout, no native pointer pipeline; VERIFICATION.md covers that in
+	// a browser), so these tests invoke the registered onEnd directly.
+	// Tests that only exercise the oldIndex/newIndex guards omit `item`.
 	const fakeSortableEvent = (
 		event: Partial<Pick<Sortable.SortableEvent, "oldIndex" | "newIndex">>,
 	): Sortable.SortableEvent => event as unknown as Sortable.SortableEvent;
@@ -104,9 +90,6 @@ describe("row reordering", () => {
 			expect(instance.options.handle).toBe(".drag-handle");
 			expect(instance.options.animation).toBe(150);
 			expect(instance.options.forceFallback).toBe(true);
-			// touchStartThreshold only does anything alongside a delay (it cancels
-			// a *delayed* drag start once the finger wanders too far) — delay is
-			// touch-only so mouse dragging still starts immediately.
 			expect(instance.options.delay).toBe(150);
 			expect(instance.options.delayOnTouchOnly).toBe(true);
 			expect(instance.options.touchStartThreshold).toBe(4);
@@ -115,12 +98,10 @@ describe("row reordering", () => {
 			expect(instance.options.fallbackClass).toBe("row-fallback");
 		}
 
-		// Cross-box inertness: each box's Sortable group is named after its own
-		// row class, so the two instances never share a group and a drag can
-		// never be dropped from one box into the other. Sortable normalizes the
-		// string `group` option it was given into a `{name, ...}` object on the
-		// instance — cast (@types/sortablejs still types `group` as the string
-		// input, not that runtime shape) to read it back out.
+		// Distinct groups mean a drag can never be dropped from one box into
+		// the other. Sortable normalizes the string `group` option into a
+		// `{name, ...}` object at runtime; @types/sortablejs still types the
+		// string input, hence the cast.
 		const groupName = (instance: Sortable) =>
 			(instance.options.group as unknown as { name: string }).name;
 		expect(groupName(nodeSortable)).toBe("node-row");
@@ -143,11 +124,8 @@ describe("row reordering", () => {
 		const onEnd = nodeSortable?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
-		// Sortable has already reordered the DOM by the time onEnd fires for a
-		// real drag; this event's indices are what the handler actually acts
-		// on, so a synthetic `item` (left in its current, untouched position —
-		// the next test below drives the DOM-restore step itself) is enough to
-		// exercise the commit path in isolation.
+		// The handler acts on the indices; `item` is left in place here and the
+		// DOM-restore step is driven by the next test.
 		const item = byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Coal").closest(
 			".node-row",
 		) as HTMLElement;
@@ -166,18 +144,14 @@ describe("row reordering", () => {
 		const onEnd = instance?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
-		// Each row's drag handle names the node it belongs to (e.g. "Reorder
-		// Coal"), a stable-enough identifier for this test's purposes since no
-		// two nodes share a name.
 		const rowNames = () => allByRole<HTMLInputElement>(nodeRows, "textbox").map((i) => i.value);
 		expect(rowNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 
 		const coalHandle = byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Coal");
 		const draggedRow = coalHandle.closest(".node-row") as HTMLElement;
 
-		// Reproduce the live DOM state Sortable leaves behind mid-drag (it has
-		// already moved the row by the time onEnd fires): n1 (Coal) dragged down
-		// to sit just before n4 (Homes), landing at [Gas, Electricity, Coal, Homes].
+		// The DOM as Sortable leaves it by the time onEnd fires: Coal dragged
+		// down to just before Homes.
 		for (const name of ["Gas", "Electricity", "Coal", "Homes"]) {
 			const row = byRole<HTMLButtonElement>(nodeRows, "button", `Reorder ${name}`).closest(
 				".node-row",
@@ -186,19 +160,13 @@ describe("row reordering", () => {
 		}
 		expect(rowNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
 
-		// Focused once the mid-drag DOM state is established — the handle's
-		// focus at the moment onEnd fires (e.g. from the mousedown that started
-		// the drag) is what use-row-sortable.ts's onEnd is responsible for
-		// carrying through its own restore/dispatch/re-render, not whatever
-		// happened to Sortable's own earlier drag-tracking DOM edits.
+		// Focus as of the moment onEnd fires (e.g. from the mousedown that
+		// started the drag) is what onEnd must carry through.
 		coalHandle.focus();
 
-		// fakeSortableEvent only carries oldIndex/newIndex, and this test needs
-		// `item` too, so it builds the event directly.
 		onEnd({ item: draggedRow, oldIndex: 0, newIndex: 2 } as unknown as Sortable.SortableEvent);
 
-		// The move (n1 to index 2) landed, but by DOM identity, not just value —
-		// same row/container elements throughout, no duplicated or lost rows.
+		// By DOM identity: same row elements throughout, none duplicated or lost.
 		const rowsAfter = Array.from(nodeRows.querySelectorAll(".node-row"));
 		expect(rowsAfter).toHaveLength(4);
 		expect(new Set(rowsAfter).size).toBe(rowsAfter.length);
@@ -206,8 +174,6 @@ describe("row reordering", () => {
 		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n3", "n1", "n4"]);
 
-		// Preact reused the same keyed row/handle across the re-render, so focus
-		// survived the whole restore-then-dispatch-then-reconcile sequence.
 		expect(document.activeElement).toBe(
 			byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Coal"),
 		);
@@ -228,12 +194,7 @@ describe("row reordering", () => {
 		const onEnd = linkSortable?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
-		// Sortable has already reordered the DOM by the time onEnd fires for a
-		// real drag; this event's indices are what the handler actually acts
-		// on, so a synthetic `item` (left in its current, untouched position —
-		// the test below drives the DOM-restore step itself) is enough to
-		// exercise the commit path in isolation — mirrors the node-row
-		// equivalent above.
+		// As in the node-row equivalent above: `item` is left in place.
 		const item = byRole<HTMLButtonElement>(linkRows, "button", "Reorder link 1").closest(
 			".link-row",
 		) as HTMLElement;
@@ -257,8 +218,7 @@ describe("row reordering", () => {
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
-		// Same element, now at row 1: the draft is keyed by link.id, drawn from
-		// a monotonic per-instance sequence, not the row's array index.
+		// Same element, now at row 1: the draft follows the link, not the index.
 		const movedValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 2");
 		expect(movedValueInput).toBe(valueInput);
 		expect(movedValueInput.value).toBe("abc");
@@ -297,12 +257,9 @@ describe("row reordering", () => {
 	it("a cloned row keeps its select/input values (Sortable's drag ghost is a cloneNode)", () => {
 		mountApp();
 
-		// Sortable builds the floating drag ghost via cloneNode, which copies
-		// attributes but not live properties — selection/value state must
-		// therefore live in attributes or the ghost degrades to placeholders.
-		// The row wrapper divs themselves carry no role, so these two are
-		// class-selector queries by necessity; everything inside them is
-		// found by role and accessible name instead.
+		// cloneNode copies attributes, not live properties, so selection and
+		// value state must be mirrored into attributes or the ghost degrades
+		// to placeholders. The row wrappers carry no role, hence class queries.
 		const linkRow = requireElement<HTMLElement>("#link-editor .link-row");
 		const nodeRow = requireElement<HTMLElement>("#node-editor .node-row");
 		const source = byRole<HTMLSelectElement>(linkRow, "combobox", "Source for link 1");
@@ -326,9 +283,8 @@ describe("row reordering", () => {
 			byRole<HTMLInputElement>(nodeRow, "textbox", "Name for Coal").value,
 		);
 
-		// A valid edit is a committed action — its commit() render runs
-		// synchronously, so the row's ref-based value-attribute mirror (see
-		// link-row.tsx) has already updated by the time this reads the clone.
+		// A valid edit commits and renders synchronously, so the attribute
+		// mirror is already updated when the clone is read.
 		value.value = "42";
 		fireInput(value);
 		const cloneAfterEdit = linkRow.cloneNode(true) as HTMLElement;
@@ -356,8 +312,6 @@ describe("row reordering", () => {
 		onEnd(fakeSortableEvent({ newIndex: 1 }));
 
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
-		// Still the same instance on the same container — none of the no-op
-		// calls triggered config.move (and therefore no rebuild).
 		expect(Sortable.get(nodeRows)).toBe(instance);
 	});
 
@@ -404,10 +358,8 @@ describe("row reordering", () => {
 		const nodeDestroySpy = vi.spyOn(nodeSortable, "destroy");
 		const linkDestroySpy = vi.spyOn(linkSortable, "destroy");
 
-		// DataPanel's single root re-renders both editors together on every
-		// committed action; neither editor's rows container nor Sortable
-		// instance is recreated by that (use-row-sortable.ts's effect is
-		// mount-once per rows container).
+		// Every committed action re-renders both editors; neither rows
+		// container nor Sortable instance may be recreated by that.
 		click(byRole(document, "button", "Add node"));
 		click(byRole(document, "button", "Add link"));
 		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRows);
@@ -415,12 +367,8 @@ describe("row reordering", () => {
 		expect(Sortable.get(nodeRows)).toBe(nodeSortable);
 		expect(Sortable.get(linkRows)).toBe(linkSortable);
 
-		// A reorder after those rerenders still lands correctly. (onMoveRef's
-		// currency — that a rerender's fresh actions closure, not a stale one
-		// captured at an earlier render, is what actually runs — is pinned by
-		// use-row-sortable's own unit test, not this integration check: the
-		// controller's action objects are identity-stable across rerenders
-		// here, so a stale-closure bug wouldn't make this assertion fail.)
+		// The controller's action objects are identity-stable, so this can't
+		// catch a stale-closure bug; use-row-sortable's unit test pins that.
 		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder Coal");
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
@@ -452,14 +400,11 @@ describe("row reordering", () => {
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
 
-		// Already at the top: order unchanged and focus stays put.
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 		expect(document.activeElement).toBe(handle);
 	});
 });
 
-// Link add/delete/endpoint-change/reorder invalidate only the link editor —
-// none of them touch the node editor's rows or its Sortable instance.
 describe("link actions leave the node editor untouched", () => {
 	it("add, delete, and endpoint-change link actions never destroy/recreate the node Sortable or its row DOM", () => {
 		mountApp();

@@ -3,11 +3,7 @@
 import { render } from "preact";
 import { describe, expect, it } from "vitest";
 
-/**
- * Proves the toolchain (tsconfig `jsx`/`jsxImportSource`, Vitest's esbuild
- * transform, and `bun build`) resolves `.tsx` through Preact's own JSX
- * runtime with no compat shim.
- */
+/** Proves the toolchain resolves `.tsx` through Preact's own JSX runtime with no compat shim. */
 function Greeting({ name }: { name: string }) {
 	return <p class="greeting">Hello, {name}!</p>;
 }
