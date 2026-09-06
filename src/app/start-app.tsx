@@ -21,8 +21,8 @@ import {
 } from "../model/graph";
 import { validate } from "../model/validation";
 import { loadState, saveState } from "../platform/storage";
+import type { IoNoticeActions, Notice, NoticeKind } from "../shared/notice";
 import { App } from "./app";
-import type { IoNoticeActions, Notice } from "./notices";
 import { projectNodes } from "./view";
 
 export interface AppHandle {
@@ -82,20 +82,14 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 	// At most one Notice per kind — plain local state, not Preact state, since
 	// this controller (not any component) owns every committed action and is
 	// the sole source renderApp() below reads.
-	let graphNotice: Notice | null = null;
-	let storageNotice: Notice | null = null;
-	let ioNotice: Notice | null = null;
+	const notices: Partial<Record<NoticeKind, Notice>> = {};
 
 	applyTheme(doc, state.settings.theme);
 
 	/**
 	 * The one controller render function: projects the current domain state
-	 * and notices into a fresh view snapshot and hands it to `App`. Every
-	 * action path below calls this exactly once, at its own end — after every
-	 * mutation and notice-state assignment (showGraphNotice/showStorageNotice/
-	 * showIoNotice, which only assign) it cares about have already landed, so
-	 * `App` never sees an intermediate mix of a stale `lastValidRequest` with
-	 * already-updated notices or vice versa.
+	 * and notices into a fresh view snapshot and hands it to `App`. Called
+	 * from exactly three places: commit(), setTheme(), and setIoNotice().
 	 */
 	function renderApp(): void {
 		render(
@@ -107,9 +101,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 				nodes={projectNodes(state)}
 				links={state.links}
 				settings={state.settings}
-				notices={[graphNotice, storageNotice, ioNotice].filter(
-					(notice): notice is Notice => notice !== null,
-				)}
+				notices={Object.values(notices).filter((notice): notice is Notice => notice !== undefined)}
 				lastValidRequest={lastValidRequest}
 				themeActions={themeControlActions}
 				diagramActions={diagramPanelActions}
@@ -122,72 +114,33 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		);
 	}
 
-	// Assign only — no render. Every caller below is responsible for calling
-	// renderApp() itself, exactly once, after it's done assigning/mutating.
-	function showGraphNotice(notice: Notice | null): void {
-		graphNotice = notice;
-	}
-	function showStorageNotice(notice: Notice | null): void {
-		storageNotice = notice;
-	}
-	function showIoNotice(notice: Notice | null): void {
-		ioNotice = notice;
-	}
-
 	/**
-	 * The save/notice portion of refresh() below, factored out so the
-	 * theme-change path can reuse it without also validating or redrawing.
-	 * Order matters and is preserved exactly:
-	 *
-	 * 1. Clear any I/O notice (import or export): it's a one-shot result of the
-	 *    last action, so the next committed action retires it. importDiagram()
-	 *    installs its repair warning AFTER its own refresh() call, so that
-	 *    warning survives this clear and only retires on the following action.
-	 * 2. Save — regardless of validity: an invalid *topology* the user is still
-	 *    editing (e.g. a cycle) is retained in the editor and must survive a
-	 *    reload, so this always persists the current editor state as-is.
-	 * 3. Update the storage notice from the save result — storage may recover
-	 *    (e.g. quota freed up elsewhere), so a previously shown notice clears
-	 *    rather than staying stuck once saves work again.
-	 *
-	 * Assigns notice state only; every caller renders once itself afterward.
+	 * Retires the previous I/O notice in favor of the caller's, if any, then
+	 * persists the current state and derives the storage notice from the
+	 * result — shared by commit() and setTheme(), the only two paths that
+	 * save, and the only place either touches `notices.io`/`notices.storage`.
 	 */
-	function persistAndClearNotices(): void {
-		showIoNotice(null);
+	function persist(io?: Notice): void {
+		notices.io = io;
 		const saved = saveState(win.localStorage, state);
-		showStorageNotice(saved ? null : { kind: "storage", tone: "warning", message: STORAGE_NOTICE });
+		notices.storage = saved
+			? undefined
+			: { kind: "storage", tone: "warning", message: STORAGE_NOTICE };
 	}
 
 	/**
-	 * The validate-then-persist flow — the subtlest sequencing in the app.
-	 * Order matters and is preserved exactly:
-	 *
-	 * 1. Validate. Only on a valid graph does `lastValidRequest` get replaced
-	 *    with a fresh deep snapshot (state.nodes/links/settings are still the
-	 *    live, mutable objects — cloning here, not on every access, is what
-	 *    lets SankeyCanvas treat the request as a stable historical value). An
-	 *    invalid graph leaves the previous request's reference untouched, which
-	 *    is what keeps a diagram-setting change made mid-invalid-edit from
-	 *    disturbing the visible SVG.
-	 * 2. Persist + update notices regardless of validity — it's step 1 above,
-	 *    not storage, that keeps the last-good diagram on screen.
-	 * 3. Render exactly once, after every assignment above has landed, so
-	 *    `App` never sees a stale `lastValidRequest` paired with
-	 *    already-updated notices. Editors/DiagramPanel/SankeyCanvas all
-	 *    re-render as part of that one App render regardless of validity: the
-	 *    editors' rows are keyed (node id; link id), so
-	 *    Preact patches names/swatches/values/order in place — preserving
-	 *    focus, an in-progress link-value draft, and each row-sortable hook's
-	 *    Sortable instance — instead of rebuilding. SankeyCanvas only reruns
-	 *    D3 when `lastValidRequest`'s identity actually changed (its own layout
-	 *    effect is keyed on it), so an unchanged reference on an invalid
-	 *    graph is a no-op redraw.
+	 * The one path for every diagram-changing action: mutate, validate,
+	 * snapshot the diagram for rendering when (and only when) it's valid,
+	 * persist, set the graph/storage/io notices, and render once. `io` is the
+	 * caller's own outcome notice, if any (e.g. an import's repair summary).
 	 */
-	function refresh(): void {
+	function commit(mutation: (state: State) => void, io?: Notice): void {
+		mutation(state);
+
 		const result = validate(state);
-		showGraphNotice(
-			result.ok ? null : { kind: "graph", tone: "error", message: result.error ?? "" },
-		);
+		notices.graph = result.ok
+			? undefined
+			: { kind: "graph", tone: "error", message: result.error ?? "" };
 		if (result.ok) {
 			lastValidRequest = {
 				state: structuredClone({
@@ -198,141 +151,125 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			};
 		}
 
-		persistAndClearNotices();
+		persist(io);
+		renderApp();
+	}
+
+	/** Sets the I/O notice and renders — no validation, persistence, or diagram redraw, since the canvas keys its redraw off `lastValidRequest`'s identity, which this never touches. */
+	function setIoNotice(notice: Notice | undefined): void {
+		notices.io = notice;
 		renderApp();
 	}
 
 	const nodeEditorActions: NodeEditorActions = {
 		addNode() {
-			addNode(state);
-			refresh();
+			commit((s) => addNode(s));
 		},
 		deleteNode(id) {
-			deleteNode(state, id);
-			refresh();
+			commit((s) => deleteNode(s, id));
 		},
 		renameNode(id, name) {
-			renameNode(state, id, name);
-			// The link editor's node-option labels come from the same projected
-			// `nodes` refresh() now passes it, so a plain refresh() keeps them
-			// current without a separate patch path.
-			refresh();
+			commit((s) => renameNode(s, id, name));
 		},
 		moveNode(from, to) {
-			moveNode(state, from, to);
-			refresh();
+			commit((s) => moveNode(s, from, to));
 		},
 	};
 
 	const linkEditorActions: LinkEditorActions = {
 		addLink() {
-			addLink(state);
-			refresh();
+			commit((s) => addLink(s));
 		},
 		deleteLink(id) {
-			deleteLink(state, id);
-			refresh();
+			commit((s) => deleteLink(s, id));
 		},
 		updateLinkSource(id, source) {
-			updateLink(state, id, { source });
-			refresh();
+			commit((s) => updateLink(s, id, { source }));
 		},
 		updateLinkTarget(id, target) {
-			updateLink(state, id, { target });
-			refresh();
+			commit((s) => updateLink(s, id, { target }));
 		},
 		updateLinkValue(id, value) {
-			updateLink(state, id, { value });
-			refresh();
+			commit((s) => updateLink(s, id, { value }));
 		},
 		moveLink(from, to) {
-			moveLink(state, from, to);
-			refresh();
+			commit((s) => moveLink(s, from, to));
 		},
 	};
 
 	// Shared by DataPanel (import/JSON export) and DiagramPanel (SVG/PNG
 	// export) below, so every #io-notice message goes through one
-	// implementation regardless of which control produced it; each panel's
-	// own actions object below picks only the members its own controls call.
+	// implementation regardless of which control produced it.
 	const ioNoticeActions: IoNoticeActions = {
 		clearIoNotice() {
-			showIoNotice(null);
-			renderApp();
+			setIoNotice(undefined);
 		},
-		reportImportError(message) {
-			showIoNotice({ kind: "io", tone: "error", message });
-			renderApp();
-		},
-		reportExportError(message) {
-			showIoNotice({ kind: "io", tone: "error", message });
-			renderApp();
+		reportIoError(message) {
+			setIoNotice({ kind: "io", tone: "error", message });
 		},
 	};
 
 	const dataPanelActions: DataPanelActions = {
 		clearIoNotice: ioNoticeActions.clearIoNotice,
-		reportImportError: ioNoticeActions.reportImportError,
+		reportIoError: ioNoticeActions.reportIoError,
 		importDiagram(imported, repairs) {
 			// theme is deliberately untouched — a per-browser preference, not
-			// diagram data, so it survives an import.
-			replaceDiagram(state, imported);
-			refresh();
-			// No notice when nothing needed adjusting — the changed data is
-			// sufficient feedback.
-			if (repairs.length === 0) return;
-			// Set AFTER refresh() (which clears the io notice and already
-			// rendered once) so this message survives the import's own refresh
-			// and only retires on the next committed action. Its own trailing
-			// renderApp() call is this action's second (and final) render.
-			showIoNotice({
-				kind: "io",
-				tone: "warning",
-				message: `Imported ${state.nodes.length} nodes, ${state.links.length} links. Adjustments: ${repairs.join("; ")}.`,
-			});
-			renderApp();
+			// diagram data, so it survives an import. No notice when nothing
+			// needed adjusting — the changed data is sufficient feedback.
+			commit(
+				(s) => replaceDiagram(s, imported),
+				repairs.length === 0
+					? undefined
+					: {
+							kind: "io",
+							tone: "warning",
+							message: `Imported ${imported.nodes.length} nodes, ${imported.links.length} links. Adjustments: ${repairs.join("; ")}.`,
+						},
+			);
 		},
 	};
 
 	const themeControlActions: ThemeControlActions = {
+		// Theme is a per-browser preference, not diagram data — unlike the other
+		// settings actions, this skips validation and the diagram/editor redraw
+		// entirely: apply, persist, render once.
 		setTheme(value) {
 			state.settings.theme = value;
 			applyTheme(doc, value);
-			// Theme is a per-browser preference, not diagram data — unlike the
-			// other settings actions, it deliberately skips refresh() entirely:
-			// no validation re-run (the graph's validity can't depend on the
-			// theme) and no diagram/editor rebuilds, just persist + notices, then
-			// one render (which also picks up the new theme prop for ThemeControl).
-			persistAndClearNotices();
+			persist();
 			renderApp();
 		},
 	};
 
 	const diagramPanelActions: DiagramPanelActions = {
 		setPalette(value) {
-			state.settings.palette = value;
-			// Node colors are palette-derived; refresh()'s render re-projects the
-			// node editor's swatches from the now-updated state.settings.palette.
-			// Neither editor's row DOM/Sortable is rebuilt.
-			refresh();
+			commit((s) => {
+				s.settings.palette = value;
+			});
 		},
 		setLinkColor(value) {
-			state.settings.linkColor = value;
-			refresh();
+			commit((s) => {
+				s.settings.linkColor = value;
+			});
 		},
 		setAlignment(value) {
-			state.settings.alignment = value;
-			refresh();
+			commit((s) => {
+				s.settings.alignment = value;
+			});
 		},
 		setAspectRatio(value) {
-			state.settings.aspectRatio = value;
-			refresh();
+			commit((s) => {
+				s.settings.aspectRatio = value;
+			});
 		},
 		clearIoNotice: ioNoticeActions.clearIoNotice,
-		reportExportError: ioNoticeActions.reportExportError,
+		reportIoError: ioNoticeActions.reportIoError,
 	};
 
-	refresh();
+	// Validates and renders the state loaded above, exactly like any other
+	// committed action, so a graph a previous session left invalid shows its
+	// notice immediately instead of an unvalidated diagram.
+	commit(() => {});
 
 	function destroy(): void {
 		if (destroyed) return;

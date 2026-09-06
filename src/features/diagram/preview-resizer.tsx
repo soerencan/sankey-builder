@@ -56,7 +56,7 @@ interface DragState {
  * diagram State: it changes only the displayed viewport, never D3's logical
  * extent or exported JSON/SVG/PNG dimensions — which is also why applying a
  * height writes directly to `diagramRef`/the DOM below rather than flowing
- * back through the controller's `state`/refresh().
+ * back through the controller's `state`/commit().
  *
  * Height and aria-valuenow are written directly to the DOM through refs
  * inside the event handlers below, not through useState, so a click or

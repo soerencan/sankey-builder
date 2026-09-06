@@ -1,7 +1,7 @@
 import { useRef } from "preact/hooks";
-import type { IoNoticeActions } from "../../app/notices";
 import type { NodeView } from "../../app/view";
 import type { Diagram, Link, State } from "../../model/graph";
+import type { IoNoticeActions } from "../../shared/notice";
 import { parseImport, serializeState } from "../files/diagram-file";
 import { download } from "../files/download";
 import type { LinkEditorActions } from "./link-editor";
@@ -11,8 +11,7 @@ import { NodeEditor } from "./node-editor";
 
 const EXPORT_JSON_FILENAME = "sankey.json";
 
-export interface DataPanelActions
-	extends Pick<IoNoticeActions, "clearIoNotice" | "reportImportError"> {
+export interface DataPanelActions extends IoNoticeActions {
 	importDiagram(imported: Diagram, repairs: string[]): void;
 }
 
@@ -70,7 +69,7 @@ export function DataPanel({
 			// A disk/read error (permissions, the file vanished mid-pick) rejects
 			// here — surface it rather than leaving an unhandled rejection.
 			if (signal.aborted) return;
-			actions.reportImportError("Could not read the selected file. Please try again.");
+			actions.reportIoError("Could not read the selected file. Please try again.");
 			return;
 		}
 		// File.text() isn't cancellable — a stale completion from a destroyed
@@ -82,7 +81,7 @@ export function DataPanel({
 		const result = parseImport(text);
 		if (signal.aborted) return;
 		if (result.ok) actions.importDiagram(result.diagram, result.repairs);
-		else actions.reportImportError(result.error);
+		else actions.reportIoError(result.error);
 	}
 
 	return (

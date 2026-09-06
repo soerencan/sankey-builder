@@ -516,7 +516,7 @@ describe("diagram-only settings redraw and persist", () => {
 });
 
 // The last-valid render request is only replaced when the graph validates
-// (see start-app.tsx's refresh()) — a diagram-setting change made while
+// (see start-app.tsx's commit()) — a diagram-setting change made while
 // invalid must still persist and update controls, but leaves the request
 // (and therefore the on-screen SVG) exactly as it was.
 describe("a diagram-setting change made while the graph is invalid", () => {
@@ -542,7 +542,7 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 		expect(leftOption?.getAttribute("aria-pressed")).toBe("true");
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
-		// Identity, not just markup equality: refresh() passed SankeyCanvas the
+		// Identity, not just markup equality: commit() passed SankeyCanvas the
 		// same `lastValidRequest` reference, so its layout effect never reran.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
@@ -582,7 +582,7 @@ describe("theme changes skip validation and the redraw", () => {
 		mountApp();
 
 		// Seed #io-notice the same way files.test.ts's repair-warning import test
-		// does — a repaired import installs a notice after its own refresh() (an
+		// does — a repaired import installs a notice via its own commit() (an
 		// import without repairs installs none under the current policy) — so
 		// "cleared by the theme change" below is a real assertion, not two empty
 		// strings.

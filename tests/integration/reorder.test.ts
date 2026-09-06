@@ -317,7 +317,7 @@ describe("row reordering", () => {
 			nodeRow.querySelector<HTMLInputElement>(".node-name")?.value,
 		);
 
-		// A valid edit is a committed action — its refresh() render runs
+		// A valid edit is a committed action — its commit() render runs
 		// synchronously, so the row's ref-based value-attribute mirror (see
 		// link-row.tsx) has already updated by the time this reads the clone.
 		value.value = "42";

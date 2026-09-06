@@ -13,8 +13,8 @@ import { ThemeControl } from "../features/settings/theme-control";
 import type { Link, State } from "../model/graph";
 import { aspectRatioOption } from "../model/settings";
 import type { Settings, Theme } from "../model/settings";
+import type { Notice } from "../shared/notice";
 import { NoticeRegion } from "../shared/notice";
-import type { Notice } from "./notices";
 import type { NodeView } from "./view";
 
 export interface AppProps {

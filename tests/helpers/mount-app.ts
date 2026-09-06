@@ -60,7 +60,7 @@ export function fireChange(target: Element | null | undefined): void {
  * Awaits one microtask. A row-local `useState` update (e.g. a link-value
  * draft's aria-invalid/error text — see link-row.tsx) is *stored*
  * synchronously but only *rendered* on Preact's next microtask-scheduled
- * flush, unlike a committed action's controller-driven `refresh()`, which
+ * flush, unlike a committed action's controller-driven `commit()`, which
  * calls Preact's `render()` synchronously. Tests asserting a draft-only
  * effect immediately after firing an event that has no other synchronous
  * side effect must await this first.

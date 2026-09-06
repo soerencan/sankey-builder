@@ -52,7 +52,7 @@ describe("node & link editing", () => {
 		valueInput.value = "abc";
 		fireInput(valueInput);
 		// The row-local draft's aria-invalid marker is set by a Preact render,
-		// which — unlike a committed action's controller refresh() — is only
+		// which — unlike a committed action's controller commit() — is only
 		// scheduled on the next microtask, not run synchronously within this
 		// event, hence the await below.
 		await tick();

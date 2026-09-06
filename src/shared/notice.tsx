@@ -1,4 +1,24 @@
-import type { Notice, NoticeKind } from "../app/notices";
+export type NoticeKind = "graph" | "storage" | "io";
+export type NoticeTone = "info" | "warning" | "error";
+
+export interface Notice {
+	readonly kind: NoticeKind;
+	readonly tone: NoticeTone;
+	readonly message: string;
+}
+
+/**
+ * The shared io-notice contract behind DataPanelActions and
+ * DiagramPanelActions: starting a new import or export attempt clears any
+ * notice left by a previous one, and a failure of either kind reports
+ * through the one `reportIoError`. The controller (start-app.tsx) implements
+ * both members; each panel's action object picks only the ones its own
+ * controls call.
+ */
+export interface IoNoticeActions {
+	clearIoNotice(): void;
+	reportIoError(message: string): void;
+}
 
 // Display order; also the fixed slot order — every kind renders its own
 // always-present div (empty when inactive) so the ids below stay stable

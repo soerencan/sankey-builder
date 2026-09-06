@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { render } from "preact";
 import { describe, expect, it, vi } from "vitest";
 import { startApp } from "../../src/app/start-app";
 import { serializeState } from "../../src/features/files/diagram-file";
@@ -15,6 +16,15 @@ import {
 	requireElement,
 	tick,
 } from "../helpers/mount-app";
+
+// start-app.tsx's own renderApp() calls Preact's render() directly, so
+// wrapping the real implementation (rather than replacing it) lets a test
+// count an import's renders without changing what actually gets committed to
+// the DOM.
+vi.mock("preact", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("preact")>();
+	return { ...actual, render: vi.fn(actual.render) };
+});
 
 function removeAllNodes(): void {
 	// Query fresh each time: deleting a node rebuilds the editor rows wholesale,
@@ -76,8 +86,16 @@ describe("import & export", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
+		// handleFileChange's own clearIoNotice() renders synchronously, before
+		// the async read below even starts — cleared here so the assertion
+		// below counts only the import's own commit().
+		vi.mocked(render).mockClear();
 		// Flush the async file.text() + parseImport chain.
 		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		// One commit() call renders the replaced diagram, its notices, and the
+		// preserved theme all at once — not a second render for the notice.
+		expect(render).toHaveBeenCalledTimes(1);
 
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(3);
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(2);
@@ -90,7 +108,7 @@ describe("import & export", () => {
 		expect(stored.settings.linkColor).toBe("static");
 		// Theme stays the pre-import "light", NOT the file's "dark".
 		expect(stored.settings.theme).toBe("light");
-		// DiagramPanel's carousel preview and links button follow the import too (both re-render from refresh()).
+		// DiagramPanel's carousel preview and links button follow the import too (both from the same commit()).
 		expect(document.getElementById("palette-preview")?.getAttribute("aria-label")).toBe(
 			"Palette: Set 2",
 		);
@@ -131,7 +149,7 @@ describe("import & export", () => {
 		expect(document.getElementById("io-notice")?.className).toBe("notice-warning");
 
 		// An invalid or empty draft never reaches actions.updateLinkValue (see
-		// link-row.tsx's commitDraft), so refresh() — and its unconditional
+		// link-row.tsx's commitDraft), so commit() — and its unconditional
 		// #io-notice clear — never runs; the import notice must stand.
 		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
 		valueInput.value = "abc";
@@ -143,7 +161,7 @@ describe("import & export", () => {
 		expect(notice()).toBe(repairMessage);
 
 		// The import notice is one-shot: the next committed action (here, a
-		// rename) runs refresh(), which retires it.
+		// rename) runs commit(), which retires it.
 		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
 		nameInput.value = "Renamed";
 		fireInput(nameInput);
@@ -215,8 +233,15 @@ describe("import & export", () => {
 		const input = document.getElementById("import-file") as HTMLInputElement;
 		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
 		fireChange(input);
+		// handleFileChange's own clearIoNotice() renders synchronously, before
+		// the async read below even starts — cleared here so the assertion
+		// below counts only the import's own commit().
+		vi.mocked(render).mockClear();
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
+		// One commit() call installs both the replaced diagram and the repair
+		// notice — not a second render for the notice.
+		expect(render).toHaveBeenCalledTimes(1);
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.",
 		);
@@ -261,8 +286,9 @@ describe("import & export", () => {
 
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
-		// refresh() bails before renderDiagram on an invalid graph, so the
-		// previously rendered diagram is untouched.
+		// commit() leaves lastValidRequest untouched on an invalid graph, so
+		// SankeyCanvas's layout effect never reruns and the previously
+		// rendered diagram is untouched.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
@@ -329,7 +355,7 @@ describe("import & export", () => {
 		mountApp();
 
 		// Seed #io-notice with an import failure — a failed import reports
-		// directly, without going through refresh(), so nothing else has
+		// directly, without going through commit(), so nothing else has
 		// cleared it yet.
 		const file = new File(['{"totally":"unrelated"}'], "notes.json", { type: "application/json" });
 		const input = document.getElementById("import-file") as HTMLInputElement;

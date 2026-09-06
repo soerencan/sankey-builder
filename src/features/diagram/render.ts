@@ -34,7 +34,7 @@ export interface DiagramSnapshot {
  * request *identity* rather than deep-comparing snapshots — the controller
  * only ever hands out a new request when the graph is valid, so an unchanged
  * reference means "don't touch the last-valid SVG" (see start-app.tsx's
- * refresh()).
+ * commit()).
  */
 export interface DiagramRenderRequest {
 	readonly state: DiagramSnapshot;

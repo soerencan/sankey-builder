@@ -1,5 +1,4 @@
 import type { RefObject } from "preact";
-import type { IoNoticeActions } from "../../app/notices";
 import type {
 	Alignment,
 	AspectRatio,
@@ -8,6 +7,7 @@ import type {
 	Settings,
 } from "../../model/settings";
 import { ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../model/settings";
+import type { IoNoticeActions } from "../../shared/notice";
 import type { DialogHandle } from "../../shared/use-dialog";
 import { useDialog } from "../../shared/use-dialog";
 import { download } from "../files/download";
@@ -39,8 +39,7 @@ const LINK_COLOR_ENTRIES = Object.entries(LINK_COLOR_OPTIONS) as [
 	LinkColorOptionMeta,
 ][];
 
-export interface DiagramPanelActions
-	extends Pick<IoNoticeActions, "clearIoNotice" | "reportExportError"> {
+export interface DiagramPanelActions extends IoNoticeActions {
 	setPalette(value: Palette): void;
 	setLinkColor(value: LinkColorMode): void;
 	setAlignment(value: Alignment): void;
@@ -105,7 +104,7 @@ function serializeVisibleDiagram(
 ): { svg: SVGSVGElement; xml: string } | null {
 	const svgEl = diagramEl.querySelector("svg");
 	if (!isSvgSvgElement(svgEl)) {
-		actions.reportExportError("Nothing to export — the diagram is empty.");
+		actions.reportIoError("Nothing to export — the diagram is empty.");
 		return null;
 	}
 	// Read resolved colors from the live page (theme-aware): currentColor's
@@ -185,7 +184,7 @@ export function DiagramPanel({
 					// The notice stays generic; log the specific cause so a field report
 					// ("PNG export failed") is diagnosable from the console.
 					console.error(err);
-					actions.reportExportError("PNG export failed. Try the SVG export instead.");
+					actions.reportIoError("PNG export failed. Try the SVG export instead.");
 				});
 		}
 		dialog.close();
