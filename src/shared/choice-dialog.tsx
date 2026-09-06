@@ -1,4 +1,5 @@
 import type { ComponentChildren } from "preact";
+import { Icon } from "./icon";
 import type { DialogHandle } from "./use-dialog";
 
 export interface ChoiceDialogProps {
@@ -12,11 +13,18 @@ export function ChoiceDialog({ id, heading, handle, children }: ChoiceDialogProp
 	const headingId = `${id}-heading`;
 	return (
 		<dialog id={id} ref={handle.ref} aria-labelledby={headingId}>
-			<h3 id={headingId}>{heading}</h3>
-			{children}
-			<button type="button" class="dialog-close" onClick={() => handle.close()}>
-				Close
-			</button>
+			<header class="dialog-header">
+				<h3 id={headingId}>{heading}</h3>
+				<button
+					type="button"
+					class="dialog-close"
+					aria-label="Close"
+					onClick={() => handle.close()}
+				>
+					<Icon id="icon-close" />
+				</button>
+			</header>
+			<div class="dialog-content">{children}</div>
 		</dialog>
 	);
 }

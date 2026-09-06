@@ -50,11 +50,11 @@ function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOp
 			aria-label={label}
 			aria-labelledby={labelledBy}
 		>
-			<button type="button" onClick={onExportSvg}>
-				SVG
+			<button type="button" class="choice-option" onClick={onExportSvg}>
+				SVG — Scalable vector
 			</button>
-			<button type="button" onClick={onExportPng}>
-				PNG
+			<button type="button" class="choice-option" onClick={onExportPng}>
+				PNG — High-resolution image
 			</button>
 		</div>
 	);
@@ -238,7 +238,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 				<LinkColorChoices
 					value={settings.linkColor}
 					label="Link colors"
-					variant="full"
+					variant="short"
 					onSelect={(value) => {
 						actions.setDiagramSetting("linkColor", value);
 						linksDialog.close();

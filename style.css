@@ -664,41 +664,53 @@ select {
    these base styles.
    ========================================================================== */
 dialog {
+	position: fixed;
+	inset: var(--panel-top, 8px) auto auto var(--panel-left, 8px);
+	margin: 0;
+	width: 320px;
+	max-width: calc(100vw - 16px);
+	max-height: calc(100dvh - 16px);
+	padding: 0;
 	border: 1px solid var(--border);
-	border-radius: var(--radius-md);
+	border-radius: 12px;
 	box-shadow: var(--shadow-floating);
 	background: var(--surface);
 	color: var(--ink);
-	padding: 1rem;
-	max-width: min(90vw, 22rem);
-}
-
-/* On wide screens the theme dialog reads as a popover anchored to its
-   trigger rather than a centered modal; native <dialog> still supplies
-   focus trapping and Escape. */
-#theme-dialog {
-	position: fixed;
-	inset: 4.25rem 1.5rem auto auto;
-	margin: 0;
-	width: min(15rem, calc(100vw - 3rem));
-}
-
-/* Still modal for focus management, but without dimming the workspace. */
-#theme-dialog::backdrop {
-	background: transparent;
 }
 
 dialog::backdrop {
-	background: color-mix(in srgb, var(--ink) 40%, transparent);
+	background: transparent;
 }
 
-dialog h3 {
-	margin: 0 0 0.75rem;
-	font-size: 1rem;
+.dialog-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.75rem;
+	gap: 1rem;
 }
 
-/* Section headings inside the Diagram dialog, the one dialog with several
-   labelled groups under one h3. */
+.dialog-header h3 {
+	margin: 0;
+	font-size: 0.9rem;
+}
+.dialog-close {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 0;
+	padding: 0.4rem;
+}
+.dialog-content {
+	padding: 0.25rem 0.75rem 0.75rem;
+	overflow-y: auto;
+	min-height: 0;
+}
+dialog[open] {
+	display: flex;
+	flex-direction: column;
+}
+
 dialog h4 {
 	margin: 0 0 0.4rem;
 	font-size: 0.85rem;
@@ -717,7 +729,7 @@ dialog .dialog-section + .dialog-section {
 .choice-options {
 	display: flex;
 	flex-direction: column;
-	gap: 0.4rem;
+	gap: 0.25rem;
 }
 
 .palette-option,
@@ -727,19 +739,26 @@ dialog .dialog-section + .dialog-section {
 	gap: 0.75rem;
 	width: 100%;
 	text-align: left;
+	border-color: transparent;
+	min-height: 2.75rem;
 }
 
 .palette-option {
 	justify-content: space-between;
 }
 
-/* Fill plus inset ring so the selected state doesn't rely on color alone.
-   box-shadow rather than outline: useDialog focuses the selected option on
-   open, and the :focus-visible outline must stay visible alongside. */
 .palette-option[aria-pressed="true"],
 .choice-option[aria-pressed="true"] {
-	background: var(--border);
-	box-shadow: inset 0 0 0 2px var(--accent);
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.selection-indicator {
+	margin-inline-start: auto;
+	width: 1em;
+	flex: 0 0 1em;
+	color: var(--accent);
+}
+.palette-option-label {
+	margin-inline-end: auto;
 }
 
 .ratio-preview {
@@ -772,14 +791,10 @@ dialog .dialog-section + .dialog-section {
 	aspect-ratio: 3 / 1;
 }
 
-.dialog-close {
-	margin-top: 1rem;
-}
-
 .export-options {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 0.5rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
 }
 
 /* ==========================================================================
@@ -792,21 +807,21 @@ dialog .dialog-section + .dialog-section {
 	}
 
 	/* Diagram and theme controls read as bottom sheets on narrow viewports. */
-	#display-dialog,
-	#theme-dialog {
+	dialog {
 		position: fixed;
 		inset: auto 0 0 0;
 		margin-block-end: 0;
 		margin-block-start: auto;
 		width: 100%;
 		max-width: none;
-		max-height: min(85vh, 42rem);
+		max-height: min(85dvh, 42rem);
+		padding-bottom: env(safe-area-inset-bottom);
 		overflow-y: auto;
-		border-radius: var(--radius-md) var(--radius-md) 0 0;
+		border-radius: 12px 12px 0 0;
 	}
 
-	#theme-dialog::backdrop {
-		background: color-mix(in srgb, var(--ink) 40%, transparent);
+	dialog::backdrop {
+		background: color-mix(in srgb, var(--ink) 18%, transparent);
 	}
 }
 

@@ -371,7 +371,7 @@ describe("import & export", () => {
 		const trigger = document.getElementById("diagram-export-button");
 		const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
 		click(trigger);
-		click(byRole(dialog, "button", "SVG"));
+		click(byRole(dialog, "button", "SVG — Scalable vector"));
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Nothing to export — the diagram is empty.",
 		);
@@ -393,7 +393,7 @@ describe("import & export", () => {
 		expect(document.querySelector("#diagram svg")).not.toBeNull();
 
 		click(document.getElementById("diagram-export-button"));
-		click(byRole(dialog, "button", "SVG"));
+		click(byRole(dialog, "button", "SVG — Scalable vector"));
 
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
@@ -410,7 +410,7 @@ describe("import & export", () => {
 		click(trigger);
 
 		expect(dialog.open).toBe(true);
-		expect(document.activeElement).toBe(byRole(dialog, "button", "SVG"));
+		expect(document.activeElement).toBe(byRole(dialog, "button", "SVG — Scalable vector"));
 	});
 
 	it("reports 'nothing to export' for SVG and closes the export dialog with focus restored", () => {
@@ -422,7 +422,7 @@ describe("import & export", () => {
 		const trigger = document.getElementById("diagram-export-button");
 		const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
 		click(trigger);
-		click(byRole(dialog, "button", "SVG"));
+		click(byRole(dialog, "button", "SVG — Scalable vector"));
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Nothing to export — the diagram is empty.",
@@ -462,7 +462,7 @@ describe("import & export", () => {
 			const trigger = document.getElementById("diagram-export-button");
 			const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
 			click(trigger);
-			click(byRole(dialog, "button", "SVG"));
+			click(byRole(dialog, "button", "SVG — Scalable vector"));
 		} finally {
 			createObjectURL.mockRestore();
 			revokeObjectURL.mockRestore();
@@ -483,8 +483,8 @@ describe("import & export", () => {
 		// empty-diagram guard fires first.
 		mountApp();
 
-		expect(allByRole(document, "button", "SVG")).toHaveLength(2);
-		expect(allByRole(document, "button", "PNG")).toHaveLength(2);
+		expect(allByRole(document, "button", "SVG — Scalable vector")).toHaveLength(2);
+		expect(allByRole(document, "button", "PNG — High-resolution image")).toHaveLength(2);
 
 		removeAllNodes();
 		expect(document.querySelector("#diagram svg")).toBeNull();
@@ -492,7 +492,7 @@ describe("import & export", () => {
 		const displayButton = document.getElementById("display-button");
 		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		click(displayButton);
-		click(byRole(displayDialog, "button", "PNG"));
+		click(byRole(displayDialog, "button", "PNG — High-resolution image"));
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Nothing to export — the diagram is empty.",

@@ -87,7 +87,13 @@ function interceptExportElements(): {
 
 function clickPngExport(): void {
 	click(document.getElementById("display-button"));
-	click(byRole(document.getElementById("display-dialog") as HTMLElement, "button", "PNG"));
+	click(
+		byRole(
+			document.getElementById("display-dialog") as HTMLElement,
+			"button",
+			"PNG — High-resolution image",
+		),
+	);
 }
 
 describe("application lifecycle", () => {

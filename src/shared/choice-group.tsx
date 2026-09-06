@@ -12,6 +12,7 @@ export type ChoiceGroupProps<Option extends { value: string }> = {
 	renderLabel(option: Option): ComponentChildren;
 	class?: string;
 	optionClass?: string;
+	selectionIndicator?: boolean;
 	/** For icon-only buttons; omit when renderLabel's content already names the button. */
 	ariaLabel?(option: Option): string;
 } & AccessibleName;
@@ -23,6 +24,7 @@ export function ChoiceGroup<Option extends { value: string }>({
 	renderLabel,
 	class: groupClass,
 	optionClass,
+	selectionIndicator,
 	ariaLabel,
 	label,
 	labelledBy,
@@ -45,6 +47,11 @@ export function ChoiceGroup<Option extends { value: string }>({
 					onClick={() => onSelect(option.value)}
 				>
 					{renderLabel(option)}
+					{selectionIndicator && (
+						<span class="selection-indicator" aria-hidden="true">
+							{value === option.value ? "✓" : ""}
+						</span>
+					)}
 				</button>
 			))}
 		</div>

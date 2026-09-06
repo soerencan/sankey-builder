@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { render } from "preact";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { byRole } from "../../tests/helpers/dom-queries";
 import { useDialog } from "./use-dialog";
 
@@ -99,6 +99,20 @@ describe("useDialog", () => {
 
 		expect(dialog.open).toBe(false);
 		expect(document.activeElement).toBe(trigger);
+	});
+
+	it("keeps interior padding open and clamps and flips at viewport edges", () => {
+		vi.spyOn(trigger, "getBoundingClientRect").mockReturnValue(new DOMRect(1000, 700, 24, 24));
+		vi.spyOn(dialog, "getBoundingClientRect").mockReturnValue(new DOMRect(696, 492, 320, 200));
+		trigger.click();
+		expect(dialog.style.getPropertyValue("--panel-left")).toBe("696px");
+		expect(dialog.style.getPropertyValue("--panel-top")).toBe("492px");
+		dialog.dispatchEvent(new MouseEvent("click", { clientX: 700, clientY: 500 }));
+		expect(dialog.open).toBe(true);
+		const remove = vi.spyOn(window, "removeEventListener");
+		dialog.close();
+		expect(remove).toHaveBeenCalledWith("resize", expect.any(Function));
+		expect(remove).toHaveBeenCalledWith("scroll", expect.any(Function), true);
 	});
 
 	it("a click on dialog content (not the dialog element itself) does not close it", () => {

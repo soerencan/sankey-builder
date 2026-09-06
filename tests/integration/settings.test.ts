@@ -124,7 +124,7 @@ describe("toolbar & settings", () => {
 		expect(dialog.open).toBe(true);
 
 		for (const option of LINK_COLOR_CHOICES) {
-			byRole(dialog, "button", option.label);
+			byRole(dialog, "button", option.shortLabel);
 		}
 	});
 
@@ -186,11 +186,7 @@ describe("toolbar & settings", () => {
 		}
 
 		click(linksButton);
-		const gradientOption = byRole<HTMLButtonElement>(
-			dialog,
-			"button",
-			SETTING_LABELS.linkColor["source-target"],
-		);
+		const gradientOption = byRole<HTMLButtonElement>(dialog, "button", "Gradient");
 		click(gradientOption);
 
 		const stored = getStoredState();
@@ -362,11 +358,7 @@ describe("toolbar & settings", () => {
 
 		// Both copies must reflect the new value.
 		expect(gradientOption.getAttribute("aria-pressed")).toBe("true");
-		const linksDialogGradientOption = byRole<HTMLButtonElement>(
-			linksDialog,
-			"button",
-			SETTING_LABELS.linkColor["source-target"],
-		);
+		const linksDialogGradientOption = byRole<HTMLButtonElement>(linksDialog, "button", "Gradient");
 		expect(linksDialogGradientOption.getAttribute("aria-pressed")).toBe("true");
 		expect(document.getElementById("links-button")?.getAttribute("aria-label")).toBe(
 			"Links: Source to target (gradient)",
@@ -671,10 +663,10 @@ describe("dialog markup vs settings metadata contract", () => {
 		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
 		expect(options).toHaveLength(LINK_COLOR_CHOICES.length);
 		expect(new Set(options.map((option) => accessibleName(option)))).toEqual(
-			new Set(LINK_COLOR_CHOICES.map((option) => option.label)),
+			new Set(LINK_COLOR_CHOICES.map((option) => option.shortLabel)),
 		);
 		for (const meta of LINK_COLOR_CHOICES) {
-			const option = byRole<HTMLButtonElement>(dialog, "button", meta.label);
+			const option = byRole<HTMLButtonElement>(dialog, "button", meta.shortLabel);
 			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${meta.iconId}`);
 		}
 	});

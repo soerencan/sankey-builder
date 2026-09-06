@@ -24,7 +24,9 @@ export function accessibleName(el: Element): string {
 	}
 	const label = el.getAttribute("aria-label");
 	if (label !== null) return label.trim();
-	return (el.textContent ?? "").trim();
+	const clone = el.cloneNode(true) as Element;
+	for (const hidden of Array.from(clone.querySelectorAll('[aria-hidden="true"]'))) hidden.remove();
+	return (clone.textContent ?? "").trim();
 }
 
 export function allByRole<T extends Element = HTMLElement>(

@@ -59,6 +59,7 @@ export function PaletteChoices({ value, onSelect, ...accessibleName }: PaletteCh
 			value={value}
 			class="palette-options"
 			optionClass="palette-option"
+			selectionIndicator
 			onSelect={onSelect}
 			renderLabel={(option) => (
 				<>
@@ -90,6 +91,7 @@ export function LinkColorChoices({
 			value={value}
 			class="choice-options"
 			optionClass="choice-option"
+			selectionIndicator
 			onSelect={onSelect}
 			renderLabel={(option) => (
 				<>
@@ -137,6 +139,7 @@ export function AlignmentChoices({
 			value={value}
 			class="choice-options"
 			optionClass="choice-option"
+			selectionIndicator
 			onSelect={onSelect}
 			renderLabel={(option) => (
 				<>
@@ -165,6 +168,7 @@ export function AspectRatioChoices({
 			value={value}
 			class="choice-options aspect-ratio-options"
 			optionClass="choice-option"
+			selectionIndicator
 			onSelect={onSelect}
 			renderLabel={(option) => (
 				<>
@@ -189,6 +193,7 @@ export function ThemeChoices({ value, onSelect, ...accessibleName }: ThemeChoice
 			value={value}
 			class="choice-options"
 			optionClass="choice-option"
+			selectionIndicator
 			onSelect={onSelect}
 			renderLabel={(option) => (
 				<>
