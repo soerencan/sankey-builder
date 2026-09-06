@@ -1,7 +1,8 @@
-/* The token primitives (gray/indigo/red steps, font-sans, radii, ease-2,
-   shadow-2/shadow-3) are literal values copied from Open Props 1.7.14 rather
-   than a vendored stylesheet; see THIRD_PARTY_LICENSES.md. --border is a
-   color-mix() off --ink rather than its own step so it tracks the theme. */
+/* The token primitives (gray/indigo/red steps, font-sans, radii, ease-out,
+   shadow-raised/shadow-floating) are literal values copied from Open Props
+   1.7.14 rather than a vendored stylesheet; see THIRD_PARTY_LICENSES.md.
+   --border is a color-mix() off --ink rather than its own step so it tracks
+   the theme. */
 /* Chromium's UA [hidden] { display: none } rule is scoped to the HTML
    namespace and doesn't reach an SVG-namespace root, so index.html's icon
    sprite (<svg hidden>) needs an explicit rule or it renders as an empty
@@ -15,14 +16,14 @@ svg[hidden] {
 
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu,
     Cantarell, "Noto Sans", sans-serif;
-  --radius-1: 2px;
-  --radius-2: 5px;
-  --radius-round: 1e5px;
-  --ease-2: cubic-bezier(0.25, 0, 0.4, 1);
-  --shadow-2:
+  --radius-sm: 2px;
+  --radius-md: 5px;
+  --radius-pill: 1e5px;
+  --ease-out: cubic-bezier(0.25, 0, 0.4, 1);
+  --shadow-raised:
     0 3px 5px -2px hsl(220 3% 15% / 4%),
     0 7px 14px -5px hsl(220 3% 15% / 6%);
-  --shadow-3:
+  --shadow-floating:
     0 -1px 3px 0 hsl(220 3% 15% / 3%),
     0 1px 2px -5px hsl(220 3% 15% / 3%),
     0 2px 5px -5px hsl(220 3% 15% / 5%),
@@ -41,10 +42,10 @@ svg[hidden] {
    of any app theme toggle, and this replicates that. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --shadow-2:
+    --shadow-raised:
       0 3px 5px -2px hsl(220 40% 2% / 28%),
       0 7px 14px -5px hsl(220 40% 2% / 30%);
-    --shadow-3:
+    --shadow-floating:
       0 -1px 3px 0 hsl(220 40% 2% / 27%),
       0 1px 2px -5px hsl(220 40% 2% / 27%),
       0 2px 5px -5px hsl(220 40% 2% / 29%),
@@ -155,8 +156,8 @@ body {
 
 .data-card {
   border: 1px solid var(--border);
-  border-radius: var(--radius-2);
-  box-shadow: var(--shadow-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
   overflow: hidden;
   container-type: inline-size;
   container-name: data-card;
@@ -225,12 +226,12 @@ select {
 
 button {
   border: 1px solid var(--border);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-md);
   padding: 0.35rem 0.7rem;
   background: transparent;
   color: var(--ink);
   cursor: pointer;
-  transition: background-color 150ms var(--ease-2);
+  transition: background-color 150ms var(--ease-out);
 }
 
 button:hover {
@@ -250,7 +251,7 @@ input[type="text"],
 input[type="number"],
 select {
   border: 1px solid var(--border);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-md);
   padding: 0.35rem 0.5rem;
   background: transparent;
   color: var(--ink);
@@ -300,7 +301,7 @@ select {
 .node-swatch {
   width: 0.9rem;
   height: 0.9rem;
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border);
 }
 
@@ -368,14 +369,14 @@ select {
    via its ghostClass/chosenClass/fallbackClass options. */
 .drag-handle {
   border: none;
-  border-radius: var(--radius-1);
+  border-radius: var(--radius-sm);
   padding: 0 0.15rem;
   background: transparent;
   color: color-mix(in srgb, var(--ink) 45%, transparent);
   font-size: 1rem;
   line-height: 1;
   cursor: grab;
-  transition: color 150ms var(--ease-2);
+  transition: color 150ms var(--ease-out);
   /* Without this, touch browsers hijack a vertical drag on the handle for
      page scrolling before Sortable's own move-threshold check ever sees it. */
   touch-action: none;
@@ -412,7 +413,7 @@ select {
 /* The floating clone that follows the pointer (forceFallback mode). */
 .node-row.row-fallback,
 .link-row.row-fallback {
-  box-shadow: var(--shadow-3);
+  box-shadow: var(--shadow-floating);
   cursor: grabbing;
 }
 
@@ -423,7 +424,7 @@ select {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-md);
   /* Clips .sankey-canvas's square corners to the card's own rounding. */
   overflow: hidden;
   /* Shared with the coarse-pointer override below. */
@@ -584,7 +585,7 @@ select {
   flex: 0 0 auto;
   width: 1em;
   height: 1em;
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-pill);
   /* Thin border so a light swatch (e.g. Set 2's pale entries) still reads as
      a distinct shape against the equally-light --surface. */
   border: 1px solid var(--border);
@@ -610,13 +611,13 @@ select {
 }
 
 .align-option:first-child {
-  border-top-left-radius: var(--radius-2);
-  border-bottom-left-radius: var(--radius-2);
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
 }
 
 .align-option:last-child {
-  border-top-right-radius: var(--radius-2);
-  border-bottom-right-radius: var(--radius-2);
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
 }
 
 .align-option:hover {
@@ -664,8 +665,8 @@ select {
    ========================================================================== */
 dialog {
   border: 1px solid var(--border);
-  border-radius: var(--radius-2);
-  box-shadow: var(--shadow-3);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-floating);
   background: var(--surface);
   color: var(--ink);
   padding: 1rem;
@@ -745,7 +746,7 @@ dialog .dialog-section + .dialog-section {
   flex: 0 0 auto;
   height: 1.25rem;
   border: 2px solid currentColor;
-  border-radius: var(--radius-1);
+  border-radius: var(--radius-sm);
   opacity: 0.7;
 }
 
@@ -801,7 +802,7 @@ dialog .dialog-section + .dialog-section {
     max-width: none;
     max-height: min(85vh, 42rem);
     overflow-y: auto;
-    border-radius: var(--radius-2) var(--radius-2) 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
   }
 
   #theme-dialog::backdrop {
