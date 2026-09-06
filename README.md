@@ -53,8 +53,8 @@ A few behaviours the tests pin and rely on:
 
 - Every diagram-changing action goes through `commit()`. A notice change
   neither persists nor re-renders the diagram. A theme change is not a
-  diagram change: it persists and applies the theme but leaves the graph
-  notice and the rendered SVG element and markup unchanged.
+  diagram change: it persists and applies the theme but leaves every notice
+  and the rendered SVG element and markup unchanged.
 - The diagram on screen is always the last valid graph. An invalid graph
   persists, shows its notice, and leaves the rendered SVG element untouched.
 - Incomplete links are inert: skipped by validation, omitted from layout and

@@ -87,15 +87,19 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		);
 	}
 
-	function persist(io?: Notice): void {
-		notices.io = io;
+	function persist(): void {
 		const saved = saveState(localStorage, state);
 		notices.storage = saved ? undefined : { tone: "warning", message: STORAGE_NOTICE };
 	}
 
-	/** The one path for every diagram-changing action. `io` is the caller's own outcome notice, e.g. an import's repair summary. */
+	/**
+	 * The one path for every diagram-changing action. `io` is the caller's own
+	 * outcome notice, e.g. an import's repair summary; any previous one is
+	 * retired here because it described the diagram this change replaces.
+	 */
 	function commit(mutation: (state: State) => void, io?: Notice): void {
 		mutation(state);
+		notices.io = io;
 
 		const result = validate(state);
 		notices.graph = result.ok ? undefined : { tone: "error", message: result.error };
@@ -107,7 +111,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 			});
 		}
 
-		persist(io);
+		persist();
 		renderApp();
 	}
 
@@ -173,7 +177,8 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 
 	const themeControlActions: ThemeControlActions = {
 		// Not routed through commit(): the theme is a per-browser preference,
-		// not diagram data, so it needs neither validation nor a diagram redraw.
+		// not diagram data, so it needs no validation and must not retire an
+		// I/O notice that is still about the current diagram.
 		setTheme(value) {
 			state.settings.theme = value;
 			applyTheme(doc, value);

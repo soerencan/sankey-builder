@@ -588,15 +588,14 @@ describe("palette changes patch node-editor swatches", () => {
 	});
 });
 
-// Theme is not diagram data: a change applies, persists, and clears the
-// one-shot I/O notice, but leaves the graph notice and the rendered SVG
-// unchanged.
-describe("theme changes leave the diagram and its notice unchanged", () => {
-	it("on a valid graph: persists, clears a seeded I/O notice, applies data-theme, and leaves the rendered SVG untouched", async () => {
+// Theme is not diagram data: a change applies and persists, but leaves the
+// graph notice, the I/O notice, and the rendered SVG unchanged.
+describe("theme changes leave the diagram and its notices unchanged", () => {
+	it("on a valid graph: persists, applies data-theme, and leaves a seeded I/O notice and the rendered SVG untouched", async () => {
 		mountApp();
 
-		// Seed #io-notice via a repaired import so "cleared" below is a real
-		// assertion, not two empty strings.
+		// Seed #io-notice via a repaired import so "still there" below is a
+		// real assertion, not two empty strings.
 		const payload = {
 			nodes: [
 				{ id: "n1", name: "X" },
@@ -628,7 +627,10 @@ describe("theme changes leave the diagram and its notice unchanged", () => {
 
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 		expect(getStoredState().settings.theme).toBe("light");
-		expect(document.getElementById("io-notice")?.textContent).toBe("");
+		// The import summary still describes the current diagram.
+		expect(document.getElementById("io-notice")?.textContent).toBe(
+			"Imported 2 nodes, 1 links. Adjustments: settings: unknown palette — using default.",
+		);
 		// The rendered diagram — element and markup alike — is untouched by
 		// the theme change.
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
