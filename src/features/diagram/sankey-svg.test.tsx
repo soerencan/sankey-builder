@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Diagram, State } from "../../model/graph";
 import { defaultState } from "../../model/graph";
 import type { LinkColorMode } from "../../model/settings";
-import { renderDiagram } from "./render";
 import { SankeySvg } from "./sankey-svg";
 
 function diagramOf(state: State): Diagram {
@@ -14,24 +13,6 @@ function diagramOf(state: State): Diagram {
 
 function mount(container: HTMLElement, diagram: Diagram | null): void {
 	render(<SankeySvg diagram={diagram} />, container);
-}
-
-/**
- * Reduces an element subtree to tag names, sorted attribute lists, and text,
- * in document order, so the two renderers can be compared for equivalence
- * without depending on happy-dom's attribute ordering or on which of them
- * happened to build the DOM.
- */
-function canonical(root: Element): unknown {
-	function describe(el: Element): unknown {
-		const attrs = Array.from(el.attributes)
-			.map((a) => [a.name, a.value] as const)
-			.sort(([a], [b]) => a.localeCompare(b));
-		const children = Array.from(el.children).map(describe);
-		const text = el.children.length === 0 ? (el.textContent ?? "") : "";
-		return { tag: el.tagName.toLowerCase(), attrs, text, children };
-	}
-	return describe(root);
 }
 
 beforeEach(() => {
@@ -50,6 +31,8 @@ describe("SankeySvg", () => {
 		expect(container.querySelectorAll("rect")).toHaveLength(state.nodes.length);
 		expect(container.querySelectorAll("path")).toHaveLength(state.links.length);
 		expect(container.querySelectorAll("text")).toHaveLength(state.nodes.length);
+		expect(container.querySelector("svg")?.getAttribute("role")).toBe("img");
+		expect(container.querySelector("svg")?.getAttribute("aria-label")).toBe("Sankey diagram");
 	});
 
 	it("renders nothing for a null diagram", () => {
@@ -58,7 +41,7 @@ describe("SankeySvg", () => {
 
 		mount(container, null);
 
-		expect(container.querySelector("svg")).toBeNull();
+		expect(container.childNodes).toHaveLength(0);
 	});
 
 	it("renders nothing for zero nodes", () => {
@@ -70,7 +53,7 @@ describe("SankeySvg", () => {
 
 		mount(container, diagramOf(state));
 
-		expect(container.querySelector("svg")).toBeNull();
+		expect(container.childNodes).toHaveLength(0);
 	});
 
 	it("renders nothing when every link is incomplete", () => {
@@ -84,7 +67,7 @@ describe("SankeySvg", () => {
 
 		mount(container, diagramOf(state));
 
-		expect(container.querySelector("svg")).toBeNull();
+		expect(container.childNodes).toHaveLength(0);
 	});
 
 	describe.each<LinkColorMode>(["source", "source-target", "target", "static"])(
@@ -139,7 +122,7 @@ describe("SankeySvg", () => {
 		expect(container.querySelector("svg")?.outerHTML).toBe(markupBefore);
 	});
 
-	it("reuses the svg element but updates markup on a rerender with an equal-content new reference", () => {
+	it("reuses the svg element and produces identical markup for an equal-content new reference", () => {
 		const container = document.createElement("div");
 		document.body.appendChild(container);
 
@@ -167,34 +150,5 @@ describe("SankeySvg", () => {
 		mount(container, diagramOf(changed));
 
 		expect(container.querySelector("svg")?.outerHTML).not.toBe(markupBefore);
-	});
-
-	describe("parity with renderDiagram", () => {
-		const linkColors: LinkColorMode[] = ["source", "source-target", "target", "static"];
-		const aspectRatios: Array<State["settings"]["aspectRatio"]> = ["a-series", "16:9"];
-
-		for (const linkColor of linkColors) {
-			for (const aspectRatio of aspectRatios) {
-				it(`matches for linkColor=${linkColor} aspectRatio=${aspectRatio}`, () => {
-					const state = defaultState();
-					state.settings.linkColor = linkColor;
-					state.settings.aspectRatio = aspectRatio;
-
-					const preactContainer = document.createElement("div");
-					document.body.appendChild(preactContainer);
-					mount(preactContainer, diagramOf(state));
-					const preactSvg = preactContainer.querySelector("svg");
-					expect(preactSvg).not.toBeNull();
-
-					const d3Host = document.createElement("div");
-					document.body.appendChild(d3Host);
-					renderDiagram(d3Host, diagramOf(state));
-					const d3Svg = d3Host.querySelector("svg");
-					expect(d3Svg).not.toBeNull();
-
-					expect(canonical(preactSvg as Element)).toEqual(canonical(d3Svg as Element));
-				});
-			}
-		}
 	});
 });

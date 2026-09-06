@@ -15,21 +15,55 @@ which browsers block from `file://` origins for security reasons.
 
 ## Dependencies
 
-The runtime dependencies are D3 (`d3-selection`, `d3-scale-chromatic`,
-`d3-sankey`), Preact, and SortableJS, all bundled by
-`bun build`. `package.json` and `bun.lock` are the source of truth for
-versions.
+The runtime dependencies are D3 (`d3-scale-chromatic`, `d3-sankey`), Preact,
+and SortableJS, all bundled by `bun build`. `package.json` and `bun.lock` are
+the source of truth for versions.
 
 ## Architecture
 
-Preact owns the whole application UI: composition, controls, dialogs, and
-editor markup all render as components under one root (`src/app/app.tsx`,
-mounted by `src/app/start-app.tsx`). The one exception is the rendered Sankey
-`<svg>`: `SankeyCanvas` (`src/features/diagram/sankey-canvas.tsx`) renders
-only an empty host `<div>`, and D3 (`renderDiagram`,
-`src/features/diagram/render.ts`) exclusively creates, replaces, and clears
-that host's descendants. Preact never renders children inside it, and D3
-never touches anything outside it — keeping one DOM owner per subtree.
+Preact owns the whole DOM: composition, controls, dialogs, editor markup, and
+the rendered Sankey diagram itself all render as components under one root
+(`src/app/app.tsx`, mounted by `src/app/start-app.tsx`). `layoutDiagram`
+(`src/features/diagram/layout.ts`) is a pure function that runs d3-sankey and
+returns plain positioned nodes and links; it takes no DOM and returns no DOM.
+`SankeySvg` (`src/features/diagram/sankey-svg.tsx`) renders that result as an
+`<svg>` vnode tree, memoized on the diagram reference so an unchanged
+reference leaves the DOM alone.
+
+Within `src/features/`, `settings` and `files` are leaf features that the
+others may depend on; `diagram` and `editor` never import from each other.
+`src/model/settings.ts` is the one owner of the settings shape: a single
+table declares every setting and its allowed values, and adding a setting
+means adding a row to that table plus entries in `DEFAULT_SETTINGS`,
+`SETTING_NAMES` (`src/model/codec.ts`, diagram settings only), and
+`SETTING_LABELS` (`src/features/settings/options.ts`); the compiler enforces
+all three. `normalizeDiagram` (`src/model/codec.ts`) is the one normalizer
+both the storage load path and the file import path call, so the two can't
+drift apart.
+
+The controller in `src/app/start-app.tsx` owns an `AbortController` whose
+signal reaches components that start async work (file reads, PNG
+rasterization); `destroy()` aborts it, removes any active drag clone, and
+unmounts. This exists for the tests, which mount and unmount the app
+hundreds of times per run.
+
+A few behaviours the tests pin and rely on:
+
+- Every diagram-changing action goes through `commit()`; a notice change
+  neither persists nor redraws; a theme change persists and re-renders but
+  neither validates nor redraws.
+- The diagram on screen is always the last valid graph. An invalid graph
+  persists, shows its notice, and leaves the rendered SVG element untouched.
+- Incomplete links are inert: skipped by validation, omitted from layout and
+  export, kept by storage.
+- Notices render in fixed slots (graph, storage, io) that exist before they
+  have content.
+- Rows are keyed by id; a re-render never recreates a row or its Sortable
+  instance; a link-value draft follows its link through reorders.
+- Storage failure is a warning, never an exception. Import never silently
+  empties the diagram; field-level problems are repaired and reported.
+- After `destroy()`, nothing renders, persists, downloads, or reports, and a
+  second `startApp()` shares nothing with the first.
 
 ## Verification
 

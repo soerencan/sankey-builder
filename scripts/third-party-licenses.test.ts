@@ -96,13 +96,7 @@ describe("against this repository's installed dependencies", () => {
 	const names = new Set(notices.map((n) => n.name));
 
 	it("covers every direct production dependency and none of the dev tooling", () => {
-		for (const name of [
-			"d3-sankey",
-			"d3-scale-chromatic",
-			"d3-selection",
-			"preact",
-			"sortablejs",
-		]) {
+		for (const name of ["d3-sankey", "d3-scale-chromatic", "preact", "sortablejs"]) {
 			expect(names.has(name)).toBe(true);
 		}
 		for (const name of ["vitest", "typescript", "happy-dom", "@biomejs/biome"]) {

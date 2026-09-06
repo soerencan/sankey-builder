@@ -74,7 +74,7 @@ export function App({
 						actions={diagramActions}
 						signal={signal}
 					/>
-					<div id="diagram" ref={diagramRef} style={diagramStyle} aria-label="Sankey diagram">
+					<div id="diagram" ref={diagramRef} style={diagramStyle}>
 						<div class="sankey-canvas">
 							<SankeySvg diagram={lastValidDiagram} />
 						</div>

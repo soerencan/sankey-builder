@@ -9,7 +9,7 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const FIXTURE_WIDTH = 960;
 const FIXTURE_HEIGHT = 480;
 
-// The shape renderDiagram produces, without depending on d3-sankey layout.
+// The shape SankeySvg produces, without depending on d3-sankey layout.
 function buildFixture(): SVGSVGElement {
 	const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
 	svg.setAttribute("viewBox", `0 0 ${FIXTURE_WIDTH} ${FIXTURE_HEIGHT}`);

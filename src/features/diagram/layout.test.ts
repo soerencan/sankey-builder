@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { Diagram } from "../../model/graph";
 import { defaultState } from "../../model/graph";
-import type { DiagramSnapshot } from "./layout";
 import { layoutDiagram } from "./layout";
 
-function snapshotOf(state: ReturnType<typeof defaultState>): DiagramSnapshot {
+function snapshotOf(state: ReturnType<typeof defaultState>): Diagram {
 	return { nodes: state.nodes, links: state.links, settings: state.settings };
 }
 
@@ -118,7 +118,7 @@ describe("layoutDiagram", () => {
 		// last column (3) like "right" does, distinguishing it from "left"
 		// (column 2).
 		const state = defaultState();
-		const diagram: DiagramSnapshot = {
+		const diagram: Diagram = {
 			nodes: [
 				{ id: "a", name: "A" },
 				{ id: "b", name: "B" },
@@ -137,7 +137,7 @@ describe("layoutDiagram", () => {
 			settings: { ...state.settings, alignment: "left" },
 		};
 
-		const x0For = (alignment: DiagramSnapshot["settings"]["alignment"], id: string) => {
+		const x0For = (alignment: Diagram["settings"]["alignment"], id: string) => {
 			const layout = layoutDiagram({ ...diagram, settings: { ...diagram.settings, alignment } });
 			return layout?.nodes.find((n) => n.id === id)?.x0;
 		};

@@ -7,17 +7,10 @@ import {
 	sankeyRight,
 } from "d3-sankey";
 import type { SankeyLink, SankeyNode } from "d3-sankey";
-import type { CompleteLink, Link, Node } from "../../model/graph";
+import type { CompleteLink, Diagram, Node } from "../../model/graph";
 import { isComplete } from "../../model/graph";
-import type { Alignment, DiagramSettings } from "../../model/settings";
+import type { Alignment } from "../../model/settings";
 import { aspectRatioOption } from "../../model/settings";
-
-/** A point-in-time view rather than the live `State`, so nothing the layout calls can mutate domain data. */
-export interface DiagramSnapshot {
-	readonly nodes: readonly Readonly<Node>[];
-	readonly links: readonly Readonly<Link>[];
-	readonly settings: Readonly<DiagramSettings>;
-}
 
 // Not `Record<string, unknown>`: SankeyLink<N, L> is `L & SankeyLinkMinimal`,
 // and `Link`, an interface without an index signature, can't satisfy that
@@ -89,7 +82,7 @@ function toLayoutNode(node: PositionedNode): LayoutNode {
  * list, and produces NaN geometry rather than throwing on zero complete
  * links.
  */
-export function layoutDiagram(diagram: DiagramSnapshot): SankeyLayout | null {
+export function layoutDiagram(diagram: Readonly<Diagram>): SankeyLayout | null {
 	if (diagram.nodes.length === 0) return null;
 	const completeLinks: CompleteLink[] = diagram.links.filter(isComplete);
 	if (completeLinks.length === 0) return null;

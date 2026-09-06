@@ -408,8 +408,9 @@ select {
 	cursor: grabbing;
 }
 
-/* Border and radius live outside .sankey-canvas so the renderer can clear
-   that element wholesale. */
+/* Border and radius live here rather than on .sankey-canvas: that element is
+   the aspect-ratio-sized, centered export surface, while the frame belongs
+   to the panel that fills the column. */
 .diagram-panel {
 	min-width: 0;
 	display: flex;

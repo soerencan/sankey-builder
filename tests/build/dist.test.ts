@@ -58,19 +58,14 @@ describe("production build (dist/)", () => {
 		const footerLink = /<a href="([^"]+)">Third-party licenses<\/a>/.exec(distHtml)?.[1];
 		expect(footerLink).toBeDefined();
 		const notices = readFileSync(join(DIST_DIR, footerLink as string), "utf8");
-		for (const name of [
-			"d3-sankey",
-			"d3-scale-chromatic",
-			"d3-selection",
-			"preact",
-			"sortablejs",
-		]) {
+		for (const name of ["d3-sankey", "d3-scale-chromatic", "preact", "sortablejs"]) {
 			expect(notices).toContain(`<h2>${name} `);
 		}
 
-		// Guards against the ordinal scale (and its d3 dependents) creeping
-		// back in now that colors.ts uses a plain index lookup instead.
-		for (const name of ["d3-scale", "d3-format", "d3-time", "d3-time-format"]) {
+		// Guards against the ordinal scale (and its d3 dependents) creeping back
+		// in now that colors.ts uses a plain index lookup instead, and against
+		// d3-selection now that SankeySvg draws with Preact instead of D3.
+		for (const name of ["d3-scale", "d3-format", "d3-time", "d3-time-format", "d3-selection"]) {
 			expect(notices).not.toContain(`<h2>${name} `);
 		}
 	});

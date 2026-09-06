@@ -6,8 +6,6 @@ import type { NodeColorResolver } from "./colors";
 import { layoutDiagram } from "./layout";
 import type { LayoutLink } from "./layout";
 
-// Not imported from render.ts: that module is deleted once this renderer
-// replaces it.
 function linkStroke(mode: LinkColorMode, nodeColor: NodeColorResolver): (d: LayoutLink) => string {
 	if (mode === "source") return (d) => nodeColor(d.source);
 	if (mode === "target") return (d) => nodeColor(d.target);
@@ -20,10 +18,10 @@ export interface SankeySvgProps {
 }
 
 /**
- * Renders the same markup `renderDiagram` draws with d3-selection, but as a
- * vnode tree: an unchanged `diagram` reference yields an identical tree, so
- * Preact leaves the DOM alone and the last-valid diagram stays on screen
- * while the graph is invalid.
+ * Renders the pure layout `layoutDiagram` computes as an SVG vnode tree.
+ * Memoizes on the `diagram` reference, so an unchanged reference yields an
+ * identical tree and Preact leaves the DOM alone. That is how the
+ * last-valid diagram stays on screen while the graph is invalid.
  */
 export function SankeySvg({ diagram }: SankeySvgProps) {
 	const layout = useMemo(() => diagram && layoutDiagram(diagram), [diagram]);
@@ -37,8 +35,8 @@ export function SankeySvg({ diagram }: SankeySvgProps) {
 	const stroke = linkStroke(diagram.settings.linkColor, nodeColor);
 
 	return (
-		// biome-ignore lint/a11y/noSvgWithoutTitle: the host element carries the accessible name (see app.tsx's #diagram aria-label); this reproduces render.ts's markup exactly, attribute for attribute.
-		<svg viewBox={`0 0 ${width} ${height}`}>
+		// role="img" and aria-label name the svg without a <title>, which export.ts's clone would otherwise leak into exported files.
+		<svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Sankey diagram">
 			{/* One <g> per link so the source-target mode can nest a per-link
 			    <linearGradient> next to its <path>. Gradient ids use d3-sankey's
 			    `link.index`, unique within a render. */}
