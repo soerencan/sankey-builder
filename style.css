@@ -11,8 +11,8 @@ svg[hidden] {
 
 	--font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans",
 		sans-serif;
-	--radius-sm: 2px;
-	--radius-md: 5px;
+	--radius-sm: 4px;
+	--radius-md: 7px;
 	--radius-pill: 1e5px;
 	--ease-out: cubic-bezier(0.25, 0, 0.4, 1);
 	/* light-dark() follows color-scheme, which the theme blocks below set, so
@@ -26,7 +26,9 @@ svg[hidden] {
 		0 4px 12px -5px light-dark(hsl(220 3% 15% / 6%), hsl(220 40% 2% / 30%)),
 		0 12px 15px -5px light-dark(hsl(220 3% 15% / 8%), hsl(220 40% 2% / 32%));
 
-	--surface: #f8f9fa;
+	--page: #f1f3f5;
+	--surface: #ffffff;
+	--control: #f8f9fa;
 	--ink: #0d0f12;
 	/* Derived from --ink rather than given its own value so it tracks the theme. */
 	--border: color-mix(in srgb, var(--ink) 10%, transparent);
@@ -41,7 +43,9 @@ svg[hidden] {
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme="light"]) {
 		color-scheme: dark;
-		--surface: #16191d;
+		--page: #101215;
+		--surface: #1c2026;
+		--control: #252a32;
 		--ink: #f8f9fa;
 		--accent: #91a7ff;
 		--danger: #ff6b6b;
@@ -50,7 +54,9 @@ svg[hidden] {
 
 :root[data-theme="dark"] {
 	color-scheme: dark;
-	--surface: #16191d;
+	--page: #101215;
+	--surface: #1c2026;
+	--control: #252a32;
 	--ink: #f8f9fa;
 	--accent: #91a7ff;
 	--danger: #ff6b6b;
@@ -80,7 +86,7 @@ svg[hidden] {
 body {
 	margin: 0;
 	font-family: var(--font-sans);
-	background: var(--surface);
+	background: var(--page);
 	color: var(--ink);
 }
 
@@ -160,6 +166,7 @@ body {
 }
 
 .data-card {
+	background: var(--surface);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-raised);
@@ -258,7 +265,7 @@ select {
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
 	padding: 0.35rem 0.5rem;
-	background: transparent;
+	background: var(--control);
 	color: var(--ink);
 }
 
@@ -313,7 +320,7 @@ select {
 
 .node-delete {
 	color: var(--danger);
-	border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+	border-color: transparent;
 }
 
 .add-link {
@@ -364,7 +371,7 @@ select {
 
 .link-delete {
 	color: var(--danger);
-	border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+	border-color: transparent;
 }
 
 /* .row-ghost/.row-chosen/.row-fallback are the classes SortableJS toggles
@@ -845,7 +852,7 @@ dialog .dialog-section + .dialog-section {
 
 /* Below the threshold the two selects can't share a line with
    value/delete/handle, so those drop to a second line. */
-@container (max-width: 260px) {
+@container (max-width: 400px) {
 	.link-row {
 		grid-template-columns: repeat(6, 1fr);
 		grid-template-areas:
@@ -881,7 +888,8 @@ dialog .dialog-section + .dialog-section {
 @media (pointer: coarse) {
 	button,
 	select,
-	input[type="text"] {
+	input[type="text"],
+	input[type="number"] {
 		min-height: 44px;
 	}
 
@@ -913,4 +921,18 @@ dialog .dialog-section + .dialog-section {
 		align-items: center;
 		min-height: 44px;
 	}
+}
+
+.add-node,
+.add-link {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+	background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.node-delete:hover,
+.link-delete:hover,
+.node-delete:focus-visible,
+.link-delete:focus-visible {
+	background: color-mix(in srgb, var(--danger) 12%, transparent);
+	border-color: var(--danger);
 }
