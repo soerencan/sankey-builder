@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -79,7 +78,7 @@ jobs:
   # check job passing), so a commit whose checks fail can't reach Pages.
   deploy:
     needs: [lint, typecheck, tests, artifact]
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency:
       group: pages

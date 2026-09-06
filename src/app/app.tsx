@@ -10,20 +10,15 @@ import type { LinkEditorActions } from "../features/editor/link-editor";
 import type { NodeEditorActions } from "../features/editor/node-editor";
 import type { ThemeControlActions } from "../features/settings/theme-control";
 import { ThemeControl } from "../features/settings/theme-control";
-import type { Link, State } from "../model/graph";
+import type { State } from "../model/graph";
 import { aspectRatioOption } from "../model/settings";
-import type { Settings, Theme } from "../model/settings";
 import type { Notice } from "../shared/notice";
 import { NoticeRegion } from "../shared/notice";
 import type { NodeView } from "./view";
 
 export interface AppProps {
-	/** The live domain state — handed straight through to DataPanel for JSON export. */
 	state: State;
-	theme: Theme;
 	nodes: readonly NodeView[];
-	links: readonly Readonly<Link>[];
-	settings: Readonly<Settings>;
 	/** At most one per NoticeKind, in the display order NoticeRegion itself fixes. */
 	notices: readonly Notice[];
 	lastValidRequest: DiagramRenderRequest | null;
@@ -47,10 +42,7 @@ export interface AppProps {
  */
 export function App({
 	state,
-	theme,
 	nodes,
-	links,
-	settings,
 	notices,
 	lastValidRequest,
 	themeActions,
@@ -70,7 +62,7 @@ export function App({
 	// style object across renders, so it never reads or clears
 	// --diagram-preview-height, which PreviewResizer writes straight to the
 	// DOM below.
-	const aspectRatio = aspectRatioOption(settings.aspectRatio);
+	const aspectRatio = aspectRatioOption(state.settings.aspectRatio);
 	const diagramStyle = {
 		"--diagram-aspect-ratio": `${aspectRatio.width} / ${aspectRatio.height}`,
 		"--diagram-aspect-number": String(aspectRatio.width / aspectRatio.height),
@@ -80,7 +72,7 @@ export function App({
 		<>
 			<header class="app-header">
 				<h1>Sankey Builder</h1>
-				<ThemeControl theme={theme} actions={themeActions} />
+				<ThemeControl theme={state.settings.theme} actions={themeActions} />
 			</header>
 
 			<NoticeRegion notices={notices} />
@@ -89,7 +81,7 @@ export function App({
 				<section class="diagram-panel" aria-labelledby="diagram-heading">
 					<DiagramPanel
 						diagramRef={diagramRef}
-						settings={settings}
+						settings={state.settings}
 						actions={diagramActions}
 						signal={signal}
 					/>
@@ -109,7 +101,6 @@ export function App({
 					<DataPanel
 						state={state}
 						nodes={nodes}
-						links={links}
 						nodeActions={nodeActions}
 						linkActions={linkActions}
 						actions={dataActions}

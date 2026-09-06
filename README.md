@@ -77,12 +77,10 @@ One workflow, `.github/workflows/ci.yml`, runs four jobs in parallel on every
 PR and push to `main`: lint, typecheck, tests (`make test-unit`), and an
 artifact job (`make test-dist`, which builds and boots the real `dist/`
 output, then uploads it as a Pages artifact) — split that way so `dist/`
-isn't built twice per run. A fifth job, `deploy`, needs all four; it runs on
-a push to `main` or a manually triggered `workflow_dispatch` run (still
-gated to `main` and to every check job passing), publishing the artifact
-job's `dist/` to GitHub Pages via `actions/deploy-pages`, so a commit whose
-checks fail can't reach Pages and nothing rebuilds what the artifact job
-already boot-tested. This
+isn't built twice per run. A fifth job, `deploy`, needs all four and runs
+only on a push to `main`, publishing the artifact job's `dist/` to GitHub
+Pages via `actions/deploy-pages`, so a commit whose checks fail can't reach
+Pages and nothing rebuilds what the artifact job already boot-tested. This
 requires the repository's Pages source to be set to "GitHub Actions" once
 (Settings → Pages) — after that, pushes to `main` deploy automatically.
 

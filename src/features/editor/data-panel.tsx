@@ -1,7 +1,7 @@
 import type { JSX } from "preact";
 import { useRef } from "preact/hooks";
 import type { NodeView } from "../../app/view";
-import type { Diagram, Link, State } from "../../model/graph";
+import type { Diagram, State } from "../../model/graph";
 import type { IoNoticeActions } from "../../shared/notice";
 import { parseImport, serializeState } from "../files/diagram-file";
 import { download } from "../files/download";
@@ -20,7 +20,6 @@ export interface DataPanelProps {
 	/** The live domain state — read directly (not a projected view) so JSON export serializes exactly what diagram-file.ts's serializeState already defines. */
 	state: State;
 	nodes: readonly NodeView[];
-	links: readonly Readonly<Link>[];
 	nodeActions: NodeEditorActions;
 	linkActions: LinkEditorActions;
 	actions: DataPanelActions;
@@ -36,7 +35,6 @@ export interface DataPanelProps {
 export function DataPanel({
 	state,
 	nodes,
-	links,
 	nodeActions,
 	linkActions,
 	actions,
@@ -131,7 +129,7 @@ export function DataPanel({
 				</section>
 
 				<section id="link-editor" class="data-section" aria-labelledby="link-editor-heading">
-					<LinkEditor links={links} nodes={nodes} actions={linkActions} />
+					<LinkEditor links={state.links} nodes={nodes} actions={linkActions} />
 				</section>
 			</div>
 		</>

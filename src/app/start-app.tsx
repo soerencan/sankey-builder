@@ -83,10 +83,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 		render(
 			<App
 				state={state}
-				theme={state.settings.theme}
 				nodes={projectNodes(state)}
-				links={state.links}
-				settings={state.settings}
 				notices={Object.values(notices).filter((notice): notice is Notice => notice !== undefined)}
 				lastValidRequest={lastValidRequest}
 				themeActions={themeControlActions}
