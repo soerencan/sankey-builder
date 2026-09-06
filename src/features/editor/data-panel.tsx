@@ -74,7 +74,6 @@ export function DataPanel({
 		if (signal.aborted) return;
 
 		const result = parseImport(text);
-		if (signal.aborted) return;
 		if (result.ok) actions.importDiagram(result.diagram, result.repairs);
 		else actions.reportIoError(result.error);
 	}
