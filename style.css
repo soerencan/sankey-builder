@@ -108,9 +108,20 @@ body {
 
 /* One in-flow region rather than floating toasts; only color varies by tone. */
 .notice-region > div {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
 	padding: 0.75rem 1.5rem;
 	font-size: 0.85rem;
 	border-bottom: 1px solid var(--border);
+}
+
+.notice-dismiss {
+	margin-left: auto;
+	padding: 0.25rem;
+	min-height: 0;
+	border: none;
+	color: inherit;
 }
 
 .notice-region > div:empty {

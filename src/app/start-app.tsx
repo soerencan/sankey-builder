@@ -75,6 +75,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 				state={state}
 				nodes={projectNodes(state)}
 				notices={notices}
+				dismissIoNotice={ioNoticeActions.clearIoNotice}
 				lastValidDiagram={lastValidDiagram}
 				themeActions={themeControlActions}
 				diagramActions={diagramPanelActions}

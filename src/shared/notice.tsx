@@ -1,3 +1,5 @@
+import { Icon } from "./icon";
+
 export type NoticeKind = "graph" | "storage" | "io";
 export type NoticeTone = "warning" | "error";
 
@@ -22,6 +24,8 @@ const NOTICE_ID: Record<NoticeKind, string> = {
 
 export interface NoticeRegionProps {
 	notices: Partial<Record<NoticeKind, Notice>>;
+	/** Only the I/O notice is dismissable: the other two describe a condition that is still true. */
+	dismissIo(): void;
 }
 
 /**
@@ -29,7 +33,7 @@ export interface NoticeRegionProps {
  * so each live region exists for assistive tech before it has content, and
  * the ids stay stable for tests.
  */
-export function NoticeRegion({ notices }: NoticeRegionProps) {
+export function NoticeRegion({ notices, dismissIo }: NoticeRegionProps) {
 	return (
 		<div class="notice-region">
 			{NOTICE_ORDER.map((kind) => {
@@ -44,6 +48,11 @@ export function NoticeRegion({ notices }: NoticeRegionProps) {
 						class={notice ? `notice-${notice.tone}` : undefined}
 					>
 						{notice?.message ?? ""}
+						{kind === "io" && notice && (
+							<button type="button" class="notice-dismiss" aria-label="Dismiss" onClick={dismissIo}>
+								<Icon id="icon-close" />
+							</button>
+						)}
 					</div>
 				);
 			})}

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	byRole,
 	click,
@@ -8,6 +8,7 @@ import {
 	fireInput,
 	mountApp,
 	requireElement,
+	settle,
 	tick,
 } from "../helpers/mount-app";
 
@@ -112,6 +113,35 @@ describe("NoticeRegion: consolidated notice slots", () => {
 		const errorAfter = document.getElementById("error");
 		expect(errorAfter).toBe(errorBefore);
 		expect(errorAfter?.textContent).toBe(textBefore);
+	});
+
+	it("the io notice has a Dismiss button that clears it without persisting or redrawing; the graph notice has none", async () => {
+		mountApp();
+
+		const file = new File(['{"totally":"unrelated"}'], "notes.json", { type: "application/json" });
+		const input = document.getElementById("import-file") as HTMLInputElement;
+		Object.defineProperty(input, "files", { value: [file], configurable: true, writable: true });
+		fireChange(input);
+		await settle();
+
+		const io = requireElement<HTMLElement>("#io-notice");
+		expect(io.textContent).toContain("diagram export");
+		const svgBefore = document.querySelector("#diagram svg");
+		const svgHtmlBefore = svgBefore?.outerHTML;
+		const setItem = vi.spyOn(localStorage, "setItem");
+
+		click(byRole(io, "button", "Dismiss"));
+
+		expect(io.textContent).toBe("");
+		expect(io.querySelector("button")).toBeNull();
+		expect(setItem).not.toHaveBeenCalled();
+		setItem.mockRestore();
+		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
+		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
+
+		makeCycle();
+		expect(document.getElementById("error")?.textContent).toContain("cycle");
+		expect(document.querySelector("#error button")).toBeNull();
 	});
 
 	it("keeps a field-local link-value error out of the root notice region", async () => {

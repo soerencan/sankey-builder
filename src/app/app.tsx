@@ -18,6 +18,7 @@ export interface AppProps {
 	state: State;
 	nodes: readonly NodeView[];
 	notices: Partial<Record<NoticeKind, Notice>>;
+	dismissIoNotice(): void;
 	lastValidDiagram: Diagram | null;
 	themeActions: ThemeControlActions;
 	diagramActions: DiagramPanelActions;
@@ -37,6 +38,7 @@ export function App({
 	state,
 	nodes,
 	notices,
+	dismissIoNotice,
 	lastValidDiagram,
 	themeActions,
 	diagramActions,
@@ -64,7 +66,7 @@ export function App({
 				<ThemeControl theme={state.settings.theme} actions={themeActions} />
 			</header>
 
-			<NoticeRegion notices={notices} />
+			<NoticeRegion notices={notices} dismissIo={dismissIoNotice} />
 
 			<main class="app-layout">
 				<section class="diagram-panel" aria-labelledby="diagram-heading">
