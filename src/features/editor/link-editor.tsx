@@ -38,12 +38,7 @@ export function LinkEditor({ links, nodes, actions }: LinkEditorProps) {
 					<LinkRow key={link.id} link={link} index={index} nodes={nodes} actions={actions} />
 				))}
 			</div>
-			<button
-				type="button"
-				class="add-link"
-				data-action="add-link"
-				onClick={() => actions.addLink()}
-			>
+			<button type="button" class="add-link" onClick={() => actions.addLink()}>
 				Add link
 			</button>
 		</>

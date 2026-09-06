@@ -89,7 +89,7 @@ export function DataPanel({
 			<header class="data-card-header">
 				<h2 id="data-heading">Data</h2>
 				<div
-					class="data-actions"
+					class="data-card-actions"
 					// biome-ignore lint/a11y/useSemanticElements: groups action buttons, not submittable form controls, so <fieldset> doesn't apply here.
 					role="group"
 					aria-label="Data file actions"
@@ -97,8 +97,7 @@ export function DataPanel({
 					<button
 						type="button"
 						id="import-button"
-						class="data-action"
-						data-action="import"
+						class="data-card-action"
 						aria-label="Import data"
 						title="Import data"
 						onClick={() => fileInputRef.current?.click()}
@@ -110,8 +109,7 @@ export function DataPanel({
 					<button
 						type="button"
 						id="export-button"
-						class="data-action"
-						data-action="export"
+						class="data-card-action"
 						aria-label="Export data as JSON"
 						title="Export data as JSON"
 						onClick={handleExport}

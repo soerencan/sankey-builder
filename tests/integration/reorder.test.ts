@@ -3,6 +3,8 @@
 import Sortable from "sortablejs";
 import { describe, expect, it, vi } from "vitest";
 import {
+	allByRole,
+	byRole,
 	click,
 	fireChange,
 	fireInput,
@@ -17,12 +19,13 @@ describe("row reordering", () => {
 		mountApp();
 
 		const nodeNames = () =>
-			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
-				(i) => i.value,
-			);
+			allByRole<HTMLInputElement>(
+				document.getElementById("node-editor") as HTMLElement,
+				"textbox",
+			).map((i) => i.value);
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 
-		const handle = requireElement<HTMLButtonElement>('#node-editor .drag-handle[data-id="n1"]');
+		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder Coal");
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
@@ -33,30 +36,29 @@ describe("row reordering", () => {
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n1", "n3", "n4"]);
 
 		// Link dropdown option order follows the new node order.
-		const firstSource = document.querySelector<HTMLSelectElement>("#link-editor .link-source");
-		const options = Array.from(firstSource?.querySelectorAll("option.node-option") ?? []).map(
+		const firstSource = byRole<HTMLSelectElement>(document, "combobox", "Source for link 1");
+		const options = Array.from(firstSource.querySelectorAll("option.node-option")).map(
 			(o) => o.textContent,
 		);
 		expect(options).toEqual(["Gas", "Coal", "Electricity", "Homes"]);
 
-		// Focus is back on the moved row's handle, now at index 1.
-		const moved = document.querySelector<HTMLButtonElement>(
-			'#node-editor .drag-handle[data-id="n1"]',
-		);
+		// Focus is back on the moved row's handle — already proven at index 1 by
+		// the nodeNames() order check above.
+		const moved = byRole<HTMLButtonElement>(document, "button", "Reorder Coal");
 		expect(document.activeElement).toBe(moved);
-		expect(moved?.getAttribute("data-index")).toBe("1");
 	});
 
 	it("keyboard-reorders a link row: order, storage, and focus all follow", () => {
 		mountApp();
 
 		const linkValues = () =>
-			Array.from(document.querySelectorAll<HTMLInputElement>("#link-editor .link-value")).map(
-				(i) => i.value,
-			);
+			allByRole<HTMLInputElement>(
+				document.getElementById("link-editor") as HTMLElement,
+				"textbox",
+			).map((i) => i.value);
 		expect(linkValues()).toEqual(["10", "6", "14"]);
 
-		const handle = requireElement<HTMLButtonElement>('#link-editor .drag-handle[data-index="0"]');
+		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder link 1");
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
@@ -66,9 +68,7 @@ describe("row reordering", () => {
 		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([6, 10, 14]);
 
 		// Focus lands on the moved link's handle, now at index 1.
-		const moved = document.querySelector<HTMLButtonElement>(
-			'#link-editor .drag-handle[data-index="1"]',
-		);
+		const moved = byRole<HTMLButtonElement>(document, "button", "Reorder link 2");
 		expect(document.activeElement).toBe(moved);
 	});
 
@@ -132,9 +132,10 @@ describe("row reordering", () => {
 		mountApp();
 
 		const nodeNames = () =>
-			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
-				(i) => i.value,
-			);
+			allByRole<HTMLInputElement>(
+				document.getElementById("node-editor") as HTMLElement,
+				"textbox",
+			).map((i) => i.value);
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 
 		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
@@ -147,7 +148,7 @@ describe("row reordering", () => {
 		// on, so a synthetic `item` (left in its current, untouched position —
 		// the next test below drives the DOM-restore step itself) is enough to
 		// exercise the commit path in isolation.
-		const item = requireElement<HTMLElement>('.drag-handle[data-id="n1"]', nodeRows).closest(
+		const item = byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Coal").closest(
 			".node-row",
 		) as HTMLElement;
 		onEnd({ item, oldIndex: 0, newIndex: 2 } as unknown as Sortable.SortableEvent);
@@ -165,34 +166,32 @@ describe("row reordering", () => {
 		const onEnd = instance?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
 
-		const rowIds = () =>
-			Array.from(nodeRows.querySelectorAll<HTMLButtonElement>(".drag-handle")).map(
-				(h) => h.dataset.id,
-			);
-		expect(rowIds()).toEqual(["n1", "n2", "n3", "n4"]);
+		// Each row's drag handle names the node it belongs to (e.g. "Reorder
+		// Coal"), a stable-enough identifier for this test's purposes since no
+		// two nodes share a name.
+		const rowNames = () => allByRole<HTMLInputElement>(nodeRows, "textbox").map((i) => i.value);
+		expect(rowNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 
-		const draggedRow = requireElement<HTMLElement>('.drag-handle[data-id="n1"]', nodeRows).closest(
-			".node-row",
-		) as HTMLElement;
+		const coalHandle = byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Coal");
+		const draggedRow = coalHandle.closest(".node-row") as HTMLElement;
 
 		// Reproduce the live DOM state Sortable leaves behind mid-drag (it has
-		// already moved the row by the time onEnd fires): n1 dragged down to
-		// sit just before n4, landing at [n2, n3, n1, n4].
-		for (const id of ["n2", "n3", "n1", "n4"]) {
-			const row = requireElement<HTMLButtonElement>(
-				`.drag-handle[data-id="${id}"]`,
-				nodeRows,
-			).closest(".node-row");
+		// already moved the row by the time onEnd fires): n1 (Coal) dragged down
+		// to sit just before n4 (Homes), landing at [Gas, Electricity, Coal, Homes].
+		for (const name of ["Gas", "Electricity", "Coal", "Homes"]) {
+			const row = byRole<HTMLButtonElement>(nodeRows, "button", `Reorder ${name}`).closest(
+				".node-row",
+			);
 			if (row) nodeRows.appendChild(row);
 		}
-		expect(rowIds()).toEqual(["n2", "n3", "n1", "n4"]);
+		expect(rowNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
 
 		// Focused once the mid-drag DOM state is established — the handle's
 		// focus at the moment onEnd fires (e.g. from the mousedown that started
 		// the drag) is what use-row-sortable.ts's onEnd is responsible for
 		// carrying through its own restore/dispatch/re-render, not whatever
 		// happened to Sortable's own earlier drag-tracking DOM edits.
-		draggedRow.querySelector<HTMLButtonElement>(".drag-handle")?.focus();
+		coalHandle.focus();
 
 		// fakeSortableEvent only carries oldIndex/newIndex, and this test needs
 		// `item` too, so it builds the event directly.
@@ -203,14 +202,14 @@ describe("row reordering", () => {
 		const rowsAfter = Array.from(nodeRows.querySelectorAll(".node-row"));
 		expect(rowsAfter).toHaveLength(4);
 		expect(new Set(rowsAfter).size).toBe(rowsAfter.length);
-		expect(rowIds()).toEqual(["n2", "n3", "n1", "n4"]);
+		expect(rowNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
 		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n3", "n1", "n4"]);
 
 		// Preact reused the same keyed row/handle across the re-render, so focus
 		// survived the whole restore-then-dispatch-then-reconcile sequence.
 		expect(document.activeElement).toBe(
-			requireElement<HTMLButtonElement>('.drag-handle[data-id="n1"]', nodeRows),
+			byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Coal"),
 		);
 	});
 
@@ -218,9 +217,10 @@ describe("row reordering", () => {
 		mountApp();
 
 		const linkValues = () =>
-			Array.from(document.querySelectorAll<HTMLInputElement>("#link-editor .link-value")).map(
-				(i) => i.value,
-			);
+			allByRole<HTMLInputElement>(
+				document.getElementById("link-editor") as HTMLElement,
+				"textbox",
+			).map((i) => i.value);
 		expect(linkValues()).toEqual(["10", "6", "14"]);
 
 		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
@@ -234,7 +234,7 @@ describe("row reordering", () => {
 		// the test below drives the DOM-restore step itself) is enough to
 		// exercise the commit path in isolation — mirrors the node-row
 		// equivalent above.
-		const item = requireElement<HTMLElement>('.drag-handle[data-index="0"]', linkRows).closest(
+		const item = byRole<HTMLButtonElement>(linkRows, "button", "Reorder link 1").closest(
 			".link-row",
 		) as HTMLElement;
 		onEnd({ item, oldIndex: 0, newIndex: 1 } as unknown as Sortable.SortableEvent);
@@ -247,25 +247,25 @@ describe("row reordering", () => {
 	it("an invalid link-value draft follows its link through a keyboard reorder, not its array position", async () => {
 		mountApp();
 
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		valueInput.value = "abc";
 		fireInput(valueInput);
 		await tick();
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 
-		const handle = requireElement<HTMLButtonElement>('#link-editor .drag-handle[data-index="0"]');
+		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder link 1");
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
 		// Same element, now at row 1: the draft is keyed by link.id, drawn from
 		// a monotonic per-instance sequence, not the row's array index.
-		const movedValueInput = requireElement<HTMLInputElement>('.link-value[data-index="1"]');
+		const movedValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 2");
 		expect(movedValueInput).toBe(valueInput);
 		expect(movedValueInput.value).toBe("abc");
 		expect(movedValueInput.getAttribute("aria-invalid")).toBe("true");
 
 		// The link now at row 0 (the one that was displaced) is unaffected.
-		const otherValueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const otherValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		expect(otherValueInput.value).toBe("6");
 		expect(otherValueInput.hasAttribute("aria-invalid")).toBe(false);
 	});
@@ -273,7 +273,7 @@ describe("row reordering", () => {
 	it("an invalid link-value draft follows its link through a pointer (Sortable onEnd) reorder", async () => {
 		mountApp();
 
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		valueInput.value = "abc";
 		fireInput(valueInput);
 		await tick();
@@ -282,13 +282,13 @@ describe("row reordering", () => {
 		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
 		const onEnd = Sortable.get(linkRows)?.options.onEnd;
 		if (!onEnd) throw new Error("unreachable");
-		const item = requireElement<HTMLElement>('.drag-handle[data-index="0"]', linkRows).closest(
+		const item = byRole<HTMLButtonElement>(linkRows, "button", "Reorder link 1").closest(
 			".link-row",
 		) as HTMLElement;
 
 		onEnd({ item, oldIndex: 0, newIndex: 1 } as unknown as Sortable.SortableEvent);
 
-		const movedValueInput = requireElement<HTMLInputElement>('.link-value[data-index="1"]');
+		const movedValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 2");
 		expect(movedValueInput).toBe(valueInput);
 		expect(movedValueInput.value).toBe("abc");
 		expect(movedValueInput.getAttribute("aria-invalid")).toBe("true");
@@ -300,21 +300,30 @@ describe("row reordering", () => {
 		// Sortable builds the floating drag ghost via cloneNode, which copies
 		// attributes but not live properties — selection/value state must
 		// therefore live in attributes or the ghost degrades to placeholders.
+		// The row wrapper divs themselves carry no role, so these two are
+		// class-selector queries by necessity; everything inside them is
+		// found by role and accessible name instead.
 		const linkRow = requireElement<HTMLElement>("#link-editor .link-row");
 		const nodeRow = requireElement<HTMLElement>("#node-editor .node-row");
-		const source = requireElement<HTMLSelectElement>(".link-source", linkRow);
-		const target = requireElement<HTMLSelectElement>(".link-target", linkRow);
-		const value = requireElement<HTMLInputElement>(".link-value", linkRow);
+		const source = byRole<HTMLSelectElement>(linkRow, "combobox", "Source for link 1");
+		const target = byRole<HTMLSelectElement>(linkRow, "combobox", "Target for link 1");
+		const value = byRole<HTMLInputElement>(linkRow, "textbox", "Value for link 1");
 		expect(source.value).not.toBe("");
 
 		const linkClone = linkRow.cloneNode(true) as HTMLElement;
-		expect(linkClone.querySelector<HTMLSelectElement>(".link-source")?.value).toBe(source.value);
-		expect(linkClone.querySelector<HTMLSelectElement>(".link-target")?.value).toBe(target.value);
-		expect(linkClone.querySelector<HTMLInputElement>(".link-value")?.value).toBe(value.value);
+		expect(byRole<HTMLSelectElement>(linkClone, "combobox", "Source for link 1").value).toBe(
+			source.value,
+		);
+		expect(byRole<HTMLSelectElement>(linkClone, "combobox", "Target for link 1").value).toBe(
+			target.value,
+		);
+		expect(byRole<HTMLInputElement>(linkClone, "textbox", "Value for link 1").value).toBe(
+			value.value,
+		);
 
 		const nodeClone = nodeRow.cloneNode(true) as HTMLElement;
-		expect(nodeClone.querySelector<HTMLInputElement>(".node-name")?.value).toBe(
-			nodeRow.querySelector<HTMLInputElement>(".node-name")?.value,
+		expect(byRole<HTMLInputElement>(nodeClone, "textbox", "Name for Coal").value).toBe(
+			byRole<HTMLInputElement>(nodeRow, "textbox", "Name for Coal").value,
 		);
 
 		// A valid edit is a committed action — its commit() render runs
@@ -323,16 +332,19 @@ describe("row reordering", () => {
 		value.value = "42";
 		fireInput(value);
 		const cloneAfterEdit = linkRow.cloneNode(true) as HTMLElement;
-		expect(cloneAfterEdit.querySelector<HTMLInputElement>(".link-value")?.value).toBe("42");
+		expect(byRole<HTMLInputElement>(cloneAfterEdit, "textbox", "Value for link 1").value).toBe(
+			"42",
+		);
 	});
 
 	it("the onEnd no-op guard: a same-index or indexless event moves nothing", () => {
 		mountApp();
 
 		const nodeNames = () =>
-			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
-				(i) => i.value,
-			);
+			allByRole<HTMLInputElement>(
+				document.getElementById("node-editor") as HTMLElement,
+				"textbox",
+			).map((i) => i.value);
 		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
 		const instance = Sortable.get(nodeRows);
 		const onEnd = instance?.options.onEnd;
@@ -396,8 +408,8 @@ describe("row reordering", () => {
 		// committed action; neither editor's rows container nor Sortable
 		// instance is recreated by that (use-row-sortable.ts's effect is
 		// mount-once per rows container).
-		click(document.querySelector('[data-action="add-node"]'));
-		click(document.querySelector('[data-action="add-link"]'));
+		click(byRole(document, "button", "Add node"));
+		click(byRole(document, "button", "Add link"));
 		expect(requireElement<HTMLElement>("#node-editor .node-rows")).toBe(nodeRows);
 		expect(requireElement<HTMLElement>("#link-editor .link-rows")).toBe(linkRows);
 		expect(Sortable.get(nodeRows)).toBe(nodeSortable);
@@ -409,11 +421,12 @@ describe("row reordering", () => {
 		// use-row-sortable's own unit test, not this integration check: the
 		// controller's action objects are identity-stable across rerenders
 		// here, so a stale-closure bug wouldn't make this assertion fail.)
-		const handle = requireElement<HTMLButtonElement>('#node-editor .drag-handle[data-id="n1"]');
+		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder Coal");
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-		const nodeNames = Array.from(
-			document.querySelectorAll<HTMLInputElement>("#node-editor .node-name"),
+		const nodeNames = allByRole<HTMLInputElement>(
+			document.getElementById("node-editor") as HTMLElement,
+			"textbox",
 		).map((i) => i.value);
 		expect(nodeNames[1]).toBe("Coal");
 
@@ -429,12 +442,13 @@ describe("row reordering", () => {
 		mountApp();
 
 		const nodeNames = () =>
-			Array.from(document.querySelectorAll<HTMLInputElement>("#node-editor .node-name")).map(
-				(i) => i.value,
-			);
+			allByRole<HTMLInputElement>(
+				document.getElementById("node-editor") as HTMLElement,
+				"textbox",
+			).map((i) => i.value);
 		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
 
-		const handle = requireElement<HTMLButtonElement>('#node-editor .drag-handle[data-id="n1"]');
+		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder Coal");
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
 
@@ -456,12 +470,12 @@ describe("link actions leave the node editor untouched", () => {
 		if (!nodeSortableBefore) throw new Error("unreachable");
 		const destroySpy = vi.spyOn(nodeSortableBefore, "destroy");
 
-		click(document.querySelector('[data-action="add-link"]'));
-		click(document.querySelector('.link-delete[data-index="0"]'));
-		const source = requireElement<HTMLSelectElement>('.link-source[data-index="0"]');
+		click(byRole(document, "button", "Add link"));
+		click(byRole(document, "button", "Delete link 1"));
+		const source = byRole<HTMLSelectElement>(document, "combobox", "Source for link 1");
 		source.value = "n2";
 		fireChange(source);
-		const target = requireElement<HTMLSelectElement>('.link-target[data-index="0"]');
+		const target = byRole<HTMLSelectElement>(document, "combobox", "Target for link 1");
 		target.value = "n4";
 		fireChange(target);
 

@@ -203,13 +203,13 @@ body {
   font-size: 0.95rem;
 }
 
-.data-actions {
+.data-card-actions {
   display: flex;
   align-items: center;
   gap: 0.25rem;
 }
 
-.data-action {
+.data-card-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -809,25 +809,31 @@ dialog .dialog-section + .dialog-section {
 .ratio-preview {
   flex: 0 0 auto;
   height: 1.25rem;
-  aspect-ratio: 2 / 1;
   border: 2px solid currentColor;
   border-radius: var(--radius-1);
   opacity: 0.7;
 }
 
-[data-action="set-aspect-ratio"][data-value="a-series"] .ratio-preview {
+/* One rule per preset, including the default 2:1 — no aspect-ratio on the
+   base .ratio-preview above, so every preset's rule is equally authoritative
+   rather than one being an implicit fallback the others override. */
+.ratio-preview-a-series {
   aspect-ratio: 679 / 480;
 }
 
-[data-action="set-aspect-ratio"][data-value="3:2"] .ratio-preview {
+.ratio-preview-3-2 {
   aspect-ratio: 3 / 2;
 }
 
-[data-action="set-aspect-ratio"][data-value="16:9"] .ratio-preview {
+.ratio-preview-16-9 {
   aspect-ratio: 16 / 9;
 }
 
-[data-action="set-aspect-ratio"][data-value="3:1"] .ratio-preview {
+.ratio-preview-2-1 {
+  aspect-ratio: 2 / 1;
+}
+
+.ratio-preview-3-1 {
   aspect-ratio: 3 / 1;
 }
 

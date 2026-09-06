@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { STORAGE_KEY } from "../../src/platform/storage";
 import {
+	byRole,
 	click,
 	fireChange,
 	fireInput,
@@ -16,8 +17,7 @@ describe("node & link editing", () => {
 	it("round-trips a basic mutation: add node updates editor, diagram, and storage", () => {
 		mountApp();
 
-		const addNodeButton = document.querySelector<HTMLButtonElement>('[data-action="add-node"]');
-		expect(addNodeButton).not.toBeNull();
+		const addNodeButton = byRole<HTMLButtonElement>(document, "button", "Add node");
 		click(addNodeButton);
 
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(5);
@@ -35,9 +35,7 @@ describe("node & link editing", () => {
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
 
-		const valueInput = document.querySelector<HTMLInputElement>('.link-value[data-index="0"]');
-		expect(valueInput).not.toBeNull();
-		if (!valueInput) throw new Error("unreachable");
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 
 		valueInput.value = "";
 		fireInput(valueInput);
@@ -94,7 +92,7 @@ describe("node & link editing", () => {
 	it("shows an inline, accessible error message for an invalid link value and clears it once valid", async () => {
 		mountApp();
 
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 
 		const describedbyId = valueInput.getAttribute("aria-describedby");
 		expect(describedbyId).toBeTruthy();
@@ -148,7 +146,7 @@ describe("node & link editing", () => {
 	it("pins the exact error message for other ambiguous link-value inputs", async () => {
 		mountApp();
 
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		const describedbyId = valueInput.getAttribute("aria-describedby");
 		const errorEl = describedbyId ? document.getElementById(describedbyId) : null;
 		expect(errorEl).not.toBeNull();
@@ -192,7 +190,7 @@ describe("node & link editing", () => {
 	it("intercepts the 4-decimal cap at beforeinput (block keystroke, truncate paste)", async () => {
 		mountApp();
 
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 
 		// happy-dom does not run the native editing pipeline for beforeinput, so
 		// these assert defaultPrevented (+ programmatic effects the handler
@@ -278,7 +276,7 @@ describe("node & link editing", () => {
 		// Retargeting the third link to n1 closes a 2-node cycle without
 		// touching node count/shape — isolates the cycle-invalid path from any
 		// other validation failure.
-		const target = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
+		const target = byRole<HTMLSelectElement>(document, "combobox", "Target for link 3");
 		target.value = "n1";
 		fireChange(target);
 
@@ -307,7 +305,7 @@ describe("node & link editing", () => {
 		const svgBefore = document.querySelector("#diagram svg");
 		expect(svgBefore).not.toBeNull();
 
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		valueInput.focus();
 		expect(document.activeElement).toBe(valueInput);
 
@@ -324,7 +322,7 @@ describe("node & link editing", () => {
 	it("leaves an invalid link-value draft untouched by an unrelated committed rename", async () => {
 		mountApp();
 
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		const describedbyId = valueInput.getAttribute("aria-describedby");
 		const errorEl = describedbyId ? document.getElementById(describedbyId) : null;
 		expect(errorEl).not.toBeNull();
@@ -341,7 +339,7 @@ describe("node & link editing", () => {
 		// rather than array index — an unrelated rename's re-render patches this
 		// row's DOM in place instead of rebuilding it, so the draft/error state
 		// must survive intact.
-		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
+		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
 		nameInput.value = "Lignite";
 		fireInput(nameInput);
 
@@ -349,7 +347,7 @@ describe("node & link editing", () => {
 		// rebuilt instead of patched, the rebuilt row would carry the same
 		// default value/attributes on a *detached* node and these assertions
 		// would pass while the visible draft was actually lost.
-		expect(requireElement<HTMLInputElement>('.link-value[data-index="0"]')).toBe(valueInput);
+		expect(byRole<HTMLInputElement>(document, "textbox", "Value for link 1")).toBe(valueInput);
 		expect(valueInput.value).toBe("abc");
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
@@ -386,7 +384,7 @@ describe("node & link editing", () => {
 			"Imported 2 nodes, 1 links. Adjustments: link 1: unknown target — left unassigned.",
 		);
 
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		const storedBefore = localStorage.getItem(STORAGE_KEY);
 		const svgBefore = document.querySelector("#diagram svg");
 		const errorBefore = document.getElementById("error")?.textContent;
@@ -424,7 +422,7 @@ describe("node & link editing", () => {
 		// array index instead of link identity would make this row (now index 1)
 		// pick up whatever the *previous* index-1 row (n2->n3, deleted) happened
 		// to render, silently discarding the draft instead of carrying it along.
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="2"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 3");
 		valueInput.value = "abc";
 		fireInput(valueInput);
 		await tick();
@@ -433,10 +431,10 @@ describe("node & link editing", () => {
 		// Deleting n2 cascades to remove the n2->n3 link at index 1 (see
 		// model/graph.ts's deleteNode), leaving the edited n3->n4 link — same
 		// Link object, same id — as the new row 1.
-		click(requireElement<HTMLButtonElement>('.node-delete[data-id="n2"]'));
+		click(byRole<HTMLButtonElement>(document, "button", "Delete Gas"));
 
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(2);
-		const survivingValueInput = requireElement<HTMLInputElement>('.link-value[data-index="1"]');
+		const survivingValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 2");
 		expect(survivingValueInput).toBe(valueInput);
 		expect(survivingValueInput.value).toBe("abc");
 		expect(survivingValueInput.getAttribute("aria-invalid")).toBe("true");
@@ -445,7 +443,7 @@ describe("node & link editing", () => {
 		expect(errorEl?.textContent).toBe("Enter a plain number greater than 0.");
 
 		// The other surviving link (n1->n3, untouched, now row 0) is unaffected.
-		const otherValueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const otherValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		expect(otherValueInput.value).toBe("10");
 		expect(otherValueInput.hasAttribute("aria-invalid")).toBe(false);
 	});
@@ -456,13 +454,12 @@ describe("node & link editing", () => {
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
 
-		const addLinkButton = document.querySelector<HTMLButtonElement>('[data-action="add-link"]');
-		expect(addLinkButton).not.toBeNull();
+		const addLinkButton = byRole<HTMLButtonElement>(document, "button", "Add link");
 		click(addLinkButton);
 
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(4);
-		const source = () => document.querySelector<HTMLSelectElement>('.link-source[data-index="3"]');
-		const target = () => document.querySelector<HTMLSelectElement>('.link-target[data-index="3"]');
+		const source = () => byRole<HTMLSelectElement>(document, "combobox", "Source for link 4");
+		const target = () => byRole<HTMLSelectElement>(document, "combobox", "Target for link 4");
 		expect(source()?.value).toBe("");
 		expect(target()?.value).toBe("");
 		expect(source()?.querySelector('option[value=""]')?.textContent).toBe("— select —");
@@ -517,7 +514,7 @@ describe("node & link editing", () => {
 		}));
 
 		// n1 appears as an option (selected or not) in every source/target select.
-		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
+		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
 		nameInput.focus();
 		expect(document.activeElement).toBe(nameInput);
 

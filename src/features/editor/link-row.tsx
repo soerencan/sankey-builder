@@ -90,7 +90,7 @@ interface LinkValueDraft {
 
 export interface LinkRowProps {
 	link: Readonly<Link>;
-	/** The row's current position — display numbering and data-index only; actions below take the link's id. */
+	/** The row's current position — display numbering only; actions below take the link's id. */
 	index: number;
 	nodes: readonly NodeView[];
 	actions: LinkEditorActions;
@@ -174,18 +174,11 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 
 	return (
 		<div class="link-row">
-			<button
-				type="button"
-				class="drag-handle"
-				data-index={index}
-				aria-label={`Reorder link ${index + 1}`}
-			>
+			<button type="button" class="drag-handle" aria-label={`Reorder link ${index + 1}`}>
 				⠿
 			</button>
 			<select
 				class="link-source"
-				data-action="update-link-source"
-				data-index={index}
 				aria-label={`Source for link ${index + 1}`}
 				value={link.source ?? ""}
 				onChange={(event) => actions.updateLinkSource(link.id, event.currentTarget.value || null)}
@@ -194,8 +187,6 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 			</select>
 			<select
 				class="link-target"
-				data-action="update-link-target"
-				data-index={index}
 				aria-label={`Target for link ${index + 1}`}
 				value={link.target ?? ""}
 				onChange={(event) => actions.updateLinkTarget(link.id, event.currentTarget.value || null)}
@@ -206,8 +197,6 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 				type="text"
 				inputmode="decimal"
 				class="link-value"
-				data-action="update-link-value"
-				data-index={index}
 				aria-label={`Value for link ${index + 1}`}
 				aria-describedby={linkValueErrorId(link.id)}
 				aria-invalid={draft.invalid ? "true" : undefined}
@@ -223,8 +212,6 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 			<button
 				type="button"
 				class="link-delete"
-				data-action="delete-link"
-				data-index={index}
 				aria-label={`Delete link ${index + 1}`}
 				onClick={() => actions.deleteLink(link.id)}
 			>

@@ -1,11 +1,19 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from "vitest";
-import { click, fireChange, fireInput, mountApp, requireElement, tick } from "../helpers/mount-app";
+import {
+	byRole,
+	click,
+	fireChange,
+	fireInput,
+	mountApp,
+	requireElement,
+	tick,
+} from "../helpers/mount-app";
 
 /** Retargets the third link to n1, closing a 2-node cycle (n1 -> n3 -> n1). */
 function makeCycle(): void {
-	const target = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
+	const target = byRole<HTMLSelectElement>(document, "combobox", "Target for link 3");
 	target.value = "n1";
 	fireChange(target);
 }
@@ -69,7 +77,7 @@ describe("NoticeRegion: consolidated notice slots", () => {
 		// A further committed edit with working storage: the graph is still
 		// invalid (the cycle was never fixed), so the graph error persists, but
 		// the storage notice clears now that saves succeed again.
-		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
+		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
 		nameInput.value = "Lignite";
 		fireInput(nameInput);
 
@@ -111,7 +119,7 @@ describe("NoticeRegion: consolidated notice slots", () => {
 		// three fixed-id slots unconditionally, so the real risk this guards is
 		// Preact discarding and rebuilding the slot's div on every render instead
 		// of patching its text in place.
-		click(document.querySelector('[data-action="add-node"]'));
+		click(byRole(document, "button", "Add node"));
 
 		const errorAfter = document.getElementById("error");
 		expect(errorAfter).toBe(errorBefore);
@@ -121,7 +129,7 @@ describe("NoticeRegion: consolidated notice slots", () => {
 	it("keeps a field-local link-value error out of the root notice region", async () => {
 		mountApp();
 
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		valueInput.value = "abc";
 		fireInput(valueInput);
 		await tick();

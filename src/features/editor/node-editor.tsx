@@ -28,23 +28,15 @@ export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 		<>
 			<h3 id="node-editor-heading">Nodes</h3>
 			<div class="node-rows" ref={rowsRef}>
-				{nodes.map((node, index) => (
+				{nodes.map((node) => (
 					<div class="node-row" key={node.id}>
-						<button
-							type="button"
-							class="drag-handle"
-							data-index={index}
-							data-id={node.id}
-							aria-label={`Reorder ${node.name}`}
-						>
+						<button type="button" class="drag-handle" aria-label={`Reorder ${node.name}`}>
 							⠿
 						</button>
 						<span class="node-swatch" style={{ backgroundColor: node.swatchColor }} />
 						<input
 							type="text"
 							class="node-name"
-							data-action="rename-node"
-							data-id={node.id}
 							aria-label={`Name for ${node.name}`}
 							value={node.name}
 							// Preact sets `value` as a DOM property, not an attribute, but
@@ -57,8 +49,6 @@ export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 						<button
 							type="button"
 							class="node-delete"
-							data-action="delete-node"
-							data-id={node.id}
 							aria-label={`Delete ${node.name}`}
 							onClick={() => actions.deleteNode(node.id)}
 						>
@@ -67,12 +57,7 @@ export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 					</div>
 				))}
 			</div>
-			<button
-				type="button"
-				class="add-node"
-				data-action="add-node"
-				onClick={() => actions.addNode()}
-			>
+			<button type="button" class="add-node" onClick={() => actions.addNode()}>
 				Add node
 			</button>
 		</>

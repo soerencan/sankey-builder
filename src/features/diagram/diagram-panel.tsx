@@ -43,6 +43,21 @@ const LINK_COLOR_CHOICES = Object.entries(LINK_COLOR_OPTIONS).map(([value, optio
 	...option,
 }));
 
+/**
+ * A CSS-safe modifier class per aspect ratio — style.css sets each preset's
+ * own aspect-ratio on it. A colon is valid in a class selector only when
+ * escaped, so each class swaps ":" for "-" rather than relying on that
+ * escaping. A `Record`, not a string-munging function, so adding an
+ * `AspectRatio` value without a matching entry here is a compile error.
+ */
+const RATIO_PREVIEW_CLASSES: Record<AspectRatio, string> = {
+	"a-series": "ratio-preview-a-series",
+	"3:2": "ratio-preview-3-2",
+	"16:9": "ratio-preview-16-9",
+	"2:1": "ratio-preview-2-1",
+	"3:1": "ratio-preview-3-1",
+};
+
 export interface DiagramPanelActions extends IoNoticeActions {
 	setPalette(value: Palette): void;
 	setLinkColor(value: LinkColorMode): void;
@@ -102,10 +117,10 @@ function ExportOptions({
 			aria-label={label}
 			aria-labelledby={labelledBy}
 		>
-			<button type="button" id={svgButtonId} data-action="export-svg" onClick={onExportSvg}>
+			<button type="button" id={svgButtonId} onClick={onExportSvg}>
 				SVG
 			</button>
-			<button type="button" id={pngButtonId} data-action="export-png" onClick={onExportPng}>
+			<button type="button" id={pngButtonId} onClick={onExportPng}>
 				PNG
 			</button>
 		</div>
@@ -248,7 +263,6 @@ export function DiagramPanel({
 				<button
 					type="button"
 					class="toolbar-button"
-					data-action="palette-prev"
 					aria-label="Previous palette"
 					onClick={() => cyclePalette(-1)}
 				>
@@ -260,7 +274,6 @@ export function DiagramPanel({
 					type="button"
 					id="palette-preview"
 					class="toolbar-button"
-					data-action="open-palette-dialog"
 					aria-haspopup="dialog"
 					aria-label={`Palette: ${PALETTE_LABELS[settings.palette]}`}
 					onClick={(event) => paletteDialog.open(event.currentTarget)}
@@ -270,7 +283,6 @@ export function DiagramPanel({
 				<button
 					type="button"
 					class="toolbar-button"
-					data-action="palette-next"
 					aria-label="Next palette"
 					onClick={() => cyclePalette(1)}
 				>
@@ -283,7 +295,6 @@ export function DiagramPanel({
 						type="button"
 						id="links-button"
 						class="toolbar-button"
-						data-action="open-links-dialog"
 						aria-haspopup="dialog"
 						aria-label={`Links: ${LINK_COLOR_OPTIONS[settings.linkColor].label}`}
 						onClick={(event) => linksDialog.open(event.currentTarget)}
@@ -299,7 +310,6 @@ export function DiagramPanel({
 						label="Alignment"
 						class="align-group"
 						optionClass="align-option"
-						dataAction="set-alignment"
 						ariaLabel={(option) => option.label}
 						onSelect={(value) => actions.setAlignment(value)}
 						renderLabel={(option) => (
@@ -312,7 +322,6 @@ export function DiagramPanel({
 						type="button"
 						id="aspect-ratio-button"
 						class="toolbar-button"
-						data-action="open-aspect-ratio-dialog"
 						aria-haspopup="dialog"
 						aria-label={`Aspect ratio: ${ASPECT_RATIO_LABELS[settings.aspectRatio]}`}
 						onClick={(event) => aspectRatioDialog.open(event.currentTarget)}
@@ -323,7 +332,6 @@ export function DiagramPanel({
 						type="button"
 						id="diagram-export-button"
 						class="toolbar-button"
-						data-action="open-diagram-export-dialog"
 						aria-haspopup="dialog"
 						onClick={(event) => diagramExportDialog.open(event.currentTarget)}
 					>
@@ -337,7 +345,6 @@ export function DiagramPanel({
 					type="button"
 					id="display-button"
 					class="toolbar-button toolbar-narrow"
-					data-action="open-display-dialog"
 					aria-haspopup="dialog"
 					onClick={(event) => displayDialog.open(event.currentTarget)}
 				>
@@ -355,7 +362,6 @@ export function DiagramPanel({
 					label="Palette"
 					class="palette-options"
 					optionClass="palette-option"
-					dataAction="set-palette"
 					onSelect={(value) => {
 						actions.setPalette(value);
 						paletteDialog.close();
@@ -376,7 +382,6 @@ export function DiagramPanel({
 					label="Link colors"
 					class="choice-options"
 					optionClass="choice-option"
-					dataAction="set-link-color"
 					onSelect={(value) => {
 						actions.setLinkColor(value);
 						linksDialog.close();
@@ -399,14 +404,16 @@ export function DiagramPanel({
 					label="Aspect ratio"
 					class="choice-options aspect-ratio-options"
 					optionClass="choice-option"
-					dataAction="set-aspect-ratio"
 					onSelect={(value) => {
 						actions.setAspectRatio(value);
 						aspectRatioDialog.close();
 					}}
 					renderLabel={(option) => (
 						<>
-							<span class="ratio-preview" aria-hidden="true" />
+							<span
+								class={`ratio-preview ${RATIO_PREVIEW_CLASSES[option.value]}`}
+								aria-hidden="true"
+							/>
 							<span class="choice-option-label">{ASPECT_RATIO_LABELS[option.value]}</span>
 						</>
 					)}
@@ -428,8 +435,8 @@ export function DiagramPanel({
 			</ChoiceDialog>
 
 			{/* Narrow-toolbar equivalent of the wide Links button + align-group
-			    above: same data-actions (COPIES, not new ids on the options), so
-			    the same `actions` callbacks cover both. Unlike the other dialogs,
+			    above: COPIES of the same options, not new ids on them, so the
+			    same `actions` callbacks cover both. Unlike the other dialogs,
 			    choosing a link-color/alignment/aspect-ratio option here does NOT
 			    close the dialog — the diagram updates live behind it and the user
 			    dismisses it explicitly (Close, backdrop, Escape). Its SVG/PNG
@@ -444,7 +451,6 @@ export function DiagramPanel({
 						labelledBy="display-link-colors-heading"
 						class="choice-options"
 						optionClass="choice-option"
-						dataAction="set-link-color"
 						onSelect={(value) => actions.setLinkColor(value)}
 						renderLabel={(option) => (
 							<>
@@ -465,7 +471,6 @@ export function DiagramPanel({
 						labelledBy="display-alignment-heading"
 						class="choice-options"
 						optionClass="choice-option"
-						dataAction="set-alignment"
 						onSelect={(value) => actions.setAlignment(value)}
 						renderLabel={(option) => (
 							<>
@@ -486,11 +491,13 @@ export function DiagramPanel({
 						labelledBy="display-aspect-ratio-heading"
 						class="choice-options aspect-ratio-options"
 						optionClass="choice-option"
-						dataAction="set-aspect-ratio"
 						onSelect={(value) => actions.setAspectRatio(value)}
 						renderLabel={(option) => (
 							<>
-								<span class="ratio-preview" aria-hidden="true" />
+								<span
+									class={`ratio-preview ${RATIO_PREVIEW_CLASSES[option.value]}`}
+									aria-hidden="true"
+								/>
 								<span class="choice-option-label">{ASPECT_RATIO_LABELS[option.value]}</span>
 							</>
 						)}

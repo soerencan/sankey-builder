@@ -5,7 +5,15 @@ import { describe, expect, it, vi } from "vitest";
 import { startApp } from "../../src/app/start-app";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-resizer";
 import { STORAGE_KEY } from "../../src/platform/storage";
-import { click, installMarkup, mountApp, requireElement, tick } from "../helpers/mount-app";
+import {
+	allByRole,
+	byRole,
+	click,
+	installMarkup,
+	mountApp,
+	requireElement,
+	tick,
+} from "../helpers/mount-app";
 
 // app/start-app.ts doesn't export STORAGE_NOTICE, so this hardcodes (and
 // thereby pins) the user-visible copy.
@@ -68,7 +76,7 @@ function interceptCreateElement(): {
 
 function clickPngExport(): void {
 	click(document.getElementById("display-button"));
-	click(document.querySelector('#display-dialog [data-action="export-png"]'));
+	click(byRole(document.getElementById("display-dialog") as HTMLElement, "button", "PNG"));
 }
 
 describe("application lifecycle", () => {
@@ -159,8 +167,11 @@ describe("application lifecycle", () => {
 		const nodeRowsBefore = document.querySelectorAll("#node-editor .node-row").length;
 		const storedBefore = localStorage.getItem(STORAGE_KEY);
 
-		click(document.querySelector('[data-action="add-node"]'));
-		click(document.querySelector('[data-action="palette-next"]'));
+		// destroy() unmounts the whole App tree, so neither control exists to
+		// click any more — asserted directly, rather than clicking a query that
+		// may or may not have found anything.
+		expect(allByRole(document, "button", "Add node")).toHaveLength(0);
+		expect(allByRole(document, "button", "Next palette")).toHaveLength(0);
 
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(nodeRowsBefore);
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);
@@ -195,7 +206,7 @@ describe("application lifecycle", () => {
 				writable: true,
 			});
 			try {
-				click(document.querySelector('[data-action="add-node"]'));
+				click(byRole(document, "button", "Add node"));
 			} finally {
 				Object.defineProperty(globalThis, "localStorage", {
 					value: realLocalStorage,
@@ -209,7 +220,7 @@ describe("application lifecycle", () => {
 
 			// Same proof for the preview resizer's own listeners: one click applies
 			// its step exactly once (360 default + 40 step = 400, not 440).
-			click(document.querySelector('[data-action="preview-larger"]'));
+			click(byRole(document, "button", "Make diagram preview larger"));
 			expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("400");
 		} finally {
 			app.destroy();
@@ -255,8 +266,7 @@ describe("application lifecycle", () => {
 		const notice = () => document.getElementById("storage-notice")?.textContent;
 		expect(notice()).toBe("");
 
-		const addNodeButton = document.querySelector<HTMLButtonElement>('[data-action="add-node"]');
-		expect(addNodeButton).not.toBeNull();
+		const addNodeButton = byRole<HTMLButtonElement>(document, "button", "Add node");
 
 		// happy-dom's Storage binds each method onto an internal target the
 		// first time it's accessed (see happy-dom's ClassMethodBinder), and by
@@ -289,9 +299,7 @@ describe("application lifecycle", () => {
 		// The failed save above still rebuilt the node editor (editors rebuild
 		// regardless of validity), which tore down and recreated the button —
 		// re-query rather than reuse the now-detached reference.
-		const addNodeButtonAfterFailure = document.querySelector<HTMLButtonElement>(
-			'[data-action="add-node"]',
-		);
+		const addNodeButtonAfterFailure = byRole<HTMLButtonElement>(document, "button", "Add node");
 		click(addNodeButtonAfterFailure);
 		expect(notice()).toBe("");
 	});
@@ -318,7 +326,7 @@ describe("application lifecycle", () => {
 		try {
 			click(themeButton);
 			const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
-			click(dialog.querySelector<HTMLButtonElement>('[data-value="light"]'));
+			click(byRole<HTMLButtonElement>(dialog, "button", "Light"));
 			expect(notice()).toBe(STORAGE_NOTICE);
 		} finally {
 			Object.defineProperty(globalThis, "localStorage", {
@@ -332,7 +340,7 @@ describe("application lifecycle", () => {
 		// regardless of the save outcome, so re-open it for the recovery click.
 		click(themeButton);
 		const dialogAfterRecovery = document.getElementById("theme-dialog") as HTMLDialogElement;
-		click(dialogAfterRecovery.querySelector<HTMLButtonElement>('[data-value="dark"]'));
+		click(byRole<HTMLButtonElement>(dialogAfterRecovery, "button", "Dark"));
 		expect(notice()).toBe("");
 	});
 });

@@ -160,7 +160,6 @@ export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 			<button
 				type="button"
 				class="preview-size-button"
-				data-action="preview-smaller"
 				aria-label="Make diagram preview smaller"
 				title="Make preview smaller"
 				onClick={() => apply(heightRef.current - PREVIEW_HEIGHT_STEP)}
@@ -190,7 +189,6 @@ export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 			<button
 				type="button"
 				class="preview-size-button"
-				data-action="preview-larger"
 				aria-label="Make diagram preview larger"
 				title="Make preview larger"
 				onClick={() => apply(heightRef.current + PREVIEW_HEIGHT_STEP)}
@@ -202,7 +200,6 @@ export function PreviewResizer({ diagramRef, win }: PreviewResizerProps) {
 			<button
 				type="button"
 				class="preview-size-button preview-reset"
-				data-action="preview-reset"
 				aria-label="Reset diagram preview size"
 				title="Reset preview size"
 				onClick={() => apply(DEFAULT_PREVIEW_HEIGHT)}

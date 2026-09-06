@@ -1,6 +1,5 @@
 import type { RefObject } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
-import { isElement } from "./dom";
 
 export interface DialogHandle {
 	/** Attach to the JSX-rendered <dialog>. */
@@ -53,9 +52,9 @@ export function useDialog(): DialogHandle {
 
 	// One native "close" listener covers every close path (explicit close(),
 	// a backdrop click below, or the browser's own Escape handling) with a
-	// single focus-restore site. The delegated click listener covers backdrop
-	// clicks and any descendant [data-action="close-dialog"] button without
-	// each dialog wiring its own onClick.
+	// single focus-restore site. The delegated click listener covers only the
+	// backdrop path; a dialog's own close button wires its own onClick to
+	// close() instead of relying on a class here.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: mount-once by design — the dialog element's identity is stable for this hook's lifetime, and `close` reads dialogRef.current fresh on every close path rather than needing to be a dependency.
 	useLayoutEffect(() => {
 		const dialog = dialogRef.current;
@@ -64,12 +63,7 @@ export function useDialog(): DialogHandle {
 			triggerRef.current?.focus();
 		}
 		function handleClick(event: MouseEvent): void {
-			if (event.target === dialog) {
-				close();
-				return;
-			}
-			if (!isElement(event.target)) return;
-			if (event.target.closest('[data-action="close-dialog"]')) close();
+			if (event.target === dialog) close();
 		}
 		dialog.addEventListener("close", handleClose);
 		dialog.addEventListener("click", handleClick);

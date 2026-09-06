@@ -29,8 +29,10 @@ function createOtherWindow(): Window {
 // happy-dom's own Element/Event types (returned by otherWindow.document.*)
 // don't structurally match lib.dom's — real, distinct classes, which is
 // exactly the point of this file — so the boundary casts below bridge them.
-function queryIn(otherWindow: Window, selector: string): Element | null {
-	return otherWindow.document.querySelector(selector) as unknown as Element | null;
+function addNodeButtonIn(otherWindow: Window): Element | null {
+	return Array.from(otherWindow.document.querySelectorAll("button")).find(
+		(button) => button.textContent?.trim() === "Add node",
+	) as unknown as Element | null;
 }
 
 function elementByIdIn(otherWindow: Window, id: string): Element | null {
@@ -59,7 +61,7 @@ describe("cross-realm DOM contract", () => {
 		expect(otherWindow.document.querySelector("#diagram svg")).not.toBeNull();
 
 		const nodeRowsBefore = otherWindow.document.querySelectorAll("#node-editor .node-row").length;
-		clickIn(otherWindow, queryIn(otherWindow, '[data-action="add-node"]'));
+		clickIn(otherWindow, addNodeButtonIn(otherWindow));
 		expect(otherWindow.document.querySelectorAll("#node-editor .node-row")).toHaveLength(
 			nodeRowsBefore + 1,
 		);
@@ -75,7 +77,7 @@ describe("cross-realm DOM contract", () => {
 
 		expect(() => app.destroy()).not.toThrow();
 		const rowsAfterDestroy = otherWindow.document.querySelectorAll("#node-editor .node-row").length;
-		clickIn(otherWindow, queryIn(otherWindow, '[data-action="add-node"]'));
+		clickIn(otherWindow, addNodeButtonIn(otherWindow));
 		expect(otherWindow.document.querySelectorAll("#node-editor .node-row")).toHaveLength(
 			rowsAfterDestroy,
 		);
@@ -100,7 +102,7 @@ describe("cross-realm DOM contract", () => {
 
 		const app = startApp(otherWindow.document as unknown as Document);
 		try {
-			clickIn(otherWindow, queryIn(otherWindow, '[data-action="add-node"]'));
+			clickIn(otherWindow, addNodeButtonIn(otherWindow));
 
 			expect(elementByIdIn(otherWindow, "storage-notice")?.textContent).not.toBe("");
 		} finally {

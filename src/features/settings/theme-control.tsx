@@ -35,7 +35,6 @@ export function ThemeControl({ theme, actions }: ThemeControlProps) {
 				type="button"
 				id="theme-button"
 				class="toolbar-button"
-				data-action="open-theme-dialog"
 				aria-haspopup="dialog"
 				aria-label={`Theme: ${label}`}
 				onClick={(event) => dialog.open(event.currentTarget)}
@@ -52,7 +51,6 @@ export function ThemeControl({ theme, actions }: ThemeControlProps) {
 					label="Theme"
 					class="choice-options"
 					optionClass="choice-option"
-					dataAction="set-theme"
 					onSelect={(value) => {
 						actions.setTheme(value);
 						dialog.close();

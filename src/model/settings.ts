@@ -37,7 +37,7 @@ export function isLinkColorMode(value: unknown): value is LinkColorMode {
 
 // --- Alignment ---
 
-/** Canonical value set — index.html's alignment buttons' data-value set is contract-tested against this. */
+/** Canonical value set — the rendered alignment buttons' set is contract-tested against this. */
 export const ALIGNMENTS = ["left", "right", "center", "justify"] as const;
 export type Alignment = (typeof ALIGNMENTS)[number];
 const ALIGNMENT_SET: ReadonlySet<string> = new Set(ALIGNMENTS);

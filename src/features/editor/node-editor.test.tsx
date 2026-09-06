@@ -2,6 +2,7 @@
 
 import { render } from "preact";
 import { describe, expect, it, vi } from "vitest";
+import { byRole } from "../../../tests/helpers/dom-queries";
 import type { NodeView } from "../../app/view";
 import type { NodeEditorActions } from "./node-editor";
 import { NodeEditor } from "./node-editor";
@@ -18,7 +19,7 @@ function noopActions(): NodeEditorActions {
 }
 
 describe("NodeEditor", () => {
-	it("renders the heading plus one row per node with the expected structure and data attributes", () => {
+	it("renders the heading plus one row per node with the expected structure and accessible names", () => {
 		const nodes: NodeView[] = [
 			{ id: "n1", name: "Coal", swatchColor: "#111111" },
 			{ id: "n2", name: "Gas", swatchColor: "#222222" },
@@ -33,28 +34,21 @@ describe("NodeEditor", () => {
 
 		rows.forEach((row, i) => {
 			const node = nodes[i];
-			const handle = row.querySelector<HTMLButtonElement>(".drag-handle");
-			expect(handle?.dataset.index).toBe(String(i));
-			expect(handle?.dataset.id).toBe(node.id);
-			expect(handle?.getAttribute("aria-label")).toBe(`Reorder ${node.name}`);
+			byRole(row, "button", `Reorder ${node.name}`);
 
 			const swatch = row.querySelector<HTMLElement>(".node-swatch");
 			expect(swatch?.style.backgroundColor).toBe(node.swatchColor);
 
-			const nameInput = row.querySelector<HTMLInputElement>(".node-name");
-			expect(nameInput?.value).toBe(node.name);
+			const nameInput = byRole<HTMLInputElement>(row, "textbox", `Name for ${node.name}`);
+			expect(nameInput.value).toBe(node.name);
 			// Mirrored as an attribute too — Sortable's cloneNode drag ghost
 			// copies attributes only, not the live `value` property.
-			expect(nameInput?.getAttribute("value")).toBe(node.name);
-			expect(nameInput?.dataset.id).toBe(node.id);
-			expect(nameInput?.getAttribute("aria-label")).toBe(`Name for ${node.name}`);
+			expect(nameInput.getAttribute("value")).toBe(node.name);
 
-			const deleteButton = row.querySelector<HTMLButtonElement>(".node-delete");
-			expect(deleteButton?.dataset.id).toBe(node.id);
-			expect(deleteButton?.getAttribute("aria-label")).toBe(`Delete ${node.name}`);
+			byRole(row, "button", `Delete ${node.name}`);
 		});
 
-		expect(container.querySelector('[data-action="add-node"]')?.textContent).toBe("Add node");
+		expect(byRole(container, "button", "Add node").textContent).toBe("Add node");
 	});
 
 	it("wires add/rename/delete interactions to the given actions", () => {
@@ -62,16 +56,15 @@ describe("NodeEditor", () => {
 		const actions = noopActions();
 		const container = mount(nodes, actions);
 
-		container.querySelector<HTMLButtonElement>('[data-action="add-node"]')?.click();
+		byRole<HTMLButtonElement>(container, "button", "Add node").click();
 		expect(actions.addNode).toHaveBeenCalledTimes(1);
 
-		const nameInput = container.querySelector<HTMLInputElement>(".node-name");
-		if (!nameInput) throw new Error("unreachable");
+		const nameInput = byRole<HTMLInputElement>(container, "textbox", "Name for Coal");
 		nameInput.value = "Lignite";
 		nameInput.dispatchEvent(new Event("input", { bubbles: true }));
 		expect(actions.renameNode).toHaveBeenCalledWith("n1", "Lignite");
 
-		container.querySelector<HTMLButtonElement>('[data-action="delete-node"]')?.click();
+		byRole<HTMLButtonElement>(container, "button", "Delete Coal").click();
 		expect(actions.deleteNode).toHaveBeenCalledWith("n1");
 	});
 

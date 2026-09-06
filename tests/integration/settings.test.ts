@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { paletteColors } from "../../src/features/diagram/colors";
 import {
+	ALIGNMENT_OPTIONS,
 	ASPECT_RATIO_LABELS,
 	LINK_COLOR_OPTIONS,
 	PALETTE_LABELS,
@@ -11,13 +12,29 @@ import {
 import { defaultState } from "../../src/model/graph";
 import { ALIGNMENTS, ASPECT_RATIO_OPTIONS, PALETTE_ORDER } from "../../src/model/settings";
 import {
+	accessibleName,
+	allByRole,
+	byRole,
 	click,
 	fireChange,
 	getStoredState,
 	mountApp,
-	requireElement,
 	tick,
 } from "../helpers/mount-app";
+
+/**
+ * The wide toolbar's alignment ChoiceGroup — both it and the narrow Diagram
+ * dialog's own copy share the accessible name "Alignment" (one via `label`,
+ * the other via `labelledBy` a heading with the same text), so the wide copy
+ * is the one NOT nested in a <dialog>.
+ */
+function wideAlignmentGroup(): HTMLElement {
+	const group = allByRole(document, "group", "Alignment").find(
+		(candidate) => !candidate.closest("dialog"),
+	);
+	if (!group) throw new Error("expected the wide toolbar's Alignment group");
+	return group;
+}
 
 describe("toolbar & settings", () => {
 	it("palette-next advances the carousel: state, preview label, and rendered colors all follow", () => {
@@ -27,7 +44,7 @@ describe("toolbar & settings", () => {
 			Array.from(document.querySelectorAll("#diagram svg rect")).map((r) => r.getAttribute("fill"));
 		const before = fills();
 
-		click(document.querySelector('[data-action="palette-next"]'));
+		click(byRole(document, "button", "Next palette"));
 
 		const preview = document.getElementById("palette-preview");
 		expect(preview?.getAttribute("aria-label")).toBe("Palette: Tableau 10");
@@ -40,7 +57,7 @@ describe("toolbar & settings", () => {
 	it("palette-prev wraps from the first palette (observable10) to the last (dark2)", () => {
 		mountApp();
 
-		click(document.querySelector('[data-action="palette-prev"]'));
+		click(byRole(document, "button", "Previous palette"));
 
 		const preview = document.getElementById("palette-preview");
 		expect(preview?.getAttribute("aria-label")).toBe("Palette: Dark 2");
@@ -51,25 +68,20 @@ describe("toolbar & settings", () => {
 	it("clicking the palette preview opens the palette dialog", () => {
 		mountApp();
 
-		const dialog = document.getElementById("palette-dialog");
+		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
 		expect(dialog).toBeInstanceOf(HTMLDialogElement);
-		expect((dialog as HTMLDialogElement).open).toBe(false);
+		expect(dialog.open).toBe(false);
 
 		click(document.getElementById("palette-preview"));
 
-		expect((dialog as HTMLDialogElement).open).toBe(true);
+		expect(dialog.open).toBe(true);
 
-		// Pin index.html's hardcoded option labels to PALETTE_LABELS
+		// Pin the dialog's rendered option labels against PALETTE_LABELS
 		// (src/features/settings/options.ts) so the two can't drift apart.
-		for (const option of Array.from(
-			dialog?.querySelectorAll<HTMLElement>(".palette-option") ?? [],
-		)) {
-			const value = option.getAttribute("data-value");
-			expect(value).toBeTruthy();
-			expect(option.querySelector(".palette-option-label")?.textContent).toBe(
-				PALETTE_LABELS[value as keyof typeof PALETTE_LABELS],
-			);
-		}
+		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
+		expect(options.map((option) => accessibleName(option))).toEqual(
+			PALETTE_ORDER.map((value) => PALETTE_LABELS[value]),
+		);
 	});
 
 	it("choosing a palette in the dialog sets state, updates aria-pressed, and closes with focus back on the preview", () => {
@@ -79,15 +91,17 @@ describe("toolbar & settings", () => {
 		click(preview);
 
 		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
-		const set2Option = dialog.querySelector<HTMLButtonElement>('[data-value="set2"]');
+		const set2Option = byRole<HTMLButtonElement>(dialog, "button", PALETTE_LABELS.set2);
 		click(set2Option);
 
 		const stored = getStoredState();
 		expect(stored.settings.palette).toBe("set2");
-		expect(set2Option?.getAttribute("aria-pressed")).toBe("true");
-		expect(dialog.querySelector('[data-value="observable10"]')?.getAttribute("aria-pressed")).toBe(
-			"false",
-		);
+		expect(set2Option.getAttribute("aria-pressed")).toBe("true");
+		expect(
+			byRole<HTMLButtonElement>(dialog, "button", PALETTE_LABELS.observable10).getAttribute(
+				"aria-pressed",
+			),
+		).toBe("false");
 		expect(dialog.open).toBe(false);
 		expect(document.activeElement).toBe(preview);
 	});
@@ -95,24 +109,19 @@ describe("toolbar & settings", () => {
 	it("clicking the links button opens the links dialog", () => {
 		mountApp();
 
-		const dialog = document.getElementById("links-dialog");
+		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
 		expect(dialog).toBeInstanceOf(HTMLDialogElement);
-		expect((dialog as HTMLDialogElement).open).toBe(false);
+		expect(dialog.open).toBe(false);
 
 		click(document.getElementById("links-button"));
 
-		expect((dialog as HTMLDialogElement).open).toBe(true);
+		expect(dialog.open).toBe(true);
 
-		// Pin index.html's hardcoded option labels to LINK_COLOR_OPTIONS
-		// (src/features/settings/options.ts) so the two can't drift apart.
-		for (const option of Array.from(
-			dialog?.querySelectorAll<HTMLElement>(".choice-option") ?? [],
-		)) {
-			const value = option.getAttribute("data-value");
-			expect(value).toBeTruthy();
-			expect(option.querySelector(".choice-option-label")?.textContent).toBe(
-				LINK_COLOR_OPTIONS[value as keyof typeof LINK_COLOR_OPTIONS].label,
-			);
+		// Pin the dialog's rendered option labels against LINK_COLOR_OPTIONS
+		// (src/features/settings/options.ts) so the two can't drift apart —
+		// byRole throws if a labelled option is missing.
+		for (const option of Object.values(LINK_COLOR_OPTIONS)) {
+			byRole(dialog, "button", option.label);
 		}
 	});
 
@@ -123,17 +132,20 @@ describe("toolbar & settings", () => {
 		click(linksButton);
 
 		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
-		const staticOption = dialog.querySelector<HTMLButtonElement>('[data-value="static"]');
+		const staticOption = byRole<HTMLButtonElement>(
+			dialog,
+			"button",
+			LINK_COLOR_OPTIONS.static.label,
+		);
 		click(staticOption);
 
 		const stored = getStoredState();
 		expect(stored.settings.linkColor).toBe("static");
 
 		// Only the chosen option is pressed.
-		expect(staticOption?.getAttribute("aria-pressed")).toBe("true");
-		for (const option of Array.from(
-			dialog.querySelectorAll<HTMLButtonElement>('[data-action="set-link-color"]'),
-		)) {
+		expect(staticOption.getAttribute("aria-pressed")).toBe("true");
+		const group = byRole(dialog, "group");
+		for (const option of allByRole<HTMLButtonElement>(group, "button")) {
 			if (option !== staticOption) expect(option.getAttribute("aria-pressed")).toBe("false");
 		}
 
@@ -160,7 +172,11 @@ describe("toolbar & settings", () => {
 		// "source-target", so asserting the post-click state alone wouldn't
 		// prove the click handler ran) — this leg proves the click landed.
 		click(linksButton);
-		const staticOption = dialog.querySelector<HTMLButtonElement>('[data-value="static"]');
+		const staticOption = byRole<HTMLButtonElement>(
+			dialog,
+			"button",
+			LINK_COLOR_OPTIONS.static.label,
+		);
 		click(staticOption);
 
 		const storedAfterStatic = getStoredState();
@@ -171,7 +187,11 @@ describe("toolbar & settings", () => {
 
 		// Now transition to the gradient option and assert the change actually took.
 		click(linksButton);
-		const gradientOption = dialog.querySelector<HTMLButtonElement>('[data-value="source-target"]');
+		const gradientOption = byRole<HTMLButtonElement>(
+			dialog,
+			"button",
+			LINK_COLOR_OPTIONS["source-target"].label,
+		);
 		click(gradientOption);
 
 		const stored = getStoredState();
@@ -186,16 +206,20 @@ describe("toolbar & settings", () => {
 		mountApp();
 
 		// Two DOM copies of each alignment button exist (the wide toolbar's
-		// .align-group and the narrow Diagram dialog) — DiagramPanel renders
+		// group and the narrow Diagram dialog's own copy) — DiagramPanel renders
 		// both from the same settings, so every pressed button must share the
 		// same value.
-		const pressed = Array.from(
-			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
-		).filter((option) => option.getAttribute("aria-pressed") === "true");
-
-		expect(pressed).toHaveLength(2);
-		for (const option of pressed) {
-			expect(option.dataset.value).toBe(defaultState().settings.alignment);
+		const alignmentGroups = allByRole(document, "group", "Alignment");
+		expect(alignmentGroups).toHaveLength(2);
+		const defaultLabel = ALIGNMENT_OPTIONS.find(
+			(option) => option.value === defaultState().settings.alignment,
+		)?.label;
+		for (const group of alignmentGroups) {
+			const pressed = allByRole<HTMLButtonElement>(group, "button").filter(
+				(option) => option.getAttribute("aria-pressed") === "true",
+			);
+			expect(pressed).toHaveLength(1);
+			expect(accessibleName(pressed[0])).toBe(defaultLabel);
 		}
 	});
 
@@ -203,22 +227,19 @@ describe("toolbar & settings", () => {
 		mountApp();
 
 		const svgBefore = document.querySelector("#diagram svg");
-		const options = Array.from(
-			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
-		);
-		const leftOption = options.find(
-			(option) => option.closest(".align-group") && option.dataset.value === "left",
-		);
+		const leftOption = byRole<HTMLButtonElement>(wideAlignmentGroup(), "button", "Left");
 		click(leftOption);
 
 		const stored = getStoredState();
 		expect(stored.settings.alignment).toBe("left");
 
 		// Only options with the chosen value are pressed, across both copies.
-		for (const option of options) {
-			expect(option.getAttribute("aria-pressed")).toBe(
-				option.dataset.value === "left" ? "true" : "false",
-			);
+		for (const group of allByRole(document, "group", "Alignment")) {
+			for (const option of allByRole<HTMLButtonElement>(group, "button")) {
+				expect(option.getAttribute("aria-pressed")).toBe(
+					accessibleName(option) === "Left" ? "true" : "false",
+				);
+			}
 		}
 
 		// A fresh <svg> replaces the old one — same re-render evidence the
@@ -231,9 +252,9 @@ describe("toolbar & settings", () => {
 	it("every alignment button has a non-empty accessible name", () => {
 		mountApp();
 
-		const options = document.querySelectorAll<HTMLButtonElement>(".align-group button");
+		const options = allByRole<HTMLButtonElement>(wideAlignmentGroup(), "button");
 		expect(options.length).toBeGreaterThan(0);
-		for (const option of Array.from(options)) {
+		for (const option of options) {
 			expect(option.getAttribute("aria-label")?.trim()).toBeTruthy();
 		}
 	});
@@ -246,7 +267,7 @@ describe("toolbar & settings", () => {
 		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
 		expect(dialog.open).toBe(true);
 
-		click(dialog.querySelector('[data-action="set-aspect-ratio"][data-value="3:1"]'));
+		click(byRole(dialog, "button", ASPECT_RATIO_LABELS["3:1"]));
 
 		expect(document.querySelector("#diagram svg")?.getAttribute("viewBox")).toBe("0 0 1440 480");
 		const diagram = document.getElementById("diagram");
@@ -255,12 +276,12 @@ describe("toolbar & settings", () => {
 		expect(trigger?.textContent).toContain("Aspect 3:1");
 		const stored = getStoredState();
 		expect(stored.settings.aspectRatio).toBe("3:1");
-		for (const option of Array.from(
-			document.querySelectorAll<HTMLButtonElement>('[data-action="set-aspect-ratio"]'),
-		)) {
-			expect(option.getAttribute("aria-pressed")).toBe(
-				option.dataset.value === "3:1" ? "true" : "false",
-			);
+		for (const group of allByRole(document, "group", "Aspect ratio")) {
+			for (const option of allByRole<HTMLButtonElement>(group, "button")) {
+				expect(option.getAttribute("aria-pressed")).toBe(
+					accessibleName(option) === ASPECT_RATIO_LABELS["3:1"] ? "true" : "false",
+				);
+			}
 		}
 		expect(dialog.open).toBe(false);
 		expect(document.activeElement).toBe(trigger);
@@ -275,7 +296,7 @@ describe("toolbar & settings", () => {
 		mountApp();
 
 		const diagram = document.getElementById("diagram");
-		click(document.querySelector('[data-action="preview-larger"]'));
+		click(byRole(document, "button", "Make diagram preview larger"));
 		// PreviewResizer's CSS custom-property write happens in a layout effect,
 		// on the next render.
 		await tick();
@@ -283,7 +304,7 @@ describe("toolbar & settings", () => {
 
 		click(document.getElementById("aspect-ratio-button"));
 		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
-		click(dialog.querySelector('[data-action="set-aspect-ratio"][data-value="3:1"]'));
+		click(byRole(dialog, "button", ASPECT_RATIO_LABELS["3:1"]));
 
 		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
 		expect(diagram?.style.getPropertyValue("--diagram-aspect-ratio")).toBe("1440 / 480");
@@ -294,12 +315,9 @@ describe("toolbar & settings", () => {
 		mountApp();
 
 		for (const preset of ASPECT_RATIO_OPTIONS) {
-			const copies = document.querySelectorAll<HTMLElement>(
-				`[data-action="set-aspect-ratio"][data-value="${preset.value}"]`,
-			);
+			const copies = allByRole<HTMLElement>(document, "button", ASPECT_RATIO_LABELS[preset.value]);
 			expect(copies).toHaveLength(2);
-			for (const copy of Array.from(copies)) {
-				expect(copy.textContent).toContain(ASPECT_RATIO_LABELS[preset.value]);
+			for (const copy of copies) {
 				expect(copy.querySelector(".ratio-preview")).not.toBeNull();
 			}
 		}
@@ -330,14 +348,18 @@ describe("toolbar & settings", () => {
 		// "source-target") so the later transition back to source-target
 		// actually proves the click handler ran, same rationale as the wide
 		// links-dialog gradient test above.
-		click(displayDialog.querySelector('[data-action="set-link-color"][data-value="static"]'));
+		click(byRole(displayDialog, "button", LINK_COLOR_OPTIONS.static.shortLabel));
 
 		const storedAfterStatic = getStoredState();
 		expect(storedAfterStatic.settings.linkColor).toBe("static");
 		expect(displayDialog.open).toBe(true);
 
-		const gradientOption = displayDialog.querySelector<HTMLButtonElement>(
-			'[data-action="set-link-color"][data-value="source-target"]',
+		// The narrow display dialog's copy uses the abbreviated shortLabel
+		// ("Gradient") while the wide links dialog keeps the full label.
+		const gradientOption = byRole<HTMLButtonElement>(
+			displayDialog,
+			"button",
+			LINK_COLOR_OPTIONS["source-target"].shortLabel,
 		);
 		click(gradientOption);
 
@@ -352,11 +374,13 @@ describe("toolbar & settings", () => {
 
 		// Both copies of the choice — the Diagram dialog's own and the wide
 		// toolbar's #links-dialog — must reflect the new value.
-		expect(gradientOption?.getAttribute("aria-pressed")).toBe("true");
-		const linksDialogGradientOption = linksDialog.querySelector<HTMLButtonElement>(
-			'[data-action="set-link-color"][data-value="source-target"]',
+		expect(gradientOption.getAttribute("aria-pressed")).toBe("true");
+		const linksDialogGradientOption = byRole<HTMLButtonElement>(
+			linksDialog,
+			"button",
+			LINK_COLOR_OPTIONS["source-target"].label,
 		);
-		expect(linksDialogGradientOption?.getAttribute("aria-pressed")).toBe("true");
+		expect(linksDialogGradientOption.getAttribute("aria-pressed")).toBe("true");
 		expect(document.getElementById("links-button")?.getAttribute("aria-label")).toBe(
 			"Links: Source to target (gradient)",
 		);
@@ -372,20 +396,16 @@ describe("toolbar & settings", () => {
 		click(document.getElementById("display-button"));
 
 		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
-		const leftOption = displayDialog.querySelector<HTMLButtonElement>(
-			'[data-action="set-alignment"][data-value="left"]',
-		);
+		const leftOption = byRole<HTMLButtonElement>(displayDialog, "button", "Left");
 		click(leftOption);
 
 		const stored = getStoredState();
 		expect(stored.settings.alignment).toBe("left");
-		expect(leftOption?.getAttribute("aria-pressed")).toBe("true");
+		expect(leftOption.getAttribute("aria-pressed")).toBe("true");
 
 		// The wide toolbar's own alignment group follows the same state.
-		const wideLeftOption = document.querySelector<HTMLButtonElement>(
-			'.align-group [data-action="set-alignment"][data-value="left"]',
-		);
-		expect(wideLeftOption?.getAttribute("aria-pressed")).toBe("true");
+		const wideLeftOption = byRole<HTMLButtonElement>(wideAlignmentGroup(), "button", "Left");
+		expect(wideLeftOption.getAttribute("aria-pressed")).toBe("true");
 
 		expect(displayDialog.open).toBe(true);
 	});
@@ -399,7 +419,7 @@ describe("toolbar & settings", () => {
 		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		expect(displayDialog.open).toBe(true);
 
-		click(displayDialog.querySelector('[data-action="close-dialog"]'));
+		click(byRole(displayDialog, "button", "Close"));
 
 		expect(displayDialog.open).toBe(false);
 		expect(document.activeElement).toBe(displayButton);
@@ -414,7 +434,7 @@ describe("toolbar & settings", () => {
 		const linksDialog = document.getElementById("links-dialog") as HTMLDialogElement;
 		expect(linksDialog.open).toBe(true);
 
-		click(linksDialog.querySelector('[data-value="target"]'));
+		click(byRole(linksDialog, "button", LINK_COLOR_OPTIONS.target.label));
 
 		const stored = getStoredState();
 		expect(stored.settings.linkColor).toBe("target");
@@ -425,12 +445,13 @@ describe("toolbar & settings", () => {
 	it("boots with exactly one theme option pressed, matching the default (System)", () => {
 		mountApp();
 
-		const pressed = Array.from(
-			document.querySelectorAll<HTMLButtonElement>('[data-action="set-theme"]'),
-		).filter((option) => option.getAttribute("aria-pressed") === "true");
+		const themeDialog = document.getElementById("theme-dialog") as HTMLDialogElement;
+		const pressed = allByRole<HTMLButtonElement>(byRole(themeDialog, "group"), "button").filter(
+			(option) => option.getAttribute("aria-pressed") === "true",
+		);
 
 		expect(pressed).toHaveLength(1);
-		expect(pressed[0]?.dataset.value).toBe(defaultState().settings.theme);
+		expect(accessibleName(pressed[0])).toBe(THEME_OPTIONS[defaultState().settings.theme].label);
 		expect(document.getElementById("theme-button")?.getAttribute("aria-label")).toBe(
 			"Theme: System",
 		);
@@ -444,15 +465,19 @@ describe("toolbar & settings", () => {
 
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
 		expect(dialog.open).toBe(true);
-		const lightOption = dialog.querySelector<HTMLButtonElement>('[data-value="light"]');
+		const lightOption = byRole<HTMLButtonElement>(dialog, "button", THEME_OPTIONS.light.label);
 		click(lightOption);
 
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 		const stored = getStoredState();
 		expect(stored.settings.theme).toBe("light");
 		expect(themeButton?.getAttribute("aria-label")).toBe("Theme: Light");
-		expect(lightOption?.getAttribute("aria-pressed")).toBe("true");
-		expect(dialog.querySelector('[data-value="auto"]')?.getAttribute("aria-pressed")).toBe("false");
+		expect(lightOption.getAttribute("aria-pressed")).toBe("true");
+		expect(
+			byRole<HTMLButtonElement>(dialog, "button", THEME_OPTIONS.auto.label).getAttribute(
+				"aria-pressed",
+			),
+		).toBe("false");
 		expect(dialog.open).toBe(false);
 		expect(document.activeElement).toBe(themeButton);
 	});
@@ -466,11 +491,11 @@ describe("toolbar & settings", () => {
 		// Start from Light so the System transition actually removes the attribute
 		// rather than it never having been set.
 		click(themeButton);
-		click(dialog.querySelector('[data-value="light"]'));
+		click(byRole(dialog, "button", THEME_OPTIONS.light.label));
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 
 		click(themeButton);
-		click(dialog.querySelector('[data-value="auto"]'));
+		click(byRole(dialog, "button", THEME_OPTIONS.auto.label));
 
 		expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
 		const stored = getStoredState();
@@ -491,7 +516,7 @@ describe("diagram-only settings redraw and persist", () => {
 
 		click(document.getElementById("links-button"));
 		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
-		click(dialog.querySelector('[data-value="static"]'));
+		click(byRole(dialog, "button", LINK_COLOR_OPTIONS.static.label));
 
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.linkColor).toBe("static");
@@ -502,10 +527,7 @@ describe("diagram-only settings redraw and persist", () => {
 
 		const svgBefore = document.querySelector("#diagram svg");
 
-		const leftOption = Array.from(
-			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
-		).find((option) => option.closest(".align-group") && option.dataset.value === "left");
-		click(leftOption);
+		click(byRole(wideAlignmentGroup(), "button", "Left"));
 
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.alignment).toBe("left");
@@ -518,7 +540,7 @@ describe("diagram-only settings redraw and persist", () => {
 
 		click(document.getElementById("aspect-ratio-button"));
 		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
-		click(dialog.querySelector('[data-action="set-aspect-ratio"][data-value="3:1"]'));
+		click(byRole(dialog, "button", ASPECT_RATIO_LABELS["3:1"]));
 
 		expect(document.querySelector("#diagram svg")).not.toBe(svgBefore);
 		expect(getStoredState().settings.aspectRatio).toBe("3:1");
@@ -535,7 +557,7 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 
 		// Retargeting the third link to n1 closes a 2-node cycle, same setup as
 		// the theme-while-invalid test above.
-		const target = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
+		const target = byRole<HTMLSelectElement>(document, "combobox", "Target for link 3");
 		target.value = "n1";
 		fireChange(target);
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
@@ -543,13 +565,11 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 		const svgBefore = document.querySelector("#diagram svg");
 		const svgHtmlBefore = svgBefore?.outerHTML;
 
-		const leftOption = Array.from(
-			document.querySelectorAll<HTMLButtonElement>('[data-action="set-alignment"]'),
-		).find((option) => option.closest(".align-group") && option.dataset.value === "left");
+		const leftOption = byRole<HTMLButtonElement>(wideAlignmentGroup(), "button", "Left");
 		click(leftOption);
 
 		expect(getStoredState().settings.alignment).toBe("left");
-		expect(leftOption?.getAttribute("aria-pressed")).toBe("true");
+		expect(leftOption.getAttribute("aria-pressed")).toBe("true");
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
 		// Identity, not just markup equality: commit() passed SankeyCanvas the
@@ -570,7 +590,7 @@ describe("palette changes patch node-editor swatches", () => {
 
 		click(document.getElementById("palette-preview"));
 		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
-		click(dialog.querySelector('[data-value="tableau10"]'));
+		click(byRole(dialog, "button", PALETTE_LABELS.tableau10));
 
 		const swatches = Array.from(
 			document.querySelectorAll<HTMLElement>("#node-editor .node-swatch"),
@@ -624,7 +644,7 @@ describe("theme changes skip validation and the redraw", () => {
 		const themeButton = document.getElementById("theme-button");
 		click(themeButton);
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
-		click(dialog.querySelector('[data-value="light"]'));
+		click(byRole(dialog, "button", THEME_OPTIONS.light.label));
 
 		expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 		expect(getStoredState().settings.theme).toBe("light");
@@ -638,7 +658,7 @@ describe("theme changes skip validation and the redraw", () => {
 
 		// Retargeting the third link to n1 closes a 2-node cycle, same setup as
 		// editor.test.ts's cycle test.
-		const target = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
+		const target = byRole<HTMLSelectElement>(document, "combobox", "Target for link 3");
 		target.value = "n1";
 		fireChange(target);
 
@@ -649,7 +669,7 @@ describe("theme changes skip validation and the redraw", () => {
 		const themeButton = document.getElementById("theme-button");
 		click(themeButton);
 		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
-		click(dialog.querySelector('[data-value="light"]'));
+		click(byRole(dialog, "button", THEME_OPTIONS.light.label));
 
 		// The theme change didn't re-run validation: the same cycle error is
 		// still showing, verbatim, and the diagram (SVG identity, the main
@@ -664,9 +684,9 @@ describe("theme changes skip validation and the redraw", () => {
 
 // DiagramPanel and ThemeControl render their dialogs directly from
 // src/features/settings/options.ts's (and model/settings.ts's) metadata, so
-// most cases below pin dataset wiring/completeness — every entry in the
+// most cases below pin option wiring/completeness — every entry in the
 // source table is actually present in the rendered DOM with the right
-// data-value/label/icon — rather than checking two independent sources
+// accessible name/label/icon — rather than checking two independent sources
 // against each other. The alignment value-set check is the exception: it
 // still compares the rendered DOM against model/settings.ts's ALIGNMENTS
 // directly, since options.ts's own ALIGNMENT_OPTIONS deliberately reorders
@@ -674,102 +694,97 @@ describe("theme changes skip validation and the redraw", () => {
 // The tests above already exercise behavior around a handful of these rows
 // in passing; this block is the exhaustive, dedicated contract.
 describe("dialog markup vs settings metadata contract", () => {
-	it("palette dialog: data-value set and labels match PALETTE_ORDER / PALETTE_LABELS", () => {
+	it("palette dialog: rendered option order and labels match PALETTE_ORDER / PALETTE_LABELS", () => {
 		mountApp();
 
-		const options = Array.from(
-			document.querySelectorAll<HTMLElement>("#palette-dialog .palette-option"),
+		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
+		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
+		expect(options.map((option) => accessibleName(option))).toEqual(
+			PALETTE_ORDER.map((value) => PALETTE_LABELS[value]),
 		);
-		expect(options.map((option) => option.dataset.value)).toEqual([...PALETTE_ORDER]);
-		for (const option of options) {
-			const value = option.dataset.value as keyof typeof PALETTE_LABELS;
-			expect(option.querySelector(".palette-option-label")?.textContent).toBe(
-				PALETTE_LABELS[value],
-			);
+	});
+
+	it("links dialog: rendered option set, labels, and icons match LINK_COLOR_OPTIONS", () => {
+		mountApp();
+
+		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
+		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
+		expect(options).toHaveLength(Object.keys(LINK_COLOR_OPTIONS).length);
+		expect(new Set(options.map((option) => accessibleName(option)))).toEqual(
+			new Set(Object.values(LINK_COLOR_OPTIONS).map((option) => option.label)),
+		);
+		for (const meta of Object.values(LINK_COLOR_OPTIONS)) {
+			const option = byRole<HTMLButtonElement>(dialog, "button", meta.label);
+			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${meta.iconId}`);
 		}
 	});
 
-	it("links dialog: data-value set, labels, and icons match LINK_COLOR_OPTIONS", () => {
-		mountApp();
-
-		const options = Array.from(
-			document.querySelectorAll<HTMLElement>("#links-dialog .choice-option"),
-		);
-		expect(new Set(options.map((option) => option.dataset.value))).toEqual(
-			new Set(Object.keys(LINK_COLOR_OPTIONS)),
-		);
-		for (const option of options) {
-			const value = option.dataset.value as keyof typeof LINK_COLOR_OPTIONS;
-			const { label, iconId } = LINK_COLOR_OPTIONS[value];
-			expect(option.querySelector(".choice-option-label")?.textContent).toBe(label);
-			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${iconId}`);
-		}
-	});
-
-	it("display dialog's narrow link-color copy: data-value set matches LINK_COLOR_OPTIONS", () => {
+	it("display dialog's narrow link-color copy: rendered option set matches LINK_COLOR_OPTIONS", () => {
 		mountApp();
 
 		// The narrow Diagram-dialog copy uses deliberately abbreviated labels
 		// (e.g. "Gradient" instead of "Source to target (gradient)"), so only
-		// values are pinned here — the links-dialog test above already pins
-		// the labels/icons for the one copy that owns the canonical text.
-		const options = Array.from(
-			document.querySelectorAll<HTMLElement>('#display-dialog [data-action="set-link-color"]'),
-		);
-		expect(new Set(options.map((option) => option.dataset.value))).toEqual(
-			new Set(Object.keys(LINK_COLOR_OPTIONS)),
+		// shortLabels are pinned here — the links-dialog test above already pins
+		// the full labels/icons for the one copy that owns the canonical text.
+		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
+		const group = byRole(displayDialog, "group", "Link colors");
+		const options = allByRole<HTMLButtonElement>(group, "button");
+		expect(new Set(options.map((option) => accessibleName(option)))).toEqual(
+			new Set(Object.values(LINK_COLOR_OPTIONS).map((option) => option.shortLabel)),
 		);
 	});
 
-	it("alignment buttons: each DOM copy's data-value set matches the model's ALIGNMENTS", () => {
+	it("alignment buttons: each DOM copy's rendered option set matches the model's ALIGNMENTS", () => {
 		mountApp();
 
-		// Two DOM copies of the alignment group — the wide toolbar's .align-group
+		// Two DOM copies of the alignment group — the wide toolbar's own copy
 		// and the narrow Diagram dialog's own copy — checked separately so a
 		// missing/extra button in just one copy can't hide behind the other's
 		// count in a merged set.
-		const wideValues = Array.from(
-			document.querySelectorAll<HTMLElement>('.align-group [data-action="set-alignment"]'),
-		).map((option) => option.dataset.value);
-		expect(new Set(wideValues)).toEqual(new Set(ALIGNMENTS));
-		expect(wideValues).toHaveLength(ALIGNMENTS.length);
+		const alignmentLabelByValue = new Map(
+			ALIGNMENT_OPTIONS.map((option) => [option.value, option.label]),
+		);
+		const expectedLabels = new Set(ALIGNMENTS.map((value) => alignmentLabelByValue.get(value)));
 
-		const narrowValues = Array.from(
-			document.querySelectorAll<HTMLElement>('#display-dialog [data-action="set-alignment"]'),
-		).map((option) => option.dataset.value);
-		expect(new Set(narrowValues)).toEqual(new Set(ALIGNMENTS));
-		expect(narrowValues).toHaveLength(ALIGNMENTS.length);
+		const wideLabels = allByRole<HTMLButtonElement>(wideAlignmentGroup(), "button").map((option) =>
+			accessibleName(option),
+		);
+		expect(new Set(wideLabels)).toEqual(expectedLabels);
+		expect(wideLabels).toHaveLength(ALIGNMENTS.length);
+
+		const narrowGroup = byRole(
+			document.getElementById("display-dialog") as HTMLDialogElement,
+			"group",
+			"Alignment",
+		);
+		const narrowLabels = allByRole<HTMLButtonElement>(narrowGroup, "button").map((option) =>
+			accessibleName(option),
+		);
+		expect(new Set(narrowLabels)).toEqual(expectedLabels);
+		expect(narrowLabels).toHaveLength(ALIGNMENTS.length);
 	});
 
-	it("aspect-ratio dialog: data-value set and labels match ASPECT_RATIO_OPTIONS / ASPECT_RATIO_LABELS", () => {
+	it("aspect-ratio dialog: rendered option order and labels match ASPECT_RATIO_OPTIONS / ASPECT_RATIO_LABELS", () => {
 		mountApp();
 
-		const options = Array.from(
-			document.querySelectorAll<HTMLElement>("#aspect-ratio-dialog .choice-option"),
+		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
+		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
+		expect(options.map((option) => accessibleName(option))).toEqual(
+			ASPECT_RATIO_OPTIONS.map((preset) => ASPECT_RATIO_LABELS[preset.value]),
 		);
-		expect(options.map((option) => option.dataset.value)).toEqual(
-			ASPECT_RATIO_OPTIONS.map((preset) => preset.value),
-		);
-		for (const option of options) {
-			const value = option.dataset.value as keyof typeof ASPECT_RATIO_LABELS;
-			expect(option.querySelector(".choice-option-label")?.textContent).toBe(
-				ASPECT_RATIO_LABELS[value],
-			);
-		}
 	});
 
-	it("theme dialog: data-value set, labels, and icons match THEME_OPTIONS", () => {
+	it("theme dialog: rendered option order, labels, and icons match THEME_OPTIONS", () => {
 		mountApp();
 
-		const options = Array.from(
-			document.querySelectorAll<HTMLElement>("#theme-dialog .choice-option"),
+		const dialog = document.getElementById("theme-dialog") as HTMLDialogElement;
+		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
+		expect(options.map((option) => accessibleName(option))).toEqual(
+			Object.values(THEME_OPTIONS).map((option) => option.label),
 		);
-		expect(options.map((option) => option.dataset.value)).toEqual(Object.keys(THEME_OPTIONS));
-		for (const option of options) {
-			const value = option.dataset.value as keyof typeof THEME_OPTIONS;
-			const { label, iconId } = THEME_OPTIONS[value];
-			expect(option.querySelector(".choice-option-label")?.textContent).toBe(label);
-			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${iconId}`);
+		for (const meta of Object.values(THEME_OPTIONS)) {
+			const option = byRole<HTMLButtonElement>(dialog, "button", meta.label);
+			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${meta.iconId}`);
 		}
 	});
 });

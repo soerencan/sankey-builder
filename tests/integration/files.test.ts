@@ -7,6 +7,9 @@ import { serializeState } from "../../src/features/files/diagram-file";
 import { defaultState } from "../../src/model/graph";
 import { STORAGE_KEY } from "../../src/platform/storage";
 import {
+	accessibleName,
+	allByRole,
+	byRole,
 	click,
 	fireChange,
 	fireInput,
@@ -26,13 +29,21 @@ vi.mock("preact", async (importOriginal) => {
 	return { ...actual, render: vi.fn(actual.render) };
 });
 
+/** Any delete-node button, identified by its "Delete <name>" accessible name rather than a specific one — scoped to #node-editor so it can't match a link row's "Delete link N" button. */
+function anyDeleteNodeButton(): HTMLButtonElement | undefined {
+	const nodeEditor = document.getElementById("node-editor") as HTMLElement;
+	return allByRole<HTMLButtonElement>(nodeEditor, "button").find((button) =>
+		accessibleName(button).startsWith("Delete "),
+	);
+}
+
 function removeAllNodes(): void {
 	// Query fresh each time: deleting a node rebuilds the editor rows wholesale,
 	// detaching any earlier button reference from the document.
-	let deleteButton = document.querySelector<HTMLButtonElement>('[data-action="delete-node"]');
+	let deleteButton = anyDeleteNodeButton();
 	while (deleteButton) {
 		click(deleteButton);
-		deleteButton = document.querySelector<HTMLButtonElement>('[data-action="delete-node"]');
+		deleteButton = anyDeleteNodeButton();
 	}
 }
 
@@ -62,7 +73,8 @@ describe("import & export", () => {
 
 		// Set a distinct current theme so import-preserves-theme is unambiguous.
 		click(document.getElementById("theme-button"));
-		click(document.querySelector('[data-action="set-theme"][data-value="light"]'));
+		const themeDialog = document.getElementById("theme-dialog") as HTMLDialogElement;
+		click(byRole(themeDialog, "button", "Light"));
 
 		const payload = {
 			nodes: [
@@ -151,7 +163,7 @@ describe("import & export", () => {
 		// An invalid or empty draft never reaches actions.updateLinkValue (see
 		// link-row.tsx's commitDraft), so commit() — and its unconditional
 		// #io-notice clear — never runs; the import notice must stand.
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		valueInput.value = "abc";
 		fireInput(valueInput);
 		expect(notice()).toBe(repairMessage);
@@ -161,8 +173,9 @@ describe("import & export", () => {
 		expect(notice()).toBe(repairMessage);
 
 		// The import notice is one-shot: the next committed action (here, a
-		// rename) runs commit(), which retires it.
-		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
+		// rename) runs commit(), which retires it. n1's name is "X" post-import,
+		// not the original fixture's "Coal".
+		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for X");
 		nameInput.value = "Renamed";
 		fireInput(nameInput);
 		expect(notice()).toBe("");
@@ -171,7 +184,7 @@ describe("import & export", () => {
 	it("import over a row holding an invalid draft shows the imported value with no error (rows remount because ids are fresh)", async () => {
 		mountApp();
 
-		const valueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const valueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		valueInput.value = "abc";
 		fireInput(valueInput);
 		await tick();
@@ -191,7 +204,7 @@ describe("import & export", () => {
 		fireChange(input);
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		const importedValueInput = requireElement<HTMLInputElement>('.link-value[data-index="0"]');
+		const importedValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
 		expect(importedValueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(importedValueInput.value).toBe("7");
 	});
@@ -384,7 +397,7 @@ describe("import & export", () => {
 		const trigger = document.getElementById("diagram-export-button");
 		const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
 		click(trigger);
-		click(dialog.querySelector('[data-action="export-svg"]'));
+		click(byRole(dialog, "button", "SVG"));
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Nothing to export — the diagram is empty.",
 		);
@@ -407,7 +420,7 @@ describe("import & export", () => {
 		expect(document.querySelector("#diagram svg")).not.toBeNull();
 
 		click(document.getElementById("diagram-export-button"));
-		click(dialog.querySelector('[data-action="export-svg"]'));
+		click(byRole(dialog, "button", "SVG"));
 
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
@@ -424,7 +437,7 @@ describe("import & export", () => {
 		click(trigger);
 
 		expect(dialog.open).toBe(true);
-		expect(document.activeElement).toBe(dialog.querySelector('[data-action="export-svg"]'));
+		expect(document.activeElement).toBe(byRole(dialog, "button", "SVG"));
 	});
 
 	it("reports 'nothing to export' for SVG and closes the export dialog with focus restored", () => {
@@ -436,7 +449,7 @@ describe("import & export", () => {
 		const trigger = document.getElementById("diagram-export-button");
 		const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
 		click(trigger);
-		click(dialog.querySelector('[data-action="export-svg"]'));
+		click(byRole(dialog, "button", "SVG"));
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Nothing to export — the diagram is empty.",
@@ -452,7 +465,7 @@ describe("import & export", () => {
 		expect(rectsBefore).toBeGreaterThan(0);
 
 		// Retargeting the third link to n1 closes a 2-node cycle.
-		const cycleTarget = requireElement<HTMLSelectElement>('.link-target[data-index="2"]');
+		const cycleTarget = byRole<HTMLSelectElement>(document, "combobox", "Target for link 3");
 		cycleTarget.value = "n1";
 		fireChange(cycleTarget);
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
@@ -462,7 +475,7 @@ describe("import & export", () => {
 		// export below — must keep showing the OLD label. Node count doesn't
 		// change (rectsBefore alone can't tell stale from fresh), so this label
 		// swap is the real discriminator for "export what you see".
-		const nameInput = requireElement<HTMLInputElement>('.node-name[data-id="n1"]');
+		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
 		const oldName = nameInput.value;
 		nameInput.value = "Renamed For Export Test";
 		fireInput(nameInput);
@@ -479,7 +492,7 @@ describe("import & export", () => {
 			const trigger = document.getElementById("diagram-export-button");
 			const dialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
 			click(trigger);
-			click(dialog.querySelector('[data-action="export-svg"]'));
+			click(byRole(dialog, "button", "SVG"));
 		} finally {
 			createObjectURL.mockRestore();
 			revokeObjectURL.mockRestore();
@@ -503,8 +516,8 @@ describe("import & export", () => {
 		// same as the SVG export's guard.
 		mountApp();
 
-		expect(document.querySelectorAll('[data-action="export-svg"]')).toHaveLength(2);
-		expect(document.querySelectorAll('[data-action="export-png"]')).toHaveLength(2);
+		expect(allByRole(document, "button", "SVG")).toHaveLength(2);
+		expect(allByRole(document, "button", "PNG")).toHaveLength(2);
 
 		removeAllNodes();
 		expect(document.querySelector("#diagram svg")).toBeNull();
@@ -512,7 +525,7 @@ describe("import & export", () => {
 		const displayButton = document.getElementById("display-button");
 		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		click(displayButton);
-		click(displayDialog.querySelector('[data-action="export-png"]'));
+		click(byRole(displayDialog, "button", "PNG"));
 
 		expect(document.getElementById("io-notice")?.textContent).toBe(
 			"Nothing to export — the diagram is empty.",

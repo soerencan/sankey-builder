@@ -2,6 +2,7 @@
 
 import { render } from "preact";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { byRole } from "../../../tests/helpers/dom-queries";
 import { tick } from "../../../tests/helpers/tick";
 import {
 	DEFAULT_PREVIEW_HEIGHT,
@@ -64,17 +65,15 @@ describe("PreviewResizer", () => {
 
 	it("supports click-only smaller, larger, and reset actions", () => {
 		const { container } = mount();
-		const click = (action: string) =>
-			container
-				.querySelector<HTMLElement>(`[data-action="${action}"]`)
-				?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		const click = (name: string) =>
+			byRole(container, "button", name).dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-		click("preview-larger");
+		click("Make diagram preview larger");
 		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("400");
-		click("preview-smaller");
+		click("Make diagram preview smaller");
 		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("360");
-		click("preview-larger");
-		click("preview-reset");
+		click("Make diagram preview larger");
+		click("Reset diagram preview size");
 		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("360");
 	});
 
@@ -118,9 +117,9 @@ describe("PreviewResizer", () => {
 				container = mount().container;
 			}).not.toThrow();
 			expect(() =>
-				container
-					?.querySelector<HTMLElement>('[data-action="preview-larger"]')
-					?.dispatchEvent(new MouseEvent("click", { bubbles: true })),
+				byRole(container as HTMLElement, "button", "Make diagram preview larger").dispatchEvent(
+					new MouseEvent("click", { bubbles: true }),
+				),
 			).not.toThrow();
 		} finally {
 			setItemSpy.mockRestore();

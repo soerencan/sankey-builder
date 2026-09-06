@@ -9,10 +9,8 @@ export type ChoiceGroupProps<Option extends { value: string }> = {
 	options: readonly Option[];
 	value: Option["value"];
 	onSelect(value: Option["value"]): void;
-	/** Each option button's content — icon, text, or both; ChoiceGroup owns only the button and its aria-pressed/data-* wiring. */
+	/** Each option button's content — icon, text, or both; ChoiceGroup owns only the button and its aria-pressed wiring. */
 	renderLabel(option: Option): ComponentChildren;
-	/** The data-action every option button shares, e.g. "set-palette". */
-	dataAction: string;
 	/** Class on the wrapping group element. */
 	class?: string;
 	/** Class on every option button. */
@@ -34,7 +32,6 @@ export function ChoiceGroup<Option extends { value: string }>({
 	value,
 	onSelect,
 	renderLabel,
-	dataAction,
 	class: groupClass,
 	optionClass,
 	ariaLabel,
@@ -54,8 +51,6 @@ export function ChoiceGroup<Option extends { value: string }>({
 					key={option.value}
 					type="button"
 					class={optionClass}
-					data-action={dataAction}
-					data-value={option.value}
 					aria-pressed={value === option.value}
 					aria-label={ariaLabel?.(option)}
 					onClick={() => onSelect(option.value)}

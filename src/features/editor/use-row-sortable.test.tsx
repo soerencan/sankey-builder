@@ -4,6 +4,7 @@ import { render } from "preact";
 import { useRef } from "preact/hooks";
 import Sortable from "sortablejs";
 import { describe, expect, it, vi } from "vitest";
+import { allByRole, byRole } from "../../../tests/helpers/dom-queries";
 import { useRowSortable } from "./use-row-sortable";
 
 function Rows({ ids, onMove }: { ids: string[]; onMove: (from: number, to: number) => void }) {
@@ -12,7 +13,7 @@ function Rows({ ids, onMove }: { ids: string[]; onMove: (from: number, to: numbe
 	return (
 		<div class="rows" ref={ref}>
 			{ids.map((id) => (
-				<div class="row" key={id} data-id={id}>
+				<div class="row" key={id}>
 					<button type="button" class="drag-handle">
 						{id}
 					</button>
@@ -22,8 +23,12 @@ function Rows({ ids, onMove }: { ids: string[]; onMove: (from: number, to: numbe
 	);
 }
 
-function rowIds(rows: HTMLElement): (string | undefined)[] {
-	return Array.from(rows.querySelectorAll<HTMLElement>(".row")).map((row) => row.dataset.id);
+// Each row's identity is its drag handle's accessible name (its text, the
+// fixture's own row id) — the rows container itself carries no other id, and
+// use-row-sortable.ts doesn't need one: it identifies rows by DOM position,
+// not by attribute.
+function rowIds(rows: HTMLElement): string[] {
+	return allByRole<HTMLButtonElement>(rows, "button").map((handle) => handle.textContent ?? "");
 }
 
 describe("useRowSortable", () => {
@@ -62,8 +67,7 @@ describe("useRowSortable", () => {
 		const onMoveB = vi.fn();
 		render(<Rows ids={["a", "b"]} onMove={onMoveB} />, container);
 
-		const handle = rows.querySelector<HTMLButtonElement>(".drag-handle");
-		if (!handle) throw new Error("unreachable");
+		const handle = byRole<HTMLButtonElement>(rows, "button", "a");
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
 		expect(onMoveA).not.toHaveBeenCalled();
@@ -82,7 +86,7 @@ describe("useRowSortable", () => {
 	it("restores the pre-drag DOM order before invoking onMove, which already observes that restored order", () => {
 		const container = document.createElement("div");
 		document.body.appendChild(container);
-		let orderAtDispatch: (string | undefined)[] = [];
+		let orderAtDispatch: string[] = [];
 		const onMove = vi.fn((_from: number, _to: number) => {
 			const rows = container.querySelector<HTMLElement>(".rows");
 			if (rows) orderAtDispatch = rowIds(rows);
@@ -99,13 +103,12 @@ describe("useRowSortable", () => {
 		// the time onEnd fires. Built via sequential appendChild (each an atomic
 		// move), not a separate remove() + insert.
 		for (const id of ["b", "c", "a", "d"]) {
-			const row = rows.querySelector<HTMLElement>(`[data-id="${id}"]`);
+			const row = byRole<HTMLButtonElement>(rows, "button", id).closest(".row");
 			if (row) rows.appendChild(row);
 		}
 		expect(rowIds(rows)).toEqual(["b", "c", "a", "d"]);
 
-		const dragged = rows.querySelector<HTMLElement>('[data-id="a"]');
-		if (!dragged) throw new Error("unreachable");
+		const dragged = byRole<HTMLButtonElement>(rows, "button", "a").closest(".row") as HTMLElement;
 		onEnd({ item: dragged, oldIndex: 0, newIndex: 2 } as unknown as Sortable.SortableEvent);
 
 		expect(orderAtDispatch).toEqual(["a", "b", "c", "d"]);

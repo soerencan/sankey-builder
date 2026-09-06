@@ -5,6 +5,7 @@ import { STORAGE_KEY } from "../../src/platform/storage";
 import { bodyMarkup } from "./fixture";
 
 export { tick } from "./tick";
+export { accessibleName, allByRole, byRole } from "./dom-queries";
 
 export interface AppFixture {
 	app: AppHandle;

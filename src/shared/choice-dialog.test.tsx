@@ -2,6 +2,7 @@
 
 import { render } from "preact";
 import { describe, expect, it } from "vitest";
+import { byRole } from "../../tests/helpers/dom-queries";
 import { ChoiceDialog } from "./choice-dialog";
 import { useDialog } from "./use-dialog";
 
@@ -35,7 +36,7 @@ describe("ChoiceDialog", () => {
 		expect(dialogEl?.getAttribute("aria-labelledby")).toBe("fixture-dialog-heading");
 		expect(dialogEl?.querySelector("#fixture-dialog-heading")?.textContent).toBe("Fixture");
 		expect(dialogEl?.querySelector("p")?.textContent).toBe("Body content");
-		expect(dialogEl?.querySelector('[data-action="close-dialog"]')?.textContent).toBe("Close");
+		byRole(dialogEl as Element, "button", "Close");
 	});
 
 	it("opens via the handle's ref, moving focus into the dialog", () => {
@@ -45,7 +46,7 @@ describe("ChoiceDialog", () => {
 
 		const dialogEl = container.querySelector("#fixture-dialog") as HTMLDialogElement;
 		expect(dialogEl.open).toBe(true);
-		expect(document.activeElement).toBe(dialogEl.querySelector('[data-action="close-dialog"]'));
+		expect(document.activeElement).toBe(byRole(dialogEl, "button", "Close"));
 	});
 
 	it("closes via its own close button, returning focus to the trigger", () => {
@@ -53,11 +54,9 @@ describe("ChoiceDialog", () => {
 		const trigger = container.querySelector<HTMLButtonElement>("#trigger");
 		trigger?.click();
 
-		container
-			.querySelector('[data-action="close-dialog"]')
-			?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-
 		const dialogEl = container.querySelector("#fixture-dialog") as HTMLDialogElement;
+		byRole(dialogEl, "button", "Close").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
 		expect(dialogEl.open).toBe(false);
 		expect(document.activeElement).toBe(trigger);
 	});
