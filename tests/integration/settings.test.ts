@@ -539,6 +539,7 @@ describe("diagram-only settings redraw and persist", () => {
 describe("a diagram-setting change made while the graph is invalid", () => {
 	it("persists and updates controls but leaves the last-valid SVG element and markup untouched", () => {
 		mountApp();
+		addIsolatedNode();
 
 		// Retargeting the third link to n1 closes a 2-node cycle.
 		const target = byRole<HTMLSelectElement>(document, "combobox", "Target for link 3");

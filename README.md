@@ -37,7 +37,9 @@ table declares every setting and its allowed values, and adding a setting
 means adding a row to that table plus entries in `DEFAULT_SETTINGS`,
 `SETTING_NAMES` (`src/model/codec.ts`, diagram settings only), and
 `SETTING_LABELS` (`src/features/settings/options.ts`); the compiler enforces
-all three. `normalizeDiagram` (`src/model/codec.ts`) is the one normalizer
+all three. Wiring a control or an effect for the new setting is not enforced;
+that is what the integration tests are for. `normalizeDiagram`
+(`src/model/codec.ts`) is the one normalizer
 both the storage load path and the file import path call, so the two can't
 drift apart.
 

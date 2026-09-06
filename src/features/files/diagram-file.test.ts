@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeState } from "../../model/codec";
 import { type State, defaultState, moveLink, moveNode, withoutLinkId } from "../../model/graph";
+import { DEFAULT_SETTINGS } from "../../model/settings";
 import { parseImport, serializeState } from "./diagram-file";
 
 function sampleState(): State {
@@ -11,6 +12,7 @@ function sampleState(): State {
 		],
 		links: [{ id: "l1", source: "n1", target: "n2", value: 5 }],
 		settings: {
+			...DEFAULT_SETTINGS,
 			palette: "dark2",
 			linkColor: "static",
 			alignment: "center",

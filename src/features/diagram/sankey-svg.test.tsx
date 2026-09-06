@@ -30,7 +30,12 @@ describe("SankeySvg", () => {
 		expect(container.querySelectorAll("svg")).toHaveLength(1);
 		expect(container.querySelectorAll("rect")).toHaveLength(state.nodes.length);
 		expect(container.querySelectorAll("path")).toHaveLength(state.links.length);
-		expect(container.querySelectorAll("text")).toHaveLength(state.nodes.length);
+		const labels = Array.from(container.querySelectorAll("text"));
+		expect(labels).toHaveLength(state.nodes.length);
+		// export.ts recolours labels by selecting on this attribute.
+		for (const label of labels) {
+			expect(label.getAttribute("fill")).toBe("currentColor");
+		}
 		expect(container.querySelector("svg")?.getAttribute("role")).toBe("img");
 		expect(container.querySelector("svg")?.getAttribute("aria-label")).toBe("Sankey diagram");
 	});

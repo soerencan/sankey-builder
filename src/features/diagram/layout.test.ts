@@ -3,7 +3,7 @@ import type { Diagram } from "../../model/graph";
 import { defaultState } from "../../model/graph";
 import { layoutDiagram } from "./layout";
 
-function snapshotOf(state: ReturnType<typeof defaultState>): Diagram {
+function diagramOf(state: ReturnType<typeof defaultState>): Diagram {
 	return { nodes: state.nodes, links: state.links, settings: state.settings };
 }
 
@@ -13,7 +13,7 @@ describe("layoutDiagram", () => {
 		state.nodes = [];
 		state.links = [];
 
-		expect(layoutDiagram(snapshotOf(state))).toBeNull();
+		expect(layoutDiagram(diagramOf(state))).toBeNull();
 	});
 
 	it("returns null when every link is incomplete", () => {
@@ -23,20 +23,20 @@ describe("layoutDiagram", () => {
 			{ id: "l2", source: null, target: null, value: 1 },
 		];
 
-		expect(layoutDiagram(snapshotOf(state))).toBeNull();
+		expect(layoutDiagram(diagramOf(state))).toBeNull();
 	});
 
 	it("returns null for zero links", () => {
 		const state = defaultState();
 		state.links = [];
 
-		expect(layoutDiagram(snapshotOf(state))).toBeNull();
+		expect(layoutDiagram(diagramOf(state))).toBeNull();
 	});
 
 	it("positions every node and every complete link for the default graph", () => {
 		const state = defaultState();
 
-		const layout = layoutDiagram(snapshotOf(state));
+		const layout = layoutDiagram(diagramOf(state));
 
 		expect(layout?.nodes).toHaveLength(state.nodes.length);
 		expect(layout?.links).toHaveLength(state.links.length);
@@ -46,7 +46,7 @@ describe("layoutDiagram", () => {
 		const state = defaultState();
 		state.links.push({ id: "l4", source: "n1", target: null, value: 1 });
 
-		const layout = layoutDiagram(snapshotOf(state));
+		const layout = layoutDiagram(diagramOf(state));
 
 		expect(layout?.nodes).toHaveLength(4);
 		expect(layout?.links).toHaveLength(3);
@@ -55,7 +55,7 @@ describe("layoutDiagram", () => {
 	it("gives every link a positive width in proportion to its value", () => {
 		const state = defaultState();
 
-		const layout = layoutDiagram(snapshotOf(state));
+		const layout = layoutDiagram(diagramOf(state));
 		const links = layout?.links ?? [];
 
 		for (const link of links) {
@@ -70,7 +70,7 @@ describe("layoutDiagram", () => {
 	it("keeps each link's source and target as the same node objects the nodes array exposes", () => {
 		const state = defaultState();
 
-		const layout = layoutDiagram(snapshotOf(state));
+		const layout = layoutDiagram(diagramOf(state));
 		const nodes = layout?.nodes ?? [];
 		const links = layout?.links ?? [];
 
@@ -84,7 +84,7 @@ describe("layoutDiagram", () => {
 	it("gives every link a non-empty path starting with a moveto command", () => {
 		const state = defaultState();
 
-		const layout = layoutDiagram(snapshotOf(state));
+		const layout = layoutDiagram(diagramOf(state));
 
 		for (const link of layout?.links ?? []) {
 			expect(link.d.length).toBeGreaterThan(0);
@@ -95,10 +95,10 @@ describe("layoutDiagram", () => {
 	it("sizes the viewBox and layout extent from the aspect ratio setting", () => {
 		const state = defaultState();
 		state.settings.aspectRatio = "2:1";
-		const twoToOne = layoutDiagram(snapshotOf(state));
+		const twoToOne = layoutDiagram(diagramOf(state));
 
 		state.settings.aspectRatio = "3:1";
-		const threeToOne = layoutDiagram(snapshotOf(state));
+		const threeToOne = layoutDiagram(diagramOf(state));
 
 		expect(twoToOne).toMatchObject({ width: 960, height: 480 });
 		expect(threeToOne).toMatchObject({ width: 1440, height: 480 });
@@ -161,7 +161,7 @@ describe("layoutDiagram", () => {
 	it("places every link's source column left of its target column", () => {
 		const state = defaultState();
 
-		const layout = layoutDiagram(snapshotOf(state));
+		const layout = layoutDiagram(diagramOf(state));
 
 		for (const link of layout?.links ?? []) {
 			expect(link.source.x1).toBeLessThan(link.target.x0);
@@ -170,7 +170,7 @@ describe("layoutDiagram", () => {
 
 	it("leaves the input deep-unchanged, since d3-sankey mutates its input in place", () => {
 		const state = defaultState();
-		const diagram = snapshotOf(state);
+		const diagram = diagramOf(state);
 		const before = structuredClone(diagram);
 
 		layoutDiagram(diagram);

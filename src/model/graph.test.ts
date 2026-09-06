@@ -17,6 +17,7 @@ import {
 	updateLink,
 	withoutLinkId,
 } from "./graph";
+import { DEFAULT_SETTINGS, pickDiagramSettings } from "./settings";
 
 describe("defaultState", () => {
 	it("returns the starting graph and settings", () => {
@@ -279,6 +280,7 @@ describe("replaceDiagram", () => {
 			nodes: [{ id: "n1", name: "Replaced" }],
 			links: [{ id: "l1", source: "n1", target: null, value: 5 }],
 			settings: {
+				...pickDiagramSettings(DEFAULT_SETTINGS),
 				palette: "tableau10" as const,
 				linkColor: "static" as const,
 				alignment: "center" as const,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { State } from "../model/graph";
 import { defaultState, withoutLinkId } from "../model/graph";
+import { DEFAULT_SETTINGS } from "../model/settings";
 import { STORAGE_KEY, loadState, saveState } from "./storage";
 
 // Deliberately imports nothing from features/: proves storage.ts and
@@ -70,6 +71,7 @@ describe("loadState", () => {
 			],
 			links: [{ id: "original-id", source: "n1", target: "n2", value: 5 }],
 			settings: {
+				...DEFAULT_SETTINGS,
 				palette: "dark2",
 				linkColor: "static",
 				alignment: "center",
@@ -93,6 +95,7 @@ describe("loadState", () => {
 			nodes: [{ id: "n1", name: "A" }],
 			links: [{ id: "l1", source: "n1", target: null, value: 3 }],
 			settings: {
+				...DEFAULT_SETTINGS,
 				palette: "dark2",
 				linkColor: "static",
 				alignment: "center",

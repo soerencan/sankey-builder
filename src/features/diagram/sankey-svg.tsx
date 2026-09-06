@@ -24,13 +24,15 @@ export interface SankeySvgProps {
  * last-valid diagram stays on screen while the graph is invalid.
  */
 export function SankeySvg({ diagram }: SankeySvgProps) {
-	const layout = useMemo(() => diagram && layoutDiagram(diagram), [diagram]);
-	const nodeColor = useMemo(
-		() => diagram && createNodeColorResolver(diagram.nodes, diagram.settings.palette),
-		[diagram],
-	);
+	const positioned = useMemo(() => {
+		if (!diagram) return null;
+		const layout = layoutDiagram(diagram);
+		if (!layout) return null;
+		return { layout, nodeColor: createNodeColorResolver(diagram.nodes, diagram.settings.palette) };
+	}, [diagram]);
 
-	if (!diagram || !layout || !nodeColor) return null;
+	if (!diagram || !positioned) return null;
+	const { layout, nodeColor } = positioned;
 	const { width, height, nodes, links } = layout;
 	const stroke = linkStroke(diagram.settings.linkColor, nodeColor);
 

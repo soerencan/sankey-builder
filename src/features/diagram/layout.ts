@@ -36,15 +36,12 @@ type PositionedLink = Omit<SankeyGraphLink, "source" | "target"> & {
 	index: number;
 };
 
-const ALIGN_FNS: Partial<Record<Alignment, typeof sankeyJustify>> = {
+const ALIGN_FNS: Record<Alignment, typeof sankeyJustify> = {
 	left: sankeyLeft,
 	right: sankeyRight,
 	center: sankeyCenter,
+	justify: sankeyJustify,
 };
-
-function alignFn(name: Alignment): typeof sankeyJustify {
-	return ALIGN_FNS[name] ?? sankeyJustify;
-}
 
 export interface LayoutNode {
 	id: string;
@@ -98,7 +95,7 @@ export function layoutDiagram(diagram: Readonly<Diagram>): SankeyLayout | null {
 	};
 	const graph = sankey<Node, LinkExtra>()
 		.nodeId((d) => d.id)
-		.nodeAlign(alignFn(diagram.settings.alignment))
+		.nodeAlign(ALIGN_FNS[diagram.settings.alignment])
 		.nodeWidth(15)
 		.nodePadding(10)
 		.extent([
@@ -107,8 +104,8 @@ export function layoutDiagram(diagram: Readonly<Diagram>): SankeyLayout | null {
 		])(working) as unknown as { nodes: PositionedNode[]; links: PositionedLink[] };
 
 	// Links reference the same LayoutNode objects the nodes array exposes,
-	// not fresh copies per endpoint, so a caller can compare them by identity
-	// (e.g. to find a link's node in a click handler).
+	// not fresh copies per endpoint, so consumers can compare a link's
+	// endpoints to a node by identity.
 	const byPositioned = new Map(graph.nodes.map((n) => [n, toLayoutNode(n)]));
 	const nodes = [...byPositioned.values()];
 
