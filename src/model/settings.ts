@@ -59,7 +59,7 @@ export function pickDiagramSettings(settings: DiagramSettings): DiagramSettings 
  * both are indexed by the same generic key; this narrows it once so callers
  * don't reach for `any`.
  */
-function assignSetting<K extends DiagramSettingKey>(
+export function assignSetting<K extends DiagramSettingKey>(
 	target: DiagramSettings,
 	key: K,
 	value: DiagramSettings[K],

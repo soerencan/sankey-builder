@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { normalizeState } from "./codec";
+import { SETTING_NAMES, isRawDiagram, normalizeDiagram, normalizeState } from "./codec";
 import type { State } from "./graph";
 import { defaultState, withoutLinkId } from "./graph";
+import { DEFAULT_SETTINGS, DIAGRAM_SETTING_KEYS } from "./settings";
 
 // Deliberately imports nothing from features/diagram/colors.ts: proves
 // codec.ts stays d3-free at module-eval and call time.
@@ -213,5 +214,57 @@ describe("normalizeState", () => {
 			expect(settings.palette).toBe("set2");
 			expect("colorMode" in settings).toBe(false);
 		});
+	});
+
+	describe("theme", () => {
+		it("keeps a valid stored theme", () => {
+			const payload = { nodes: [], links: [], settings: { theme: "dark" } };
+			expect(normalizeState(payload).settings.theme).toBe("dark");
+		});
+
+		it("defaults an invalid stored theme without reporting it", () => {
+			const payload = { nodes: [], links: [], settings: { theme: "bogus" } };
+			expect(normalizeState(payload).settings.theme).toBe(DEFAULT_SETTINGS.theme);
+		});
+	});
+});
+
+describe("isRawDiagram", () => {
+	it("accepts an object with nodes and links arrays", () => {
+		expect(isRawDiagram({ nodes: [], links: [] })).toBe(true);
+	});
+
+	it("accepts an object that also carries a settings field", () => {
+		expect(isRawDiagram({ nodes: [], links: [], settings: {} })).toBe(true);
+	});
+
+	it.each<[string, unknown]>([
+		["null", null],
+		["a non-object", 42],
+		["an array", []],
+		["an object missing nodes", { links: [] }],
+		["an object missing links", { nodes: [] }],
+		["an object with a non-array nodes field", { nodes: {}, links: [] }],
+		["an object with a non-array links field", { nodes: [], links: {} }],
+	])("rejects %s", (_label, value) => {
+		expect(isRawDiagram(value)).toBe(false);
+	});
+});
+
+describe("normalizeDiagram", () => {
+	function repairsFor(settings: Record<string, unknown>): string[] {
+		const repairs: string[] = [];
+		normalizeDiagram({ nodes: [], links: [], settings }, repairs);
+		return repairs;
+	}
+
+	it.each(DIAGRAM_SETTING_KEYS)("reports an unknown %s with the shared message template", (key) => {
+		expect(repairsFor({ [key]: "not-a-real-value" })).toContain(
+			`settings: unknown ${SETTING_NAMES[key]} — using default`,
+		);
+	});
+
+	it("uses the default for every diagram setting silently when all keys are missing", () => {
+		expect(repairsFor({})).toEqual([]);
 	});
 });

@@ -1,48 +1,55 @@
-import type { Link, Node, State } from "./graph";
+import type { Diagram, Link, Node, State } from "./graph";
 import { defaultState, nextLinkId } from "./graph";
-import type { Alignment, AspectRatio, LinkColorMode, Palette, Settings, Theme } from "./settings";
-import { DEFAULT_SETTINGS, isSettingValue } from "./settings";
+import type { DiagramSettingKey, DiagramSettings } from "./settings";
+import { DEFAULT_SETTINGS, DIAGRAM_SETTING_KEYS, assignSetting, isSettingValue } from "./settings";
 import { MAX_LINK_VALUE } from "./validation";
 
-/** `theme` is never reported in `repairs`: the import path drops it and the load path keeps it. */
-export function normalizeSettings(settings: unknown, repairs?: string[]): Settings {
-	const s = settings && typeof settings === "object" ? (settings as Record<string, unknown>) : {};
+export interface RawDiagram {
+	nodes: unknown[];
+	links: unknown[];
+	settings?: unknown;
+}
 
-	let palette: Palette = DEFAULT_SETTINGS.palette;
-	if (isSettingValue("palette", s.palette)) palette = s.palette;
-	else if (s.palette !== undefined) repairs?.push("settings: unknown palette — using default");
+export function isRawDiagram(value: unknown): value is RawDiagram {
+	if (!value || typeof value !== "object") return false;
+	const v = value as Record<string, unknown>;
+	return Array.isArray(v.nodes) && Array.isArray(v.links);
+}
 
-	// colorMode is a legacy setting; only its "manual" value is worth a repair
-	// notice, since the user loses per-node colors.
+export const SETTING_NAMES: Record<DiagramSettingKey, string> = {
+	palette: "palette",
+	linkColor: "link color",
+	alignment: "alignment",
+	aspectRatio: "aspect ratio",
+};
+
+function asRecord(value: unknown): Record<string, unknown> {
+	return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function normalizeSettings(settings: unknown, repairs?: string[]): DiagramSettings {
+	const s = asRecord(settings);
+	const result = {} as DiagramSettings;
+
+	for (const key of DIAGRAM_SETTING_KEYS) {
+		const value = s[key];
+		if (isSettingValue(key, value)) {
+			assignSetting(result, key, value);
+		} else {
+			assignSetting(result, key, DEFAULT_SETTINGS[key]);
+			if (value !== undefined) {
+				repairs?.push(`settings: unknown ${SETTING_NAMES[key]} — using default`);
+			}
+		}
+	}
+
+	// colorMode is a legacy setting; only its "manual" value is worth a
+	// repair notice, since the user loses per-node colors.
 	if (s.colorMode === "manual") {
 		repairs?.push("settings: manual colors are no longer supported — using the saved palette");
 	}
 
-	let linkColor: LinkColorMode = DEFAULT_SETTINGS.linkColor;
-	if (isSettingValue("linkColor", s.linkColor)) linkColor = s.linkColor;
-	else if (s.linkColor !== undefined) repairs?.push("settings: unknown link color — using default");
-
-	let alignment: Alignment = DEFAULT_SETTINGS.alignment;
-	if (isSettingValue("alignment", s.alignment)) alignment = s.alignment;
-	else if (s.alignment !== undefined) repairs?.push("settings: unknown alignment — using default");
-
-	let aspectRatio: AspectRatio = DEFAULT_SETTINGS.aspectRatio;
-	if (isSettingValue("aspectRatio", s.aspectRatio)) aspectRatio = s.aspectRatio;
-	else if (s.aspectRatio !== undefined) {
-		repairs?.push("settings: unknown aspect ratio — using 2:1");
-	}
-
-	const theme: Theme = isSettingValue("theme", s.theme) ? s.theme : DEFAULT_SETTINGS.theme;
-
-	return { palette, linkColor, alignment, aspectRatio, theme };
-}
-
-function isRawState(
-	value: unknown,
-): value is { nodes: unknown[]; links: unknown[]; settings?: unknown } {
-	if (!value || typeof value !== "object") return false;
-	const v = value as Record<string, unknown>;
-	return Array.isArray(v.nodes) && Array.isArray(v.links);
+	return result;
 }
 
 function isRawNode(value: unknown): value is { id: string; name: string } {
@@ -55,7 +62,7 @@ function isRawLink(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object";
 }
 
-export function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] {
+function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] {
 	const nodes: Node[] = [];
 	rawNodes.forEach((value, index) => {
 		if (!isRawNode(value)) {
@@ -71,11 +78,7 @@ export function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] 
  * A bad endpoint or value is coerced (to null, i.e. an incomplete row, or to
  * 1) rather than dropping the link, so hand-edited storage loses no data.
  */
-export function normalizeLinks(
-	rawLinks: unknown[],
-	nodeIds: Set<string>,
-	repairs?: string[],
-): Link[] {
+function normalizeLinks(rawLinks: unknown[], nodeIds: Set<string>, repairs?: string[]): Link[] {
 	const links: Link[] = [];
 	rawLinks.forEach((value, index) => {
 		if (!isRawLink(value)) {
@@ -98,13 +101,28 @@ export function normalizeLinks(
 	return links;
 }
 
-/** The silent load path; import reuses the same normalizers with a repair collector. */
-export function normalizeState(parsed: unknown): State {
-	if (!isRawState(parsed)) return defaultState();
-	const nodes = normalizeNodes(parsed.nodes);
+/**
+ * The whole nodes → ids → links → settings pipeline. The storage load path
+ * (`normalizeState`) calls this silently; the import path calls it with a
+ * repair collector after its own structural gate.
+ */
+export function normalizeDiagram(raw: RawDiagram, repairs?: string[]): Diagram {
+	const nodes = normalizeNodes(raw.nodes, repairs);
 	const nodeIds = new Set(nodes.map((n) => n.id));
-	const links = normalizeLinks(parsed.links, nodeIds);
-	return { nodes, links, settings: normalizeSettings(parsed.settings) };
+	const links = normalizeLinks(raw.links, nodeIds, repairs);
+	const settings = normalizeSettings(raw.settings, repairs);
+	return { nodes, links, settings };
+}
+
+/** `theme` is never reported in repairs: the import path drops it and the load path keeps it. */
+export function normalizeState(parsed: unknown): State {
+	if (!isRawDiagram(parsed)) return defaultState();
+	const diagram = normalizeDiagram(parsed);
+	const rawSettings = asRecord(parsed.settings);
+	const theme = isSettingValue("theme", rawSettings.theme)
+		? rawSettings.theme
+		: DEFAULT_SETTINGS.theme;
+	return { ...diagram, settings: { ...diagram.settings, theme } };
 }
 
 function normalizeEndpoint(value: unknown, nodeIds: Set<string>): string | null {

@@ -56,9 +56,8 @@ describe("aspectRatioOption", () => {
 		}
 	});
 
-	it("contains every aspect ratio value exactly once", () => {
-		const values = ASPECT_RATIO_OPTIONS.map((option) => option.value);
-		expect(new Set(values).size).toBe(values.length);
+	it("covers exactly the aspect ratio domain, so a new value can't be added without a width/height entry", () => {
+		expect(ASPECT_RATIO_OPTIONS.map((option) => option.value)).toEqual(SETTING_DOMAINS.aspectRatio);
 	});
 });
 

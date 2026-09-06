@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { normalizeState } from "../../model/codec";
 import { type State, defaultState, moveLink, moveNode, withoutLinkId } from "../../model/graph";
 import { parseImport, serializeState } from "./diagram-file";
 
@@ -239,5 +240,49 @@ describe("parseImport repairs", () => {
 		expect(result.ok).toBe(true);
 		if (!result.ok) throw new Error("unreachable");
 		expect(result.repairs).toEqual([]);
+	});
+});
+
+describe("normalizeState and parseImport agreement", () => {
+	it("share one normalizer: same repaired diagram, minus theme, for every repair kind", () => {
+		const payload = {
+			nodes: [{ id: "n1", name: "A" }, { id: "n2", name: "B" }, { name: "no id" }],
+			links: [
+				"not an object",
+				{ source: "missing", target: "n1", value: 1 },
+				{ source: "n1", target: "missing", value: 1 },
+				{ source: "n1", target: "n2", value: -5 },
+			],
+			settings: {
+				palette: "nope",
+				colorMode: "manual",
+				linkColor: "nope",
+				alignment: "nope",
+				aspectRatio: "nope",
+			},
+		};
+
+		const imported = parseImport(JSON.stringify(payload));
+		expect(imported.ok).toBe(true);
+		if (!imported.ok) throw new Error("unreachable");
+
+		const loaded = normalizeState(payload);
+		const { theme: _theme, ...loadedSettings } = loaded.settings;
+
+		expect(imported.diagram.nodes).toEqual(loaded.nodes);
+		expect(imported.diagram.links.map(withoutLinkId)).toEqual(loaded.links.map(withoutLinkId));
+		expect(imported.diagram.settings).toEqual(loadedSettings);
+		expect(imported.repairs).toEqual([
+			"node 3: missing id or name — dropped",
+			"link 1: not an object — dropped",
+			"link 2: unknown source — left unassigned",
+			"link 3: unknown target — left unassigned",
+			"link 4: invalid value — set to 1",
+			"settings: unknown palette — using default",
+			"settings: unknown link color — using default",
+			"settings: unknown alignment — using default",
+			"settings: unknown aspect ratio — using default",
+			"settings: manual colors are no longer supported — using the saved palette",
+		]);
 	});
 });

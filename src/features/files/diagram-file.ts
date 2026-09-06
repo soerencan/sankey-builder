@@ -1,4 +1,4 @@
-import { normalizeLinks, normalizeNodes, normalizeSettings } from "../../model/codec";
+import { isRawDiagram, normalizeDiagram } from "../../model/codec";
 import type { Diagram, State } from "../../model/graph";
 import { isComplete, withoutLinkId } from "../../model/graph";
 import { pickDiagramSettings } from "../../model/settings";
@@ -32,23 +32,11 @@ export function parseImport(text: string): ImportResult {
 	} catch {
 		return { ok: false, error: NOT_JSON };
 	}
-	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-		return { ok: false, error: NOT_A_DIAGRAM };
-	}
-	const obj = parsed as Record<string, unknown>;
-	if (!Array.isArray(obj.nodes) || !Array.isArray(obj.links)) {
+	if (!isRawDiagram(parsed)) {
 		return { ok: false, error: NOT_A_DIAGRAM };
 	}
 
 	const repairs: string[] = [];
-	const nodes = normalizeNodes(obj.nodes, repairs);
-	const nodeIds = new Set(nodes.map((n) => n.id));
-	const links = normalizeLinks(obj.links, nodeIds, repairs);
-	const normalized = normalizeSettings(obj.settings, repairs);
-	const diagram: Diagram = {
-		nodes,
-		links,
-		settings: pickDiagramSettings(normalized),
-	};
+	const diagram = normalizeDiagram(parsed, repairs);
 	return { ok: true, diagram, repairs };
 }
