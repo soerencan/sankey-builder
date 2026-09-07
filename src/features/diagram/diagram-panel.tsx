@@ -45,10 +45,10 @@ function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOp
 			aria-labelledby={labelledBy}
 		>
 			<button type="button" class="choice-option" onClick={onExportSvg}>
-				SVG — Scalable vector
+				SVG
 			</button>
 			<button type="button" class="choice-option" onClick={onExportPng}>
-				PNG — High-resolution image
+				PNG
 			</button>
 		</div>
 	);
@@ -168,21 +168,24 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					<button
 						type="button"
 						id="display-button"
+						aria-label="Appearance"
+						title="Appearance"
 						class="action-button"
 						aria-haspopup="dialog"
 						onClick={(event) => displayDialog.open(event.currentTarget)}
 					>
-						Appearance
+						<Icon id="icon-appearance" />
 					</button>
 					<button
 						type="button"
 						id="diagram-export-button"
+						aria-label="Export diagram"
+						title="Export diagram"
 						class="action-button"
 						aria-haspopup="dialog"
 						onClick={(event) => diagramExportDialog.open(event.currentTarget)}
 					>
-						<Icon id="icon-download" />
-						Export
+						<Icon id="icon-export" />
 					</button>
 				</div>
 			</header>

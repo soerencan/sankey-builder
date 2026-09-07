@@ -433,7 +433,7 @@ select {
 	/* Clips .sankey-canvas's square corners to the card's own rounding. */
 	overflow: hidden;
 	/* Shared with the coarse-pointer override below. */
-	--toolbar-height: 3rem;
+	--toolbar-height: 3.5rem;
 	/* Named because the toolbar adapts to this card, independently of the
      viewport and the Data card's own layout query. */
 	container-type: inline-size;
@@ -548,13 +548,14 @@ select {
 }
 
 .action-button {
-	padding-inline: 0.5rem;
-	font-size: 0.875rem;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	gap: 0.4rem;
-	white-space: nowrap;
+	flex: 0 0 44px;
+	width: 44px;
+	min-height: 44px;
+	padding: 0;
+	border-color: transparent;
 }
 
 .setting-field {
@@ -842,28 +843,5 @@ dialog[open] {
 		flex-wrap: wrap;
 		height: auto;
 		padding: 0.5rem;
-	}
-
-	.diagram-actions {
-		flex-basis: 100%;
-	}
-
-	.diagram-actions > button {
-		flex: 1;
-	}
-}
-
-@container data-card (max-width: 340px) {
-	.data-card-header {
-		flex-wrap: wrap;
-		padding: 0.75rem;
-	}
-
-	.data-card-actions {
-		flex-basis: 100%;
-	}
-
-	.data-card-actions > button {
-		flex: 1;
 	}
 }

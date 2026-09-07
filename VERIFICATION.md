@@ -72,7 +72,7 @@ emulation).
 ## Diagram toolbar
 
 - [ ] Palette stays unchanged. Appearance and Export are visible on desktop and phone.
-- [ ] At 320, 360, 390, 768, and 1440px there is no overflow or clipped label. Below 480px card width, actions sit together beneath the palette.
+- [ ] At 320, 360, 390, 768, and 1440px there is no overflow or clipped icon. The toolbar may wrap on very small touch screens.
 - [ ] Appearance opens a compact panel on desktop and a bottom sheet on phones. Node alignment, Aspect ratio, and Link colors use labelled native selects.
 - [ ] Changing each select updates the diagram and persists after reload; Appearance stays open.
 - [ ] Node alignment changes horizontal column placement where the topology permits it; it does not change node order within a column.
@@ -158,3 +158,9 @@ served app (`make dev` or a served `dist/`).
 - Verified with agent-browser/Chromium at 320, 390, 768, and 1440px, including light and dark screenshots. Appearance and Export remain visible; JSON action labels remain visible on the smallest layout.
 - Exercised all three native selects, live diagram updates, Escape/focus return, and SVG export from the separate picker. No browser errors.
 - Native selects use 16px text to avoid iPhone's small-input focus zoom. Physical iPhone picker and browser-toolbar behavior still need device verification.
+
+## Icon actions — 2026-09-07
+
+- Appearance, diagram export, JSON import, and JSON export now use icon buttons with accessible names and native title tooltips. Import enters a box; export leaves it. The format picker shows SVG and PNG.
+- Verified with agent-browser/Chromium: 390px dark and 1440px light screenshots, 320px without horizontal overflow, and all four action buttons measuring 44×44px. Export opens the shortened format choices and Escape closes the picker.
+- Earlier notes about visible action labels and separate mobile action rows describe the previous revision.
