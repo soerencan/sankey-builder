@@ -8,14 +8,8 @@ import type { IoNoticeActions } from "../../shared/notice";
 import type { DialogHandle } from "../../shared/use-dialog";
 import { useDialog } from "../../shared/use-dialog";
 import { download } from "../files/download";
-import {
-	AlignmentChoices,
-	AspectRatioChoices,
-	LinkColorChoices,
-	PaletteChoices,
-	SwatchStrip,
-} from "../settings/choices";
-import { LINK_COLOR_ICONS, SETTING_LABELS } from "../settings/options";
+import { PaletteChoices, SwatchStrip } from "../settings/choices";
+import { SETTING_LABELS } from "../settings/options";
 import { rasterizeSvg, serializeDiagramSvg, svgViewBoxSize } from "./export";
 
 const EXPORT_SVG_FILENAME = "sankey.svg";
@@ -85,8 +79,6 @@ function serializeVisibleDiagram(
 
 export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramPanelProps) {
 	const paletteDialog = useDialog();
-	const linksDialog = useDialog();
-	const aspectRatioDialog = useDialog();
 	const diagramExportDialog = useDialog();
 	const displayDialog = useDialog();
 
@@ -172,38 +164,20 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 				>
 					<Icon id="icon-chevron-right" />
 				</button>
-				<div class="toolbar-wide">
+				<div class="diagram-actions">
 					<button
 						type="button"
-						id="links-button"
-						class="toolbar-button"
+						id="display-button"
+						class="action-button"
 						aria-haspopup="dialog"
-						aria-label={`Links: ${SETTING_LABELS.linkColor[settings.linkColor]}`}
-						onClick={(event) => linksDialog.open(event.currentTarget)}
+						onClick={(event) => displayDialog.open(event.currentTarget)}
 					>
-						Links
-						<Icon id={LINK_COLOR_ICONS[settings.linkColor]} />
-					</button>
-					<AlignmentChoices
-						value={settings.alignment}
-						label="Alignment"
-						variant="segmented"
-						onSelect={(value) => actions.setDiagramSetting("alignment", value)}
-					/>
-					<button
-						type="button"
-						id="aspect-ratio-button"
-						class="toolbar-button"
-						aria-haspopup="dialog"
-						aria-label={`Aspect ratio: ${SETTING_LABELS.aspectRatio[settings.aspectRatio]}`}
-						onClick={(event) => aspectRatioDialog.open(event.currentTarget)}
-					>
-						<span class="aspect-ratio-current">{`Aspect ${SETTING_LABELS.aspectRatio[settings.aspectRatio]}`}</span>
+						Appearance
 					</button>
 					<button
 						type="button"
 						id="diagram-export-button"
-						class="toolbar-button"
+						class="action-button"
 						aria-haspopup="dialog"
 						onClick={(event) => diagramExportDialog.open(event.currentTarget)}
 					>
@@ -211,16 +185,6 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						Export
 					</button>
 				</div>
-				<button
-					type="button"
-					id="display-button"
-					class="toolbar-button toolbar-narrow"
-					aria-haspopup="dialog"
-					onClick={(event) => displayDialog.open(event.currentTarget)}
-				>
-					<Icon id="icon-display" />
-					Diagram
-				</button>
 			</header>
 
 			<ChoiceDialog id="palette-dialog" heading="Palette" handle={paletteDialog}>
@@ -230,29 +194,6 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					onSelect={(value) => {
 						actions.setDiagramSetting("palette", value);
 						paletteDialog.close();
-					}}
-				/>
-			</ChoiceDialog>
-
-			<ChoiceDialog id="links-dialog" heading="Link colors" handle={linksDialog}>
-				<LinkColorChoices
-					value={settings.linkColor}
-					label="Link colors"
-					variant="short"
-					onSelect={(value) => {
-						actions.setDiagramSetting("linkColor", value);
-						linksDialog.close();
-					}}
-				/>
-			</ChoiceDialog>
-
-			<ChoiceDialog id="aspect-ratio-dialog" heading="Aspect ratio" handle={aspectRatioDialog}>
-				<AspectRatioChoices
-					value={settings.aspectRatio}
-					label="Aspect ratio"
-					onSelect={(value) => {
-						actions.setDiagramSetting("aspectRatio", value);
-						aspectRatioDialog.close();
 					}}
 				/>
 			</ChoiceDialog>
@@ -269,48 +210,34 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 				/>
 			</ChoiceDialog>
 
-			{/* Narrow-toolbar copy of the wide controls. Unlike the dialogs above,
-			    picking an option here keeps the sheet open so several settings can
-			    be adjusted while the diagram updates live behind it; only the
-			    export buttons close it. */}
-			<ChoiceDialog id="display-dialog" heading="Diagram" handle={displayDialog}>
-				<div class="dialog-section">
-					<h4 id="display-link-colors-heading">Link colors</h4>
-					<LinkColorChoices
-						value={settings.linkColor}
-						labelledBy="display-link-colors-heading"
-						variant="short"
-						onSelect={(value) => actions.setDiagramSetting("linkColor", value)}
-					/>
-				</div>
-
-				<div class="dialog-section">
-					<h4 id="display-alignment-heading">Alignment</h4>
-					<AlignmentChoices
-						value={settings.alignment}
-						labelledBy="display-alignment-heading"
-						variant="list"
-						onSelect={(value) => actions.setDiagramSetting("alignment", value)}
-					/>
-				</div>
-
-				<div class="dialog-section">
-					<h4 id="display-aspect-ratio-heading">Aspect ratio</h4>
-					<AspectRatioChoices
-						value={settings.aspectRatio}
-						labelledBy="display-aspect-ratio-heading"
-						onSelect={(value) => actions.setDiagramSetting("aspectRatio", value)}
-					/>
-				</div>
-
-				<div class="dialog-section">
-					<h4 id="display-export-heading">Export diagram</h4>
-					<ExportOptions
-						labelledBy="display-export-heading"
-						onExportSvg={() => exportSvg(displayDialog)}
-						onExportPng={() => exportPng(displayDialog)}
-					/>
-				</div>
+			<ChoiceDialog id="display-dialog" heading="Appearance" handle={displayDialog}>
+				{(
+					[
+						["alignment", "Node alignment"],
+						["aspectRatio", "Aspect ratio"],
+						["linkColor", "Link colors"],
+					] as const
+				).map(([key, label]) => (
+					<label class="setting-field" key={key}>
+						<span id={`setting-${key}-label`}>{label}</span>
+						<select
+							aria-labelledby={`setting-${key}-label`}
+							value={settings[key]}
+							onChange={(event) => {
+								const value = event.currentTarget.value;
+								// Validate the native control's string against its setting domain.
+								const option = SETTING_DOMAINS[key].find((option) => option === value);
+								if (option) actions.setDiagramSetting(key, option);
+							}}
+						>
+							{SETTING_DOMAINS[key].map((value) => (
+								<option key={value} value={value}>
+									{(SETTING_LABELS[key] as Record<string, string>)[value]}
+								</option>
+							))}
+						</select>
+					</label>
+				))}
 			</ChoiceDialog>
 		</>
 	);

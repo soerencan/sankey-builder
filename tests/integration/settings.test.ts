@@ -2,16 +2,13 @@
 
 import { describe, expect, it } from "vitest";
 import {
-	ALIGNMENT_CHOICES,
-	ASPECT_RATIO_CHOICES,
-	LINK_COLOR_CHOICES,
-	LINK_COLOR_SHORT_LABELS,
 	PALETTE_CHOICES,
 	SETTING_LABELS,
 	THEME_CHOICES,
 } from "../../src/features/settings/options";
 import { paletteColors } from "../../src/features/settings/palettes";
 import { defaultState } from "../../src/model/graph";
+import { SETTING_DOMAINS } from "../../src/model/settings";
 import {
 	accessibleName,
 	allByRole,
@@ -24,13 +21,11 @@ import {
 	tick,
 } from "../helpers/mount-app";
 
-/** The wide and narrow copies share the accessible name "Alignment"; the wide one is the copy not nested in a <dialog>. */
-function wideAlignmentGroup(): HTMLElement {
-	const group = allByRole(document, "group", "Alignment").find(
-		(candidate) => !candidate.closest("dialog"),
-	);
-	if (!group) throw new Error("expected the wide toolbar's Alignment group");
-	return group;
+function chooseSetting(label: string, value: string): HTMLSelectElement {
+	const select = byRole<HTMLSelectElement>(document, "combobox", label);
+	select.value = value;
+	fireChange(select);
+	return select;
 }
 
 /**
@@ -112,313 +107,49 @@ describe("toolbar & settings", () => {
 		expect(document.activeElement).toBe(preview);
 	});
 
-	it("clicking the links button opens the links dialog", () => {
+	it("Appearance opens labelled native settings, stays open during edits, and restores focus on close", () => {
 		mountApp();
-
-		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
-		expect(dialog).toBeInstanceOf(HTMLDialogElement);
-		expect(dialog.open).toBe(false);
-
-		click(document.getElementById("links-button"));
-
+		const trigger = byRole(document, "button", "Appearance");
+		click(trigger);
+		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		expect(dialog.open).toBe(true);
-
-		for (const option of LINK_COLOR_CHOICES) {
-			byRole(dialog, "button", option.shortLabel);
-		}
-	});
-
-	it("choosing Neutral in the links dialog sets state, re-renders static links, and closes with focus back on the links button", () => {
-		mountApp();
-
-		const linksButton = document.getElementById("links-button");
-		click(linksButton);
-
-		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
-		const staticOption = byRole<HTMLButtonElement>(
-			dialog,
-			"button",
-			SETTING_LABELS.linkColor.static,
-		);
-		click(staticOption);
-
-		const stored = getStoredState();
-		expect(stored.settings.linkColor).toBe("static");
-
-		expect(staticOption.getAttribute("aria-pressed")).toBe("true");
-		const group = byRole(dialog, "group");
-		for (const option of allByRole<HTMLButtonElement>(group, "button")) {
-			if (option !== staticOption) expect(option.getAttribute("aria-pressed")).toBe("false");
-		}
-
-		const paths = document.querySelectorAll("#diagram svg path");
-		expect(paths.length).toBeGreaterThan(0);
-		for (const path of Array.from(paths)) {
-			expect(path.getAttribute("stroke")).toBe("#aaa");
-		}
-
-		expect(linksButton?.getAttribute("aria-label")).toBe("Links: Neutral");
-		expect(dialog.open).toBe(false);
-		expect(document.activeElement).toBe(linksButton);
-	});
-
-	it("choosing the gradient option in the links dialog re-renders links with per-link gradient strokes", () => {
-		mountApp();
-
-		const linksButton = document.getElementById("links-button");
-		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
-		const diagram = document.getElementById("diagram");
-
-		// The default is already "source-target", so start from "static" to
-		// prove the click handler ran.
-		click(linksButton);
-		const staticOption = byRole<HTMLButtonElement>(
-			dialog,
-			"button",
-			SETTING_LABELS.linkColor.static,
-		);
-		click(staticOption);
-
-		const storedAfterStatic = getStoredState();
-		expect(storedAfterStatic.settings.linkColor).toBe("static");
+		chooseSetting("Node alignment", "left");
+		chooseSetting("Aspect ratio", "3:1");
+		chooseSetting("Link colors", "static");
+		expect(dialog.open).toBe(true);
+		expect(getStoredState().settings).toMatchObject({
+			alignment: "left",
+			aspectRatio: "3:1",
+			linkColor: "static",
+		});
 		for (const path of Array.from(document.querySelectorAll("#diagram svg path"))) {
 			expect(path.getAttribute("stroke")).toBe("#aaa");
 		}
-
-		click(linksButton);
-		const gradientOption = byRole<HTMLButtonElement>(dialog, "button", "Gradient");
-		click(gradientOption);
-
-		const stored = getStoredState();
-		expect(stored.settings.linkColor).toBe("source-target");
-
-		const gradients = diagram?.querySelectorAll("linearGradient");
-		expect(gradients?.length).toBeGreaterThan(0);
-		expect(diagram?.querySelector('path[stroke="url(#link-grad-0)"]')).not.toBeNull();
-	});
-
-	it("boots with exactly one alignment value pressed, matching the default alignment, on both the wide and narrow copies", () => {
-		mountApp();
-
-		// The wide toolbar's group and the narrow dialog's copy render from the
-		// same settings, so every pressed button must share one value.
-		const alignmentGroups = allByRole(document, "group", "Alignment");
-		expect(alignmentGroups).toHaveLength(2);
-		const defaultLabel = ALIGNMENT_CHOICES.find(
-			(option) => option.value === defaultState().settings.alignment,
-		)?.label;
-		for (const group of alignmentGroups) {
-			const pressed = allByRole<HTMLButtonElement>(group, "button").filter(
-				(option) => option.getAttribute("aria-pressed") === "true",
-			);
-			expect(pressed).toHaveLength(1);
-			expect(accessibleName(pressed[0])).toBe(defaultLabel);
-		}
-	});
-
-	it("clicking Left in the alignment group sets state, updates aria-pressed on both copies, and re-renders the diagram", () => {
-		mountApp();
-		addIsolatedNode();
-
-		const svgBefore = document.querySelector("#diagram svg");
-		const svgHtmlBefore = svgBefore?.outerHTML;
-		const leftOption = byRole<HTMLButtonElement>(wideAlignmentGroup(), "button", "Left");
-		click(leftOption);
-
-		const stored = getStoredState();
-		expect(stored.settings.alignment).toBe("left");
-
-		for (const group of allByRole(document, "group", "Alignment")) {
-			for (const option of allByRole<HTMLButtonElement>(group, "button")) {
-				expect(option.getAttribute("aria-pressed")).toBe(
-					accessibleName(option) === "Left" ? "true" : "false",
-				);
-			}
-		}
-
-		const svgAfter = document.querySelector("#diagram svg");
-		expect(svgAfter).not.toBeNull();
-		expect(svgAfter?.outerHTML).not.toBe(svgHtmlBefore);
-	});
-
-	it("every alignment button has a non-empty accessible name", () => {
-		mountApp();
-
-		const options = allByRole<HTMLButtonElement>(wideAlignmentGroup(), "button");
-		expect(options.length).toBeGreaterThan(0);
-		for (const option of options) {
-			expect(option.getAttribute("aria-label")?.trim()).toBeTruthy();
-		}
-	});
-
-	it("changes the intrinsic diagram and both selectors when an aspect ratio is chosen", () => {
-		mountApp();
-
-		const trigger = document.getElementById("aspect-ratio-button");
-		click(trigger);
-		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
-		expect(dialog.open).toBe(true);
-
-		click(byRole(dialog, "button", SETTING_LABELS.aspectRatio["3:1"]));
-
 		expect(document.querySelector("#diagram svg")?.getAttribute("viewBox")).toBe("0 0 1440 480");
-		const diagram = document.getElementById("diagram");
-		expect(diagram?.style.getPropertyValue("--diagram-aspect-ratio")).toBe("1440 / 480");
-		expect(diagram?.style.getPropertyValue("--diagram-aspect-number")).toBe("3");
-		expect(trigger?.textContent).toContain("Aspect 3:1");
-		const stored = getStoredState();
-		expect(stored.settings.aspectRatio).toBe("3:1");
-		for (const group of allByRole(document, "group", "Aspect ratio")) {
-			for (const option of allByRole<HTMLButtonElement>(group, "button")) {
-				expect(option.getAttribute("aria-pressed")).toBe(
-					accessibleName(option) === SETTING_LABELS.aspectRatio["3:1"] ? "true" : "false",
-				);
-			}
-		}
+		expect(dialog.querySelector(".export-options")).toBeNull();
+		click(byRole(dialog, "button", "Close"));
 		expect(dialog.open).toBe(false);
 		expect(document.activeElement).toBe(trigger);
 	});
 
-	// App's style-prop diff must not clobber the height PreviewResizer writes
-	// to the same element outside Preact.
-	it("changing aspect ratio after resizing the preview leaves --diagram-preview-height untouched", async () => {
+	it("switching back to gradient re-renders per-link gradients", () => {
 		mountApp();
+		chooseSetting("Link colors", "static");
+		chooseSetting("Link colors", "source-target");
+		expect(getStoredState().settings.linkColor).toBe("source-target");
+		expect(document.querySelectorAll("#diagram linearGradient").length).toBeGreaterThan(0);
+		expect(document.querySelector('#diagram path[stroke="url(#link-grad-0)"]')).not.toBeNull();
+	});
 
-		const diagram = document.getElementById("diagram");
+	it("changing aspect ratio preserves the resized preview height", async () => {
+		mountApp();
 		click(byRole(document, "button", "Make diagram preview larger"));
-		// The custom-property write lands in a layout effect on the next render.
 		await tick();
-		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
-
-		click(document.getElementById("aspect-ratio-button"));
-		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "button", SETTING_LABELS.aspectRatio["3:1"]));
-
+		chooseSetting("Aspect ratio", "3:1");
+		const diagram = document.getElementById("diagram");
 		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
 		expect(diagram?.style.getPropertyValue("--diagram-aspect-ratio")).toBe("1440 / 480");
 		expect(diagram?.style.getPropertyValue("--diagram-aspect-number")).toBe("3");
-	});
-
-	it("offers every labelled aspect-ratio preset in the wide picker and narrow Diagram sheet", () => {
-		mountApp();
-
-		for (const preset of ASPECT_RATIO_CHOICES) {
-			const copies = allByRole<HTMLElement>(document, "button", preset.label);
-			expect(copies).toHaveLength(2);
-			for (const copy of copies) {
-				expect(copy.querySelector(".ratio-preview")).not.toBeNull();
-			}
-		}
-	});
-
-	it("clicking the Diagram button opens the diagram-options dialog", () => {
-		mountApp();
-
-		const dialog = document.getElementById("display-dialog");
-		expect(dialog).toBeInstanceOf(HTMLDialogElement);
-		expect((dialog as HTMLDialogElement).open).toBe(false);
-
-		click(document.getElementById("display-button"));
-
-		expect((dialog as HTMLDialogElement).open).toBe(true);
-	});
-
-	it("choosing Gradient in the display dialog re-renders links, syncs both link-color copies, and stays open", () => {
-		mountApp();
-
-		const displayButton = document.getElementById("display-button");
-		click(displayButton);
-
-		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
-		const linksDialog = document.getElementById("links-dialog") as HTMLDialogElement;
-
-		// The default is already "source-target", so start from "static" to
-		// prove the click handler ran.
-		click(byRole(displayDialog, "button", LINK_COLOR_SHORT_LABELS.static));
-
-		const storedAfterStatic = getStoredState();
-		expect(storedAfterStatic.settings.linkColor).toBe("static");
-		expect(displayDialog.open).toBe(true);
-
-		const gradientOption = byRole<HTMLButtonElement>(
-			displayDialog,
-			"button",
-			LINK_COLOR_SHORT_LABELS["source-target"],
-		);
-		click(gradientOption);
-
-		const stored = getStoredState();
-		expect(stored.settings.linkColor).toBe("source-target");
-
-		const gradients = document.getElementById("diagram")?.querySelectorAll("linearGradient");
-		expect(gradients?.length).toBeGreaterThan(0);
-		expect(
-			document.getElementById("diagram")?.querySelector('path[stroke="url(#link-grad-0)"]'),
-		).not.toBeNull();
-
-		// Both copies must reflect the new value.
-		expect(gradientOption.getAttribute("aria-pressed")).toBe("true");
-		const linksDialogGradientOption = byRole<HTMLButtonElement>(linksDialog, "button", "Gradient");
-		expect(linksDialogGradientOption.getAttribute("aria-pressed")).toBe("true");
-		expect(document.getElementById("links-button")?.getAttribute("aria-label")).toBe(
-			"Links: Source to target (gradient)",
-		);
-
-		// Unlike the links dialog, choosing inside Diagram does not close it.
-		expect(displayDialog.open).toBe(true);
-		expect(document.activeElement).not.toBe(displayButton);
-	});
-
-	it("choosing Left in the display dialog's alignment group persists and stays open", () => {
-		mountApp();
-
-		click(document.getElementById("display-button"));
-
-		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
-		const leftOption = byRole<HTMLButtonElement>(displayDialog, "button", "Left");
-		click(leftOption);
-
-		const stored = getStoredState();
-		expect(stored.settings.alignment).toBe("left");
-		expect(leftOption.getAttribute("aria-pressed")).toBe("true");
-
-		// The wide toolbar's own alignment group follows the same state.
-		const wideLeftOption = byRole<HTMLButtonElement>(wideAlignmentGroup(), "button", "Left");
-		expect(wideLeftOption.getAttribute("aria-pressed")).toBe("true");
-
-		expect(displayDialog.open).toBe(true);
-	});
-
-	it("closing the diagram-options dialog via its Close button returns focus to the Diagram button", () => {
-		mountApp();
-
-		const displayButton = document.getElementById("display-button");
-		click(displayButton);
-
-		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
-		expect(displayDialog.open).toBe(true);
-
-		click(byRole(displayDialog, "button", "Close"));
-
-		expect(displayDialog.open).toBe(false);
-		expect(document.activeElement).toBe(displayButton);
-	});
-
-	it("regression: choosing a link color via the links dialog (wide toolbar) still closes it", () => {
-		mountApp();
-
-		const linksButton = document.getElementById("links-button");
-		click(linksButton);
-
-		const linksDialog = document.getElementById("links-dialog") as HTMLDialogElement;
-		expect(linksDialog.open).toBe(true);
-
-		click(byRole(linksDialog, "button", SETTING_LABELS.linkColor.target));
-
-		const stored = getStoredState();
-		expect(stored.settings.linkColor).toBe("target");
-		expect(linksDialog.open).toBe(false);
-		expect(document.activeElement).toBe(linksButton);
 	});
 
 	it("boots with exactly one theme option pressed, matching the default (System)", () => {
@@ -490,9 +221,7 @@ describe("diagram-only settings redraw and persist", () => {
 
 		const svgHtmlBefore = document.querySelector("#diagram svg")?.outerHTML;
 
-		click(document.getElementById("links-button"));
-		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "button", SETTING_LABELS.linkColor.static));
+		chooseSetting("Link colors", "static");
 
 		expect(document.querySelector("#diagram svg")?.outerHTML).not.toBe(svgHtmlBefore);
 		expect(getStoredState().settings.linkColor).toBe("static");
@@ -504,7 +233,7 @@ describe("diagram-only settings redraw and persist", () => {
 
 		const svgHtmlBefore = document.querySelector("#diagram svg")?.outerHTML;
 
-		click(byRole(wideAlignmentGroup(), "button", "Left"));
+		chooseSetting("Node alignment", "left");
 
 		expect(document.querySelector("#diagram svg")?.outerHTML).not.toBe(svgHtmlBefore);
 		expect(getStoredState().settings.alignment).toBe("left");
@@ -515,9 +244,7 @@ describe("diagram-only settings redraw and persist", () => {
 
 		const svgHtmlBefore = document.querySelector("#diagram svg")?.outerHTML;
 
-		click(document.getElementById("aspect-ratio-button"));
-		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "button", SETTING_LABELS.aspectRatio["3:1"]));
+		chooseSetting("Aspect ratio", "3:1");
 
 		expect(document.querySelector("#diagram svg")?.outerHTML).not.toBe(svgHtmlBefore);
 		expect(getStoredState().settings.aspectRatio).toBe("3:1");
@@ -538,11 +265,10 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 		const svgBefore = document.querySelector("#diagram svg");
 		const svgHtmlBefore = svgBefore?.outerHTML;
 
-		const leftOption = byRole<HTMLButtonElement>(wideAlignmentGroup(), "button", "Left");
-		click(leftOption);
+		const alignment = chooseSetting("Node alignment", "left");
 
 		expect(getStoredState().settings.alignment).toBe("left");
-		expect(leftOption.getAttribute("aria-pressed")).toBe("true");
+		expect(alignment.value).toBe("left");
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
 		// Identity alone can't tell no redraw from an identical one; markup can.
@@ -656,64 +382,17 @@ describe("dialog markup vs settings metadata contract", () => {
 		);
 	});
 
-	it("links dialog: rendered option set, labels, and icons match LINK_COLOR_CHOICES", () => {
+	it.each([
+		["alignment", "Node alignment"],
+		["aspectRatio", "Aspect ratio"],
+		["linkColor", "Link colors"],
+	] as const)("%s exposes every preset with its saved value", (key, label) => {
 		mountApp();
-
-		const dialog = document.getElementById("links-dialog") as HTMLDialogElement;
-		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
-		expect(options).toHaveLength(LINK_COLOR_CHOICES.length);
-		expect(new Set(options.map((option) => accessibleName(option)))).toEqual(
-			new Set(LINK_COLOR_CHOICES.map((option) => option.shortLabel)),
-		);
-		for (const meta of LINK_COLOR_CHOICES) {
-			const option = byRole<HTMLButtonElement>(dialog, "button", meta.shortLabel);
-			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${meta.iconId}`);
-		}
-	});
-
-	it("display dialog's narrow link-color copy: rendered option set matches LINK_COLOR_CHOICES", () => {
-		mountApp();
-
-		// The narrow copy uses shortLabels; the links-dialog test pins the full
-		// labels and icons.
-		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
-		const group = byRole(displayDialog, "group", "Link colors");
-		const options = allByRole<HTMLButtonElement>(group, "button");
-		expect(new Set(options.map((option) => accessibleName(option)))).toEqual(
-			new Set(LINK_COLOR_CHOICES.map((option) => option.shortLabel)),
-		);
-	});
-
-	it("alignment buttons: each DOM copy's rendered option order and labels match ALIGNMENT_CHOICES", () => {
-		mountApp();
-
-		// Each copy is checked separately so a missing button in one can't
-		// hide behind the other's count in a merged set.
-		const expectedLabels = ALIGNMENT_CHOICES.map((option) => option.label);
-
-		const wideLabels = allByRole<HTMLButtonElement>(wideAlignmentGroup(), "button").map((option) =>
-			accessibleName(option),
-		);
-		expect(wideLabels).toEqual(expectedLabels);
-
-		const narrowGroup = byRole(
-			document.getElementById("display-dialog") as HTMLDialogElement,
-			"group",
-			"Alignment",
-		);
-		const narrowLabels = allByRole<HTMLButtonElement>(narrowGroup, "button").map((option) =>
-			accessibleName(option),
-		);
-		expect(narrowLabels).toEqual(expectedLabels);
-	});
-
-	it("aspect-ratio dialog: rendered option order and labels match ASPECT_RATIO_CHOICES", () => {
-		mountApp();
-
-		const dialog = document.getElementById("aspect-ratio-dialog") as HTMLDialogElement;
-		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
-		expect(options.map((option) => accessibleName(option))).toEqual(
-			ASPECT_RATIO_CHOICES.map((preset) => preset.label),
+		const select = byRole<HTMLSelectElement>(document, "combobox", label);
+		expect(select.value).toBe(defaultState().settings[key]);
+		expect(Array.from(select.options).map((option) => option.value)).toEqual(SETTING_DOMAINS[key]);
+		expect(Array.from(select.options).map((option) => option.textContent)).toEqual(
+			SETTING_DOMAINS[key].map((value) => (SETTING_LABELS[key] as Record<string, string>)[value]),
 		);
 	});
 

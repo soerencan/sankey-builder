@@ -533,8 +533,7 @@ select {
 }
 
 /* ==========================================================================
-   Diagram toolbar: the palette carousel, link-color chooser, and alignment
-   group, all in the same row.
+   Diagram toolbar: palette carousel and explicit appearance/export actions.
    ========================================================================== */
 .toolbar-button {
 	flex: 0 0 auto;
@@ -550,27 +549,32 @@ select {
 	background: var(--border);
 }
 
-#links-button,
-#display-button,
-#aspect-ratio-button,
-#diagram-export-button {
-	padding-inline: 0.6rem;
-}
-
-/* Both toolbars stay in the DOM and only one is shown, switched by the
-   @container rule below: happy-dom doesn't evaluate container queries, so
-   tests must be able to reach either. */
-.toolbar-wide {
-	flex: 1;
+.diagram-actions {
 	display: flex;
-	align-items: center;
-	gap: inherit;
-	min-width: 0;
+	gap: 0.5rem;
+	margin-inline-start: auto;
 }
 
-.toolbar-narrow {
-	display: none;
-	margin-inline-start: auto;
+.action-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+	white-space: nowrap;
+}
+
+.setting-field {
+	display: grid;
+	gap: 0.4rem;
+	font-size: 0.9rem;
+}
+
+.setting-field + .setting-field {
+	margin-top: 1rem;
+}
+
+.setting-field select {
+	width: 100%;
 }
 
 /* min-width: 0 so the swatch strip shrinks instead of wrapping the toolbar. */
@@ -602,64 +606,7 @@ select {
 	border: 1px solid var(--border);
 }
 
-/* Segmented toggle: adjoining buttons overlap by 1px so inner borders don't
-   double. */
-.align-group {
-	display: flex;
-	flex: 0 0 auto;
-}
-
-.align-option {
-	padding: 0.35rem;
-	border-radius: 0;
-	/* A stacking context so the z-index bump below can lift a button's border
-     and focus ring above the neighbor overlapping it. */
-	position: relative;
-}
-
-.align-option:not(:first-child) {
-	margin-left: -1px;
-}
-
-.align-option:first-child {
-	border-top-left-radius: var(--radius-md);
-	border-bottom-left-radius: var(--radius-md);
-}
-
-.align-option:last-child {
-	border-top-right-radius: var(--radius-md);
-	border-bottom-right-radius: var(--radius-md);
-}
-
-.align-option:hover {
-	z-index: 1;
-}
-
-/* Higher than :hover so a hovered sibling can't paint over a keyboard-focused
-   button's focus ring. */
-.align-option:focus-visible {
-	z-index: 2;
-}
-
-/* Same fill-plus-inset-ring treatment as .choice-option[aria-pressed="true"];
-   see the rationale there. */
-.align-option[aria-pressed="true"] {
-	background: var(--border);
-	box-shadow: inset 0 0 0 2px var(--accent);
-}
-
-/* Keyed on the diagram panel's inline size, not the viewport. 820px fits the
-   grouped Export action without crowding; VERIFICATION.md's "Diagram
-   toolbar" section covers retuning it. */
 @container diagram-panel (max-width: 820px) {
-	.toolbar-wide {
-		display: none;
-	}
-
-	.toolbar-narrow {
-		display: flex;
-	}
-
 	.sankey-canvas {
 		width: 100%;
 	}
@@ -671,7 +618,7 @@ select {
 
 /* ==========================================================================
    Dialogs (native <dialog>, wired by src/shared/use-dialog.ts). The palette chooser,
-   link color/theme dialogs, and the narrow Diagram surface all share
+   link color/theme dialogs, and the Appearance surface all share
    these base styles.
    ========================================================================== */
 dialog {
@@ -722,20 +669,6 @@ dialog[open] {
 	flex-direction: column;
 }
 
-dialog h4 {
-	margin: 0 0 0.4rem;
-	font-size: 0.85rem;
-	color: color-mix(in srgb, var(--ink) 65%, transparent);
-}
-
-dialog .dialog-section + .dialog-section {
-	margin-top: 1rem;
-}
-
-/* The palette dialog's row styling generalized for the other choosers (link
-   colors, alignment, aspect ratio, theme, and the narrow sheet's copies):
-   icon and label left-aligned instead of the palette row's label/swatch
-   split. */
 .palette-options,
 .choice-options {
 	display: flex;
@@ -770,36 +703,6 @@ dialog .dialog-section + .dialog-section {
 }
 .palette-option-label {
 	margin-inline-end: auto;
-}
-
-.ratio-preview {
-	flex: 0 0 auto;
-	height: 1.25rem;
-	border: 2px solid currentColor;
-	border-radius: var(--radius-sm);
-	opacity: 0.7;
-}
-
-/* No aspect-ratio on the base .ratio-preview: every preset, the default
-   included, gets its own equally authoritative rule. */
-.ratio-preview-a-series {
-	aspect-ratio: 679 / 480;
-}
-
-.ratio-preview-3-2 {
-	aspect-ratio: 3 / 2;
-}
-
-.ratio-preview-16-9 {
-	aspect-ratio: 16 / 9;
-}
-
-.ratio-preview-2-1 {
-	aspect-ratio: 2 / 1;
-}
-
-.ratio-preview-3-1 {
-	aspect-ratio: 3 / 1;
 }
 
 .export-options {
@@ -904,7 +807,6 @@ dialog .dialog-section + .dialog-section {
 
 	/* Icon-only buttons stay ~32px wide under min-height alone. */
 	.toolbar-button,
-	.align-option,
 	.preview-size-button {
 		min-width: 44px;
 	}
@@ -940,25 +842,18 @@ dialog .dialog-section + .dialog-section {
 	border-color: var(--danger);
 }
 
-.toolbar-wide > .align-group {
-	margin-inline-start: 0.65rem;
-}
-#links-button {
-	margin-inline-start: 0.5rem;
-	border-inline-start-color: var(--border);
-	border-radius: 0;
-}
-#diagram-export-button {
-	margin-inline-start: auto;
-}
-.data-card-action {
-	gap: 0.35rem;
-}
-.data-action-label {
-	font-size: 0.85rem;
-}
-@container data-card (max-width: 340px) {
-	.data-action-label {
-		display: none;
+@container diagram-panel (max-width: 480px) {
+	.diagram-toolbar {
+		flex-wrap: wrap;
+		height: auto;
+		padding: 0.5rem;
+	}
+
+	.diagram-actions {
+		flex-basis: 100%;
+	}
+
+	.diagram-actions > button {
+		flex: 1;
 	}
 }

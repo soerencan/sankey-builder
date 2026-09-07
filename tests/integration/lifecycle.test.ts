@@ -86,10 +86,10 @@ function interceptExportElements(): {
 }
 
 function clickPngExport(): void {
-	click(document.getElementById("display-button"));
+	click(document.getElementById("diagram-export-button"));
 	click(
 		byRole(
-			document.getElementById("display-dialog") as HTMLElement,
+			document.getElementById("diagram-export-dialog") as HTMLElement,
 			"button",
 			"PNG — High-resolution image",
 		),

@@ -112,9 +112,7 @@ describe("import & export", () => {
 		expect(document.getElementById("palette-preview")?.getAttribute("aria-label")).toBe(
 			"Palette: Set 2",
 		);
-		expect(document.getElementById("links-button")?.getAttribute("aria-label")).toBe(
-			"Links: Neutral",
-		);
+		expect(byRole<HTMLSelectElement>(document, "combobox", "Link colors").value).toBe("static");
 
 		// An import without repairs isn't announced; the changed data is the
 		// feedback.
@@ -478,19 +476,19 @@ describe("import & export", () => {
 		expect(document.getElementById("io-notice")?.textContent).toBe("");
 	});
 
-	it("wires both wide and narrow export choices; empty PNG closes the Diagram dialog", () => {
+	it("offers one export picker at every size; empty PNG closes it", () => {
 		// Rasterization isn't exercisable under happy-dom; this only proves the
 		// empty-diagram guard fires first.
 		mountApp();
 
-		expect(allByRole(document, "button", "SVG — Scalable vector")).toHaveLength(2);
-		expect(allByRole(document, "button", "PNG — High-resolution image")).toHaveLength(2);
+		expect(allByRole(document, "button", "SVG — Scalable vector")).toHaveLength(1);
+		expect(allByRole(document, "button", "PNG — High-resolution image")).toHaveLength(1);
 
 		removeAllNodes();
 		expect(document.querySelector("#diagram svg")).toBeNull();
 
-		const displayButton = document.getElementById("display-button");
-		const displayDialog = document.getElementById("display-dialog") as HTMLDialogElement;
+		const displayButton = document.getElementById("diagram-export-button");
+		const displayDialog = document.getElementById("diagram-export-dialog") as HTMLDialogElement;
 		click(displayButton);
 		click(byRole(displayDialog, "button", "PNG — High-resolution image"));
 

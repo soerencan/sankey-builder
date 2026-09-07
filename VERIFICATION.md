@@ -71,31 +71,15 @@ emulation).
 
 ## Diagram toolbar
 
-- [ ] The toolbar renders as its own header bar above the diagram, on a visually distinct row — it never floats over or obscures the SVG at any width.
-- [ ] The palette carousel's swatches (both the preview button and the dialog's rows) visually match the actual rendered node colors in the diagram, in both light and dark theme.
-- [ ] With the palette dialog open, pressing Escape closes it (native `<dialog>` cancel behavior, not exercised by the automated suite), and focus visibly returns to the palette preview button.
-- [ ] The four link-color pictograms (Source, Source to target, Target, Neutral) are visually distinguishable from each other in both light and dark theme, without relying on hover or a tooltip.
-- [ ] At wide widths, the toolbar (palette carousel, Links button, alignment group, and one Export diagram control) stays on a single line — no wrapping, clipping, or overlap.
-- [ ] Opening and closing the Export diagram dialog does not resize or obscure the diagram, and focus visibly returns to the Export diagram control after a selection, Escape, or backdrop click.
-- [ ] The alignment group's pressed button (fill plus inset ring) is distinguishable from its unpressed neighbors without relying on color alone, in both light and dark theme.
-- [ ] Tabbing through the alignment group shows a complete, unclipped focus ring on each button, including the ones between two pressed-looking neighbors — the shared inner borders never cut off part of the ring.
-- [ ] Changing alignment visibly changes how nodes are packed within their columns (left/center/right/justify).
+- [ ] Palette stays unchanged. Appearance and Export are visible on desktop and phone.
+- [ ] At 320, 360, 390, 768, and 1440px there is no overflow or clipped label. Below 480px card width, actions sit together beneath the palette.
+- [ ] Appearance opens a compact panel on desktop and a bottom sheet on phones. Node alignment, Aspect ratio, and Link colors use labelled native selects.
+- [ ] Changing each select updates the diagram and persists after reload; Appearance stays open.
+- [ ] Node alignment changes horizontal column placement where the topology permits it; it does not change node order within a column.
+- [ ] Close, backdrop click, and Escape dismiss the panel and restore focus to Appearance.
+- [ ] All touch controls are at least 44px high. Native dropdowns remain usable on iPhone.
+- [ ] Export opens its own format picker on every screen size and restores focus to Export after downloading.
 
-## Diagram toolbar — narrow mode
-
-The wide/narrow swap is a container query on `.diagram-panel` itself
-(`@container diagram-panel (max-width: 820px)` in style.css's "Diagram
-toolbar" section), not a viewport media query. happy-dom doesn't evaluate
-container queries, so none of this is automated.
-
-- [ ] Resize the browser through the diagram toolbar's container-query breakpoint: the wide Links button + alignment group + Export diagram control and the narrow Diagram button swap cleanly at one width, with no point where controls clip, overlap, or wrap onto a second line.
-- [ ] If the swap happens too early or too late relative to where the wide row actually stops fitting, tune the 820px value in style.css rather than filing it as a bug.
-- [ ] No horizontal scrollbar appears at 360px, 390px, or 768px viewport widths with the narrow toolbar showing.
-- [ ] On a small/phone viewport, tapping Diagram opens it as a bottom sheet (full width, flush to the bottom edge, rounded top corners only) rather than a small centered card.
-- [ ] The diagram panel's rendered height does not change while the Diagram sheet is open (the sheet is a top-layer overlay, not part of panel layout).
-- [ ] With the Diagram sheet open, pressing Escape closes it (native `<dialog>` behavior, not exercised by the automated suite); all rows/buttons remain comfortable touch targets (~44px).
-- [ ] After closing the Diagram sheet (export, header Close button, backdrop click, or Escape), focus visibly returns to the Diagram button.
-- [ ] Coarse-pointer targets (both toolbar buttons and the Diagram sheet's option rows) are comfortably tappable (~44px) on a real touch device.
 
 ## Row reordering (drag feel)
 
@@ -137,8 +121,8 @@ served app (`make dev` or a served `dist/`).
 
 - [ ] Export: click Export JSON in the Data header → the download lands in Downloads as `sankey.json` with no console errors about blob URLs or the object-URL lifecycle.
 - [ ] Import: click Import in the Data header → the native file picker opens; choosing a previously exported file replaces the diagram, editors, and controls with zero console errors.
-- [ ] Export SVG: use Export diagram → SVG on a wide layout and Diagram → SVG on a narrow layout → `sankey.svg` downloads and opens standalone in a browser with an opaque background and legible node labels matching the current theme's colors (light theme → light background with dark labels; dark theme → dark background with light labels).
-- [ ] Export PNG: use Export diagram → PNG on a wide layout and Diagram → PNG on a narrow layout → `sankey.png` downloads at 1920x960 with an opaque background and legible node labels matching the current theme's colors, with no console errors about blob URLs, canvas tainting, or the object-URL lifecycle — check both light and dark theme, and both link color modes (single color and source→target gradient, which must rasterize as a real gradient, not a solid fallback).
+- [ ] Export SVG: use Export → SVG on both wide and narrow layouts → `sankey.svg` downloads and opens standalone in a browser with an opaque background and legible node labels matching the current theme's colors (light theme → light background with dark labels; dark theme → dark background with light labels).
+- [ ] Export PNG: use Export → PNG on both wide and narrow layouts → `sankey.png` downloads at 1920x960 with an opaque background and legible node labels matching the current theme's colors, with no console errors about blob URLs, canvas tainting, or the object-URL lifecycle — check both light and dark theme, and both link color modes (single color and source→target gradient, which must rasterize as a real gradient, not a solid fallback).
 - [ ] Safari PNG export specifically: repeat the above in Safari — canvas + SVG rasterization (drawImage of an svg: URL, toBlob) is the part most likely to diverge from Chrome/Firefox; confirm the PNG downloads and its colors/dimensions match.
 - [ ] Feedback in the consolidated notice region does not cause overlap or horizontal overflow at 360px or 390px.
 - [ ] With a screen reader running, confirm the `aria-live="polite"` notice region announces restrainedly: typing an invalid link value repeatedly does not trigger a root announcement (it's an inline field error, not a root notice), and an unrelated action (e.g. a settings change, or a second import) while a notice is already showing doesn't re-announce unchanged notice text.
@@ -148,9 +132,9 @@ served app (`make dev` or a served `dist/`).
 
 - [ ] Links, Export, Theme, Palette, and Aspect ratio use the same anchored desktop panel, transparent backdrop, header Close button, and viewport clamping/flipping. The workspace remains modal/inert until dismissal.
 - [ ] Every panel becomes a bottom sheet at narrow viewport widths, with a transparent backdrop, safe-area padding, and internally scrolling content. Close stays visible.
-- [ ] Selected list choices have a soft accent tint and decorative checkmark; keyboard focus has its own visible ring. Compact alignment buttons retain their segmented treatment.
+- [ ] Selected list choices have a soft accent tint and decorative checkmark; keyboard focus has its own visible ring.
 - [ ] Clicking interior padding keeps a panel open; outside clicks, Escape, and header Close dismiss it and return focus. Resizing and scrolling reposition open desktop panels.
-- [ ] Single-setting choices close their panel; the combined Diagram sheet stays open after settings changes and closes after export.
+- [ ] Palette and theme choices close their panel; Appearance stays open after settings changes. Export has its own panel.
 ## Implementation verification — 2026-09-06
 
 - Automated: lint, TypeScript, unit/integration suites, and production build smoke tests passed.

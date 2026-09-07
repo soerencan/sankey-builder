@@ -3,7 +3,7 @@
  * never the reverse, so the model stays free of user-facing strings.
  */
 
-import type { Alignment, LinkColorMode, Settings, Theme } from "../../model/settings";
+import type { Settings, Theme } from "../../model/settings";
 import { SETTING_DOMAINS } from "../../model/settings";
 
 /**
@@ -45,27 +45,6 @@ export const SETTING_LABELS: { [K in keyof Settings]: Record<Settings[K], string
 	},
 };
 
-export const LINK_COLOR_ICONS: Record<LinkColorMode, string> = {
-	source: "icon-link-source",
-	"source-target": "icon-link-gradient",
-	target: "icon-link-target",
-	static: "icon-link-neutral",
-};
-
-export const LINK_COLOR_SHORT_LABELS: Record<LinkColorMode, string> = {
-	source: "Source",
-	"source-target": "Gradient",
-	target: "Target",
-	static: "Neutral",
-};
-
-const ALIGNMENT_ICONS: Record<Alignment, string> = {
-	left: "icon-align-left",
-	center: "icon-align-center",
-	right: "icon-align-right",
-	justify: "icon-align-justify",
-};
-
 export const THEME_ICONS: Record<Theme, string> = {
 	auto: "icon-theme-system",
 	light: "icon-theme-light",
@@ -81,48 +60,6 @@ export const PALETTE_CHOICES: readonly PaletteChoice[] = SETTING_DOMAINS.palette
 	value,
 	label: SETTING_LABELS.palette[value],
 }));
-
-export interface LinkColorChoice {
-	value: LinkColorMode;
-	label: string;
-	shortLabel: string;
-	iconId: string;
-}
-
-export const LINK_COLOR_CHOICES: readonly LinkColorChoice[] = SETTING_DOMAINS.linkColor.map(
-	(value) => ({
-		value,
-		label: SETTING_LABELS.linkColor[value],
-		shortLabel: LINK_COLOR_SHORT_LABELS[value],
-		iconId: LINK_COLOR_ICONS[value],
-	}),
-);
-
-export interface AlignmentChoice {
-	value: Alignment;
-	label: string;
-	iconId: string;
-}
-
-export const ALIGNMENT_CHOICES: readonly AlignmentChoice[] = SETTING_DOMAINS.alignment.map(
-	(value) => ({
-		value,
-		label: SETTING_LABELS.alignment[value],
-		iconId: ALIGNMENT_ICONS[value],
-	}),
-);
-
-export interface AspectRatioChoice {
-	value: Settings["aspectRatio"];
-	label: string;
-}
-
-export const ASPECT_RATIO_CHOICES: readonly AspectRatioChoice[] = SETTING_DOMAINS.aspectRatio.map(
-	(value) => ({
-		value,
-		label: SETTING_LABELS.aspectRatio[value],
-	}),
-);
 
 export interface ThemeChoice {
 	value: Theme;
