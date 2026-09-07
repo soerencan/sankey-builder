@@ -79,11 +79,14 @@ export function nextNodeId(state: State): string {
 	return `n${maxSuffix + 1}`;
 }
 
-export function addNode(state: State): void {
+export function addNode(state: State, paletteSize: number): void {
 	const id = nextNodeId(state);
-	const used = new Set(state.nodes.map((node, index) => node.colorIndex ?? index));
-	let colorIndex = 0;
-	while (used.has(colorIndex)) colorIndex += 1;
+	// Count displayed colors, including slots wrapped by a shorter palette.
+	const usage = Array<number>(paletteSize).fill(0);
+	state.nodes.forEach((node, index) => {
+		usage[(node.colorIndex ?? index) % paletteSize] += 1;
+	});
+	const colorIndex = usage.indexOf(Math.min(...usage));
 	state.nodes.push({ id, name: `Node ${id.slice(1)}`, colorIndex });
 }
 

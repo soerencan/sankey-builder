@@ -77,8 +77,8 @@ describe("nextNodeId", () => {
 
 	it("assigns ids via addNode using the same suffix logic", () => {
 		const state: State = { nodes: [], links: [], settings: defaultState().settings };
-		addNode(state);
-		addNode(state);
+		addNode(state, 10);
+		addNode(state, 10);
 		expect(state.nodes.map((n) => n.id)).toEqual(["n1", "n2"]);
 	});
 });
@@ -353,5 +353,31 @@ describe("withoutLinkId", () => {
 		const link: Link = { id: "l1", source: "n1", target: "n2", value: 5 };
 		withoutLinkId(link);
 		expect(link.id).toBe("l1");
+	});
+});
+
+describe("node color allocation", () => {
+	it("reuses a deleted node's slot without changing surviving assignments", () => {
+		const state = defaultState();
+		deleteNode(state, "n2");
+		moveNode(state, 0, 2);
+		const before = structuredClone(state.nodes);
+		addNode(state, 10);
+		expect(state.nodes.slice(0, -1)).toEqual(before);
+		expect(state.nodes.at(-1)?.colorIndex).toBe(1);
+	});
+	it("uses the least-used color after a palette is exhausted", () => {
+		const state = defaultState();
+		state.nodes = [0, 0, 1, 2].map((colorIndex, i) => ({ id: `n${i + 1}`, name: "N", colorIndex }));
+		addNode(state, 3);
+		expect(state.nodes.at(-1)?.colorIndex).toBe(1);
+		addNode(state, 3);
+		expect(state.nodes.at(-1)?.colorIndex).toBe(2);
+	});
+	it("counts wrapped slots in the active palette", () => {
+		const state = defaultState();
+		state.nodes = [0, 8, 1, 9].map((colorIndex, i) => ({ id: `n${i + 1}`, name: "N", colorIndex }));
+		addNode(state, 8);
+		expect(state.nodes.at(-1)?.colorIndex).toBe(2);
 	});
 });

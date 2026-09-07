@@ -4,6 +4,7 @@ import type { DataPanelActions } from "../features/editor/data-panel";
 import type { LinkEditorActions } from "../features/editor/link-editor";
 import type { NodeEditorActions } from "../features/editor/node-editor";
 import { removeActiveDragClone } from "../features/editor/row-reorder";
+import { paletteColors } from "../features/settings/palettes";
 import { applyTheme } from "../features/settings/theme";
 import type { ThemeControlActions } from "../features/settings/theme-control";
 import type { Diagram, State } from "../model/graph";
@@ -124,7 +125,7 @@ export function startApp(doc: Document = globalThis.document): AppHandle {
 
 	const nodeEditorActions: NodeEditorActions = {
 		addNode() {
-			commit((s) => addNode(s));
+			commit((s) => addNode(s, paletteColors(s.settings.palette).length));
 		},
 		deleteNode(id) {
 			commit((s) => deleteNode(s, id));
