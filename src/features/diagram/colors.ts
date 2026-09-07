@@ -13,14 +13,11 @@ export function createNodeColorResolver(
 	nodes: readonly Readonly<Node>[],
 	palette: Palette,
 ): NodeColorResolver {
-	// Keyed by id, not position, so colors don't reshuffle as nodes are
-	// added, removed, or renamed. The codec doesn't dedupe imported ids, so
-	// a duplicate shares its first occurrence's color. The `?? 0` only
-	// satisfies the type: callers resolve ids from the list this was built from.
+	// Resolve by id so layout nodes and editor swatches share the saved slot.
 	const colors = paletteColors(palette);
 	const index = new Map<string, number>();
 	for (const node of nodes) {
-		if (!index.has(node.id)) index.set(node.id, index.size);
+		if (!index.has(node.id)) index.set(node.id, node.colorIndex ?? index.size);
 	}
 	return (node) => colors[(index.get(node.id) ?? 0) % colors.length];
 }

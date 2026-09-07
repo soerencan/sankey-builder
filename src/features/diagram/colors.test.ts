@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultState } from "../../model/graph";
+import { defaultState, deleteNode, moveNode, renameNode } from "../../model/graph";
 import { paletteColors } from "../settings/palettes";
 import { createNodeColorResolver } from "./colors";
 
@@ -69,4 +69,22 @@ describe("createNodeColorResolver", () => {
 		expect(resolve(nodes[1])).toBe(colors[0]);
 		expect(resolve(nodes[2])).toBe(colors[1]);
 	});
+});
+
+it("keeps saved colors through reordering, renaming, and deletion", () => {
+	const state = defaultState();
+	const before = createNodeColorResolver(state.nodes, state.settings.palette);
+	moveNode(state, 0, 3);
+	renameNode(state, "n2", "Renamed");
+	deleteNode(state, "n3");
+	const after = createNodeColorResolver(state.nodes, state.settings.palette);
+	for (const node of state.nodes) expect(after(node)).toBe(before(node));
+});
+
+it("keeps palette slots when switching to a shorter palette and back", () => {
+	const nodes = [{ id: "a", name: "A", colorIndex: 9 }];
+	expect(createNodeColorResolver(nodes, "dark2")(nodes[0])).toBe(paletteColors("dark2")[1]);
+	expect(createNodeColorResolver(nodes, "observable10")(nodes[0])).toBe(
+		paletteColors("observable10")[9],
+	);
 });

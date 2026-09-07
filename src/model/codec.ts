@@ -64,12 +64,21 @@ function isRawLink(value: unknown): value is Record<string, unknown> {
 
 function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] {
 	const nodes: Node[] = [];
+	const slots = new Map<string, number>();
 	rawNodes.forEach((value, index) => {
 		if (!isRawNode(value)) {
 			repairs?.push(`node ${index + 1}: missing id or name — dropped`);
 			return;
 		}
-		nodes.push({ id: value.id, name: value.name });
+		const savedIndex = asRecord(value).colorIndex;
+		const validIndex =
+			typeof savedIndex === "number" && Number.isSafeInteger(savedIndex) && savedIndex >= 0;
+		if (savedIndex !== undefined && !validIndex) {
+			repairs?.push(`node ${index + 1}: invalid color index — using default`);
+		}
+		const colorIndex = slots.get(value.id) ?? (validIndex ? savedIndex : slots.size);
+		slots.set(value.id, colorIndex);
+		nodes.push({ id: value.id, name: value.name, colorIndex });
 	});
 	return nodes;
 }

@@ -63,8 +63,8 @@ describe("loadState", () => {
 		const storage = fakeLocalStorage();
 		const state: State = {
 			nodes: [
-				{ id: "n1", name: "A" },
-				{ id: "n2", name: "B" },
+				{ id: "n1", name: "A", colorIndex: 0 },
+				{ id: "n2", name: "B", colorIndex: 1 },
 			],
 			links: [{ id: "original-id", source: "n1", target: "n2", value: 5 }],
 			settings: {
@@ -89,7 +89,7 @@ describe("loadState", () => {
 	it("preserves theme and a link with a null endpoint across a save/load round trip", () => {
 		const storage = fakeLocalStorage();
 		const state: State = {
-			nodes: [{ id: "n1", name: "A" }],
+			nodes: [{ id: "n1", name: "A", colorIndex: 0 }],
 			links: [{ id: "l1", source: "n1", target: null, value: 3 }],
 			settings: {
 				...DEFAULT_SETTINGS,
@@ -116,8 +116,8 @@ describe("loadState", () => {
 			STORAGE_KEY,
 			JSON.stringify({
 				nodes: [
-					{ id: "n1", name: "A" },
-					{ id: "n2", name: "B" },
+					{ id: "n1", name: "A", colorIndex: 0 },
+					{ id: "n2", name: "B", colorIndex: 1 },
 				],
 				links: [
 					{ id: "stray-1", source: "n1", target: "n2", value: 1 },

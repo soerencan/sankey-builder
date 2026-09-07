@@ -4,6 +4,8 @@ import { DEFAULT_SETTINGS, pickDiagramSettings } from "./settings";
 export interface Node {
 	id: string;
 	name: string;
+	/** Stable palette slot; omitted only by legacy callers before normalization. */
+	colorIndex?: number;
 }
 
 /**
@@ -54,10 +56,10 @@ export function nextLinkId(): string {
 export function defaultState(): State {
 	return {
 		nodes: [
-			{ id: "n1", name: "Coal" },
-			{ id: "n2", name: "Gas" },
-			{ id: "n3", name: "Electricity" },
-			{ id: "n4", name: "Homes" },
+			{ id: "n1", name: "Coal", colorIndex: 0 },
+			{ id: "n2", name: "Gas", colorIndex: 1 },
+			{ id: "n3", name: "Electricity", colorIndex: 2 },
+			{ id: "n4", name: "Homes", colorIndex: 3 },
 		],
 		links: [
 			{ id: nextLinkId(), source: "n1", target: "n3", value: 10 },
@@ -79,7 +81,10 @@ export function nextNodeId(state: State): string {
 
 export function addNode(state: State): void {
 	const id = nextNodeId(state);
-	state.nodes.push({ id, name: `Node ${id.slice(1)}` });
+	const used = new Set(state.nodes.map((node, index) => node.colorIndex ?? index));
+	let colorIndex = 0;
+	while (used.has(colorIndex)) colorIndex += 1;
+	state.nodes.push({ id, name: `Node ${id.slice(1)}`, colorIndex });
 }
 
 export function renameNode(state: State, id: string, name: string): void {

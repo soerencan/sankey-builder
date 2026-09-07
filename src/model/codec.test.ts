@@ -76,7 +76,7 @@ describe("normalizeState", () => {
 			links: [],
 			settings: {},
 		};
-		expect(normalizeState(payload).nodes).toEqual([{ id: "n1", name: "A" }]);
+		expect(normalizeState(payload).nodes).toEqual([{ id: "n1", name: "A", colorIndex: 0 }]);
 	});
 
 	it("drops unknown fields on nodes and links", () => {
@@ -86,7 +86,7 @@ describe("normalizeState", () => {
 			settings: {},
 		};
 		const state = normalizeState(payload);
-		expect(state.nodes).toEqual([{ id: "n1", name: "A" }]);
+		expect(state.nodes).toEqual([{ id: "n1", name: "A", colorIndex: 0 }]);
 		expect(state.links.map(withoutLinkId)).toEqual([{ source: "n1", target: "n1", value: 1 }]);
 	});
 
@@ -96,7 +96,7 @@ describe("normalizeState", () => {
 			links: [],
 			settings: {},
 		};
-		expect(normalizeState(payload).nodes[0]).toEqual({ id: "n1", name: "A" });
+		expect(normalizeState(payload).nodes[0]).toEqual({ id: "n1", name: "A", colorIndex: 0 });
 	});
 
 	describe("link ids", () => {
@@ -264,4 +264,41 @@ describe("normalizeDiagram", () => {
 	it("uses the default for every diagram setting silently when all keys are missing", () => {
 		expect(repairsFor({})).toEqual([]);
 	});
+});
+
+describe("node palette slots", () => {
+	it("assigns legacy nodes their existing palette order, sharing duplicate ids", () => {
+		const state = normalizeState({
+			nodes: [
+				{ id: "b", name: "B" },
+				{ id: "a", name: "A" },
+				{ id: "b", name: "B again" },
+				{ id: "c", name: "C" },
+			],
+			links: [],
+		});
+		expect(state.nodes.map((n) => n.colorIndex)).toEqual([0, 1, 0, 2]);
+	});
+	it("preserves saved slots independently of row order", () => {
+		const state = normalizeState({
+			nodes: [
+				{ id: "b", name: "B", colorIndex: 9 },
+				{ id: "a", name: "A", colorIndex: 0 },
+			],
+			links: [],
+		});
+		expect(normalizeState(state).nodes.map((n) => n.colorIndex)).toEqual([9, 0]);
+	});
+	it.each([-1, 1.5, "2", null, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1])(
+		"repairs invalid palette slot %s",
+		(colorIndex) => {
+			const repairs: string[] = [];
+			const diagram = normalizeDiagram(
+				{ nodes: [{ id: "a", name: "A", colorIndex }], links: [] },
+				repairs,
+			);
+			expect(diagram.nodes[0].colorIndex).toBe(0);
+			expect(repairs).toEqual(["node 1: invalid color index — using default"]);
+		},
+	);
 });

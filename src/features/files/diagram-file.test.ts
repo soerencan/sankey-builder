@@ -7,8 +7,8 @@ import { parseImport, serializeState } from "./diagram-file";
 function sampleState(): State {
 	return {
 		nodes: [
-			{ id: "n1", name: "A" },
-			{ id: "n2", name: "B" },
+			{ id: "n1", name: "A", colorIndex: 0 },
+			{ id: "n2", name: "B", colorIndex: 1 },
 		],
 		links: [{ id: "l1", source: "n1", target: "n2", value: 5 }],
 		settings: {
@@ -91,8 +91,8 @@ describe("parseImport round-trip", () => {
 		const result = parseImport(
 			JSON.stringify({
 				nodes: [
-					{ id: "n1", name: "A" },
-					{ id: "n2", name: "B" },
+					{ id: "n1", name: "A", colorIndex: 0 },
+					{ id: "n2", name: "B", colorIndex: 1 },
 				],
 				links: [{ id: "stray-id", source: "n1", target: "n2", value: 1 }],
 			}),
@@ -148,8 +148,8 @@ describe("parseImport repairs", () => {
 			settings: { colorMode: "manual", palette: "set2" },
 		});
 		expect(result.diagram.nodes).toEqual([
-			{ id: "n1", name: "A" },
-			{ id: "n2", name: "B" },
+			{ id: "n1", name: "A", colorIndex: 0 },
+			{ id: "n2", name: "B", colorIndex: 1 },
 		]);
 		expect(result.diagram.settings.palette).toBe("set2");
 		expect(result.repairs).toEqual([
@@ -159,7 +159,7 @@ describe("parseImport repairs", () => {
 
 	it("ignores an unrecognized legacy colorMode value silently", () => {
 		const result = importPayload({
-			nodes: [{ id: "n1", name: "A" }],
+			nodes: [{ id: "n1", name: "A", colorIndex: 0 }],
 			links: [],
 			settings: { colorMode: "bogus" },
 		});
@@ -172,7 +172,7 @@ describe("parseImport repairs", () => {
 			links: [],
 			settings: {},
 		});
-		expect(result.diagram.nodes).toEqual([{ id: "n1", name: "A" }]);
+		expect(result.diagram.nodes).toEqual([{ id: "n1", name: "A", colorIndex: 0 }]);
 		expect(result.repairs).toEqual([]);
 	});
 
@@ -184,7 +184,7 @@ describe("parseImport repairs", () => {
 
 	it("coerces a dangling endpoint to null and reports it", () => {
 		const result = importPayload({
-			nodes: [{ id: "n1", name: "A" }],
+			nodes: [{ id: "n1", name: "A", colorIndex: 0 }],
 			links: [{ source: "n1", target: "gone", value: 1 }],
 			settings: {},
 		});
@@ -197,8 +197,8 @@ describe("parseImport repairs", () => {
 	it("coerces a bad value to 1 and reports it", () => {
 		const result = importPayload({
 			nodes: [
-				{ id: "n1", name: "A" },
-				{ id: "n2", name: "B" },
+				{ id: "n1", name: "A", colorIndex: 0 },
+				{ id: "n2", name: "B", colorIndex: 1 },
 			],
 			links: [{ source: "n1", target: "n2", value: -4 }],
 			settings: {},
@@ -222,7 +222,7 @@ describe("parseImport repairs", () => {
 			settings: { palette: "set2" },
 			meta: { author: "someone" },
 		});
-		expect(result.diagram.nodes).toEqual([{ id: "n1", name: "A" }]);
+		expect(result.diagram.nodes).toEqual([{ id: "n1", name: "A", colorIndex: 0 }]);
 		expect(result.diagram.settings.palette).toBe("set2");
 		expect(result.repairs).toEqual([]);
 	});
@@ -238,7 +238,11 @@ describe("parseImport repairs", () => {
 describe("normalizeState and parseImport agreement", () => {
 	it("share one normalizer: same repaired diagram, minus theme, for every repair kind", () => {
 		const payload = {
-			nodes: [{ id: "n1", name: "A" }, { id: "n2", name: "B" }, { name: "no id" }],
+			nodes: [
+				{ id: "n1", name: "A", colorIndex: 0 },
+				{ id: "n2", name: "B", colorIndex: 1 },
+				{ name: "no id" },
+			],
 			links: [
 				"not an object",
 				{ source: "missing", target: "n1", value: 1 },
