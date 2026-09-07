@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Diagram } from "../../model/graph";
-import { defaultState } from "../../model/graph";
+import { defaultState, moveNode } from "../../model/graph";
 import { layoutDiagram } from "./layout";
 
 function diagramOf(state: ReturnType<typeof defaultState>): Diagram {
@@ -8,6 +8,30 @@ function diagramOf(state: ReturnType<typeof defaultState>): Diagram {
 }
 
 describe("layoutDiagram", () => {
+	it.each(["left", "right", "center", "justify"] as const)(
+		"preserves node editor order within each column with %s alignment",
+		(alignment) => {
+			const state = defaultState();
+			state.settings.alignment = alignment;
+			state.nodes = ["a", "b", "c", "d"].map((id) => ({ id, name: id }));
+			state.links = [
+				{ id: "l1", source: "a", target: "d", value: 1 },
+				{ id: "l2", source: "b", target: "c", value: 1 },
+			];
+
+			const columnOrder = () => {
+				const nodes = layoutDiagram(diagramOf(state))?.nodes ?? [];
+				return nodes
+					.sort((a, b) => a.x0 - b.x0 || a.y0 - b.y0)
+					.map((node) => node.id);
+			};
+
+			expect(columnOrder()).toEqual(["a", "b", "c", "d"]);
+			moveNode(state, 1, 0);
+			expect(columnOrder()).toEqual(["b", "a", "c", "d"]);
+		},
+	);
+
 	it("returns null for zero nodes", () => {
 		const state = defaultState();
 		state.nodes = [];

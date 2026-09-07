@@ -96,6 +96,8 @@ export function layoutDiagram(diagram: Readonly<Diagram>): SankeyLayout | null {
 	const graph = sankey<Node, LinkExtra>()
 		.nodeId((d) => d.id)
 		.nodeAlign(ALIGN_FNS[diagram.settings.alignment])
+		// Preserve editor order within each column while D3 computes positions.
+		.nodeSort(null)
 		.nodeWidth(15)
 		.nodePadding(10)
 		.extent([
