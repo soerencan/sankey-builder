@@ -98,6 +98,8 @@ export function layoutDiagram(diagram: Readonly<Diagram>): SankeyLayout | null {
 		.nodeAlign(ALIGN_FNS[diagram.settings.alignment])
 		// Preserve editor order within each column while D3 computes positions.
 		.nodeSort(null)
+		// Preserve link editor order at both incoming and outgoing endpoints.
+		.linkSort(null)
 		.nodeWidth(15)
 		.nodePadding(10)
 		.extent([

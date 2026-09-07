@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Diagram } from "../../model/graph";
-import { defaultState, moveNode } from "../../model/graph";
+import { defaultState, moveLink, moveNode } from "../../model/graph";
 import { layoutDiagram } from "./layout";
 
 function diagramOf(state: ReturnType<typeof defaultState>): Diagram {
@@ -8,6 +8,37 @@ function diagramOf(state: ReturnType<typeof defaultState>): Diagram {
 }
 
 describe("layoutDiagram", () => {
+	it("preserves link editor order at shared endpoints, including links that skip columns", () => {
+		const state = defaultState();
+		state.nodes = ["a", "b", "c", "d"].map((id) => ({ id, name: id }));
+		state.links = [
+			{ id: "l1", source: "a", target: "c", value: 2 },
+			{ id: "draft", source: null, target: "c", value: 1 },
+			{ id: "l2", source: "b", target: "c", value: 3 },
+			{ id: "l3", source: "a", target: "b", value: 4 },
+			{ id: "l4", source: "d", target: "c", value: 1 },
+		];
+
+		const endpointOrder = (endpoint: "source" | "target", id: string) => {
+			const links = layoutDiagram(diagramOf(state))?.links ?? [];
+			// Horizontal paths are M x,y C x,y,x,y,x,y: inspect actual drawn endpoints.
+			const y = (d: string) => {
+				const coordinates = d.split(/[MC,]/).filter(Boolean).map(Number);
+				return coordinates[endpoint === "source" ? 1 : 7];
+			};
+			return links
+				.filter((link) => link[endpoint].id === id)
+				.sort((a, b) => y(a.d) - y(b.d))
+				.map((link) => `${link.source.id}->${link.target.id}`);
+		};
+
+		expect(endpointOrder("source", "a")).toEqual(["a->c", "a->b"]);
+		expect(endpointOrder("target", "c")).toEqual(["a->c", "b->c", "d->c"]);
+		moveLink(state, 0, 4);
+		expect(endpointOrder("source", "a")).toEqual(["a->b", "a->c"]);
+		expect(endpointOrder("target", "c")).toEqual(["b->c", "d->c", "a->c"]);
+	});
+
 	it.each(["left", "right", "center", "justify"] as const)(
 		"preserves node editor order within each column with %s alignment",
 		(alignment) => {
@@ -21,9 +52,7 @@ describe("layoutDiagram", () => {
 
 			const columnOrder = () => {
 				const nodes = layoutDiagram(diagramOf(state))?.nodes ?? [];
-				return nodes
-					.sort((a, b) => a.x0 - b.x0 || a.y0 - b.y0)
-					.map((node) => node.id);
+				return nodes.sort((a, b) => a.x0 - b.x0 || a.y0 - b.y0).map((node) => node.id);
 			};
 
 			expect(columnOrder()).toEqual(["a", "b", "c", "d"]);
