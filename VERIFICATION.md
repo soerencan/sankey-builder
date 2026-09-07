@@ -147,7 +147,7 @@ served app (`make dev` or a served `dist/`).
 ## Shared choice panels
 
 - [ ] Links, Export, Theme, Palette, and Aspect ratio use the same anchored desktop panel, transparent backdrop, header Close button, and viewport clamping/flipping. The workspace remains modal/inert until dismissal.
-- [ ] Every panel becomes a bottom sheet at narrow viewport widths, with a gentle backdrop, safe-area padding, and internally scrolling content. Close stays visible.
+- [ ] Every panel becomes a bottom sheet at narrow viewport widths, with a transparent backdrop, safe-area padding, and internally scrolling content. Close stays visible.
 - [ ] Selected list choices have a soft accent tint and decorative checkmark; keyboard focus has its own visible ring. Compact alignment buttons retain their segmented treatment.
 - [ ] Clicking interior padding keeps a panel open; outside clicks, Escape, and header Close dismiss it and return focus. Resizing and scrolling reposition open desktop panels.
 - [ ] Single-setting choices close their panel; the combined Diagram sheet stays open after settings changes and closes after export.
@@ -160,3 +160,11 @@ served app (`make dev` or a served `dist/`).
 - Downloaded real SVG and PNG files during browser verification. Export handlers are unchanged; the final implementation restores the original label rendering and export typography.
 - Label sizing/fitting was explored and then explicitly deferred. A 72-node, six-stage graph reduced every label to an ellipsis at 360px; avoiding overlap alone did not preserve meaning. Revisit readable-scale navigation and labels in a dedicated follow-up.
 - Safari, Firefox, physical touch dragging, and assistive-technology checks remain manual follow-ups; they were not run in this Chromium session.
+
+## Continuous sheet surfaces — 2026-09-07
+
+- [ ] On iPhone Safari, open and close each sheet in light and dark themes with the bottom browser controls expanded and collapsed. The page, sheet, and bottom edge should share a continuous background without a dimming flash or bottom border seam.
+- [ ] Check both portrait and landscape: sheet content stays clear of the home indicator, the Close button remains reachable, and long content scrolls inside the sheet.
+- [ ] Tap outside the sheet to dismiss it; the transparent backdrop still blocks interaction with the page until dismissal.
+
+- Verified with agent-browser/Chromium: 390px and 1440px screenshots in both themes; 360px sheet bounds, internal scrolling, no horizontal overflow, Escape dismissal, and focus return. Root, body, and sheet colors match; backdrop is transparent and the mobile bottom border is zero. No browser errors. Physical iPhone Safari toolbar behavior remains unverified.
