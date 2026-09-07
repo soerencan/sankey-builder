@@ -152,3 +152,9 @@ served app (`make dev` or a served `dist/`).
 - [ ] Tap outside the sheet to dismiss it; the transparent backdrop still blocks interaction with the page until dismissal.
 
 - Verified with agent-browser/Chromium: 390px and 1440px screenshots in both themes; 360px sheet bounds, internal scrolling, no horizontal overflow, Escape dismissal, and focus return. Root, body, and sheet colors match; backdrop is transparent and the mobile bottom border is zero. No browser errors. Physical iPhone Safari toolbar behavior remains unverified.
+
+## Simplified controls — 2026-09-07
+
+- Verified with agent-browser/Chromium at 320, 390, 768, and 1440px, including light and dark screenshots. Appearance and Export remain visible; JSON action labels remain visible on the smallest layout.
+- Exercised all three native selects, live diagram updates, Escape/focus return, and SVG export from the separate picker. No browser errors.
+- Native selects use 16px text to avoid iPhone's small-input focus zoom. Physical iPhone picker and browser-toolbar behavior still need device verification.
