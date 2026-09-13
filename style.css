@@ -344,6 +344,15 @@ select {
 	width: 4.5rem;
 }
 
+.link-row select[data-placeholder="true"],
+.link-row option[value=""] {
+	color: color-mix(in srgb, var(--ink) 60%, var(--control));
+}
+
+.link-row .node-option {
+	color: var(--ink);
+}
+
 /* --danger carries its own light/dark variants, so the error ring reads in
    both themes. The box-shadow stays visible under the accent :focus-visible
    outline the field also gets while being typed in. */
@@ -372,9 +381,13 @@ select {
 /* .row-ghost/.row-chosen/.row-fallback are the classes SortableJS toggles
    via its ghostClass/chosenClass/fallbackClass options. */
 .drag-handle {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 2rem;
 	border: none;
 	border-radius: var(--radius-sm);
-	padding: 0 0.15rem;
+	padding: 0;
 	background: transparent;
 	color: color-mix(in srgb, var(--ink) 45%, transparent);
 	font-size: 1rem;
@@ -648,6 +661,7 @@ dialog::backdrop {
 	margin: 0;
 	font-size: 0.9rem;
 }
+
 .dialog-close {
 	display: flex;
 	align-items: center;
@@ -655,11 +669,13 @@ dialog::backdrop {
 	border: 0;
 	padding: 0.4rem;
 }
+
 .dialog-content {
 	padding: 0.25rem 0.75rem 0.75rem;
 	overflow-y: auto;
 	min-height: 0;
 }
+
 dialog[open] {
 	display: flex;
 	flex-direction: column;
@@ -691,12 +707,14 @@ dialog[open] {
 .choice-option[aria-pressed="true"] {
 	background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
+
 .selection-indicator {
 	margin-inline-start: auto;
 	width: 1em;
 	flex: 0 0 1em;
 	color: var(--accent);
 }
+
 .palette-option-label {
 	margin-inline-end: auto;
 }
@@ -752,20 +770,30 @@ dialog[open] {
 	container-type: inline-size;
 }
 
-/* Below the threshold the two selects can't share a line with
-   value/delete/handle, so those drop to a second line. */
-@container (max-width: 400px) {
+/* Narrow editors use separate groups so each link remains clear
+   when its controls no longer fit on one line. */
+@container (max-width: 380px) {
+	.data-section .link-rows {
+		gap: 1.5rem;
+	}
+
 	.link-row {
-		grid-template-columns: repeat(6, 1fr);
+		grid-template-columns: auto minmax(0, 1fr);
 		grid-template-areas:
-			"source source source target target target"
-			"handle value  value  value  delete delete";
-		row-gap: 0.5rem;
+			"handle source"
+			". target"
+			". value"
+			". delete";
+	}
+
+	.link-row button,
+	.link-row select,
+	.link-row input {
+		min-height: 44px;
 	}
 
 	.link-row .drag-handle {
 		grid-area: handle;
-		justify-self: start;
 	}
 
 	.link-source {
@@ -778,11 +806,13 @@ dialog[open] {
 
 	.link-value {
 		grid-area: value;
-		width: auto;
+		width: 100%;
+		max-width: 100%;
 	}
 
 	.link-delete {
 		grid-area: delete;
+		justify-self: end;
 	}
 }
 
@@ -795,10 +825,13 @@ dialog[open] {
 		min-height: 44px;
 	}
 
-	.drag-handle {
-		min-width: 44px;
-		/* At 1rem the glyph is a stray speck in the 44px touch target. */
-		font-size: 1.4rem;
+	/* Enlarge the hit area equally into the surrounding gaps, keeping the
+	   visible handle and editor columns in the same place on every device. */
+	.drag-handle::before {
+		content: "";
+		position: absolute;
+		inset-block: 0;
+		inset-inline: calc((2rem - max(2rem, 44px)) / 2);
 	}
 
 	/* Icon-only buttons stay ~32px wide under min-height alone. */
@@ -830,6 +863,7 @@ dialog[open] {
 	border-color: color-mix(in srgb, var(--accent) 25%, transparent);
 	background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
+
 .node-delete:hover,
 .link-delete:hover,
 .node-delete:focus-visible,

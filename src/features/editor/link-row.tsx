@@ -30,7 +30,7 @@ function linkValueErrorMessage(reason: LinkValueInvalidReason): string {
 }
 
 /**
- * The placeholder stays selectable so an endpoint can be un-assigned again,
+ * The disabled placeholder identifies the endpoint until a node is chosen,
  * and the other endpoint's node is disabled so a self-link can't be chosen
  * in the first place. The enclosing <select>'s `value` prop drives the live
  * selection; `selected`/`disabled` are mirrored as attributes because
@@ -40,16 +40,18 @@ function renderLinkOptions(
 	nodes: readonly NodeView[],
 	selectedId: string | null,
 	excludedId: string | null,
+	placeholder: string,
 ) {
 	return (
 		<>
 			<option
 				value=""
+				disabled
 				ref={(el) => {
 					el?.toggleAttribute("selected", selectedId === null);
 				}}
 			>
-				— select —
+				{placeholder}
 			</option>
 			{nodes.map((node) => (
 				<option
@@ -150,23 +152,25 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 			</button>
 			<select
 				class="link-source"
+				data-placeholder={link.source === null ? "true" : undefined}
 				aria-label={`Source for link ${index + 1}`}
 				value={link.source ?? ""}
 				onChange={(event) =>
 					actions.updateLink(link.id, { source: event.currentTarget.value || null })
 				}
 			>
-				{renderLinkOptions(nodes, link.source, link.target)}
+				{renderLinkOptions(nodes, link.source, link.target, "Select source")}
 			</select>
 			<select
 				class="link-target"
+				data-placeholder={link.target === null ? "true" : undefined}
 				aria-label={`Target for link ${index + 1}`}
 				value={link.target ?? ""}
 				onChange={(event) =>
 					actions.updateLink(link.id, { target: event.currentTarget.value || null })
 				}
 			>
-				{renderLinkOptions(nodes, link.target, link.source)}
+				{renderLinkOptions(nodes, link.target, link.source, "Select target")}
 			</select>
 			<input
 				type="text"

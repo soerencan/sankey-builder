@@ -445,7 +445,12 @@ describe("node & link editing", () => {
 		const target = () => byRole<HTMLSelectElement>(document, "combobox", "Target for link 4");
 		expect(source()?.value).toBe("");
 		expect(target()?.value).toBe("");
-		expect(source()?.querySelector('option[value=""]')?.textContent).toBe("— select —");
+		expect(source()?.querySelector('option[value=""]')?.textContent).toBe("Select source");
+		expect(target()?.querySelector('option[value=""]')?.textContent).toBe("Select target");
+		for (const select of [source(), target()]) {
+			expect(select.querySelector<HTMLOptionElement>('option[value=""]')?.disabled).toBe(true);
+			expect(select.getAttribute("data-placeholder")).toBe("true");
+		}
 		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
 
 		expect(getStoredState().links[3]).toEqual({
@@ -469,12 +474,10 @@ describe("node & link editing", () => {
 		const parsed = getStoredState();
 		expect(parsed.links[3]).toEqual({ source: "n1", target: "n2", value: 1 });
 
-		const clearedSource = source();
-		if (!clearedSource) throw new Error("unreachable");
-		clearedSource.value = "";
-		fireChange(clearedSource);
-		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
-		expect(getStoredState().links[3].source).toBeNull();
+		for (const select of [source(), target()]) {
+			expect(select.querySelector<HTMLOptionElement>('option[value=""]')?.disabled).toBe(true);
+			expect(select.hasAttribute("data-placeholder")).toBe(false);
+		}
 	});
 
 	it("renaming a node keeps the input's focus/identity and patches link-option labels without rebuilding link rows", () => {
