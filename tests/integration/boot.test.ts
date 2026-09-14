@@ -6,12 +6,11 @@ import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-r
 import { byRole, click, getStoredState, installMarkup, mountApp, tick } from "../helpers/mount-app";
 
 describe("application boot", () => {
-	it("static markup is only the icon sprite and the #app mount — production markup comes from startApp() itself", () => {
+	it("static markup leaves #app empty — production markup comes from startApp() itself", () => {
 		installMarkup();
 
 		expect(document.getElementById("app")).not.toBeNull();
 		expect(document.getElementById("app")?.children).toHaveLength(0);
-		expect(document.querySelector("svg[hidden] symbol")).not.toBeNull();
 		expect(document.querySelector(".app-header")).toBeNull();
 		expect(document.querySelector(".diagram-panel")).toBeNull();
 		expect(document.querySelector(".data-card")).toBeNull();

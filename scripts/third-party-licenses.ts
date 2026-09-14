@@ -129,8 +129,8 @@ pre { white-space: pre-wrap; font-size: 0.85rem; margin: 0; }
 </head>
 <body>
 <h1>Third-Party Licenses</h1>
-<p>Sankey Builder bundles the packages below. Each notice is reproduced from
-the package as installed when the site was built. <a href="./">Back to the app</a>.</p>
+<p>Sankey Builder includes the third-party code and artwork listed below.
+Their license notices are reproduced here. <a href="./">Back to the app</a>.</p>
 ${sections.join("\n")}
 </body>
 </html>

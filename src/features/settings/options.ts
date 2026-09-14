@@ -5,6 +5,7 @@
 
 import type { Settings, Theme } from "../../model/settings";
 import { SETTING_DOMAINS } from "../../model/settings";
+import type { IconId } from "../../shared/icon";
 
 /**
  * One outer record over every setting, each inner record over every value,
@@ -45,7 +46,7 @@ export const SETTING_LABELS: { [K in keyof Settings]: Record<Settings[K], string
 	},
 };
 
-export const THEME_ICONS: Record<Theme, string> = {
+export const THEME_ICONS: Record<Theme, IconId> = {
 	auto: "icon-theme-system",
 	light: "icon-theme-light",
 	dark: "icon-theme-dark",
@@ -64,7 +65,7 @@ export const PALETTE_CHOICES: readonly PaletteChoice[] = SETTING_DOMAINS.palette
 export interface ThemeChoice {
 	value: Theme;
 	label: string;
-	iconId: string;
+	iconId: IconId;
 }
 
 export const THEME_CHOICES: readonly ThemeChoice[] = SETTING_DOMAINS.theme.map((value) => ({

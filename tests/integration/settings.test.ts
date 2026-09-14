@@ -406,7 +406,7 @@ describe("dialog markup vs settings metadata contract", () => {
 		);
 		for (const meta of THEME_CHOICES) {
 			const option = byRole<HTMLButtonElement>(dialog, "button", meta.label);
-			expect(option.querySelector("use")?.getAttribute("href")).toBe(`#${meta.iconId}`);
+			expect(option.querySelector(`svg.${meta.iconId}`)?.getAttribute("aria-hidden")).toBe("true");
 		}
 	});
 });

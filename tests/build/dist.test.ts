@@ -61,6 +61,9 @@ describe("production build (dist/)", () => {
 		for (const name of ["d3-sankey", "d3-scale-chromatic", "preact", "sortablejs"]) {
 			expect(notices).toContain(`<h2>${name} `);
 		}
+		expect(notices).toContain("<h2>lucide-preact ");
+		expect(notices).toContain("Lucide Icons and Contributors");
+		expect(notices).toContain("Cole Bemis");
 
 		// Removed dependencies: the ordinal scale with its d3 dependents, and
 		// d3-selection now that SankeySvg draws with Preact.

@@ -16,8 +16,10 @@ which browsers block from `file://` origins for security reasons.
 ## Dependencies
 
 The runtime dependencies are D3 (`d3-scale-chromatic`, `d3-sankey`), Preact,
-and SortableJS, all bundled by `bun build`. `package.json` and `bun.lock` are
-the source of truth for versions.
+SortableJS, and `lucide-preact`, all bundled by `bun build`. `package.json`
+and `bun.lock` are the source of truth for versions. The shared `Icon`
+component explicitly imports the Lucide icons used by the app so unused
+icons can be removed from the production bundle.
 
 ## Architecture
 
@@ -134,10 +136,11 @@ requires the repository's Pages source to be set to "GitHub Actions" once
 
 ## License
 
-Except for its third-party dependencies, this project is licensed under the
-[MIT License](LICENSE).
+Except for its third-party dependencies and artwork, this project is licensed
+under the [MIT License](LICENSE).
 
 The bundle strips the dependencies' license comments, so `make build`
 generates `dist/third-party-licenses.html` (`scripts/third-party-licenses.ts`)
-from the installed production dependency closure and the page footer links to
-it. None of those packages are relicensed under the MIT License above.
+from the installed production dependency closure, including Lucide's icon
+licenses. The page footer links to it. Those third-party works retain their
+own licenses.

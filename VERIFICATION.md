@@ -164,3 +164,11 @@ served app (`make dev` or a served `dist/`).
 - Appearance, diagram export, JSON import, and JSON export now use icon buttons with accessible names and native title tooltips. Import enters a box; export leaves it. The format picker shows SVG and PNG.
 - Verified with agent-browser/Chromium: 390px dark and 1440px light screenshots, 320px without horizontal overflow, and all four action buttons measuring 44×44px. Export opens the shortened format choices and Escape closes the picker.
 - Earlier notes about visible action labels and separate mobile action rows describe the previous revision.
+
+## Managed SVG icons — 2026-09-14
+
+- The shared Icon component uses explicit imports from Bun-managed lucide-preact. Import uses upload, export uses download, and Appearance uses a gear. Earlier box-arrow descriptions refer to the previous artwork.
+- The static sprite and copied license file are removed. Lucide's attribution is collected automatically from the installed package by the existing license generator.
+- Inspected the minified build's module metadata: only the 12 explicitly imported icons contribute code; unused catalog icons are excluded.
+- Verified in Chromium at 1440px and 320px, including light/dark themes and the Appearance sheet: square 24px icons, no clipping or horizontal overflow, no browser errors, and Escape restores focus.
+- Type checking, lint, and all 514 tests pass, including the production build and license attribution checks. Other browser engines were not checked.
