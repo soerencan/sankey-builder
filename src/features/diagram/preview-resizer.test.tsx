@@ -63,7 +63,7 @@ describe("PreviewResizer", () => {
 		expect(splitter?.getAttribute("aria-valuenow")).toBe("425");
 	});
 
-	it("supports click-only smaller, larger, and reset actions", () => {
+	it("supports click-only smaller and larger actions", () => {
 		const { container } = mount();
 		const click = (name: string) =>
 			byRole(container, "button", name).dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -73,8 +73,7 @@ describe("PreviewResizer", () => {
 		click("Make diagram preview smaller");
 		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("360");
 		click("Make diagram preview larger");
-		click("Reset diagram preview size");
-		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("360");
+		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("400");
 	});
 
 	it("supports keyboard adjustment and range endpoints", async () => {

@@ -381,9 +381,7 @@ select {
 	border-radius: var(--radius-sm);
 	padding: 0;
 	background: transparent;
-	color: color-mix(in srgb, var(--ink) 45%, transparent);
-	font-size: 1rem;
-	line-height: 1;
+	color: color-mix(in srgb, var(--ink) 70%, transparent);
 	cursor: grab;
 	transition: color 150ms var(--ease-out);
 	/* Without this, touch browsers hijack a vertical drag on the handle for
@@ -507,7 +505,8 @@ select {
 	border-radius: 0;
 }
 
-.preview-size-button {
+.preview-size-button,
+#preview-splitter {
 	color: color-mix(in srgb, var(--ink) 70%, transparent);
 }
 
@@ -515,18 +514,6 @@ select {
 	width: 4.5rem;
 	cursor: row-resize;
 	touch-action: none;
-}
-
-.preview-grip {
-	width: 2.5rem;
-	height: 0.3rem;
-	border-block: 1px solid currentColor;
-	opacity: 0.55;
-}
-
-.preview-reset {
-	margin-inline-start: 0.5rem;
-	border-inline-start: 1px solid var(--border);
 }
 
 /* ==========================================================================

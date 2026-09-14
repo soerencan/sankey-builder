@@ -2,6 +2,7 @@ import type { JSX } from "preact";
 import { useState } from "preact/hooks";
 import type { Link } from "../../model/graph";
 import { MAX_LINK_VALUE } from "../../model/validation";
+import { Icon } from "../../shared/icon";
 import type { LinkEditorActions } from "./link-editor";
 import {
 	type LinkValueInvalidReason,
@@ -148,7 +149,7 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 	return (
 		<div class="link-row">
 			<button type="button" class="drag-handle" aria-label={`Reorder link ${index + 1}`}>
-				⠿
+				<Icon id="icon-grip-vertical" />
 			</button>
 			<select
 				class="link-source"

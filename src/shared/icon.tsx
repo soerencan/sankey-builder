@@ -3,10 +3,11 @@ import {
 	ChevronRight,
 	Contrast,
 	Download,
+	GripHorizontal,
+	GripVertical,
 	Minus,
 	Moon,
 	Plus,
-	RotateCcw,
 	Settings,
 	Sun,
 	Upload,
@@ -26,7 +27,8 @@ const ICONS = {
 	"icon-minus": Minus,
 	"icon-plus": Plus,
 	"icon-close": X,
-	"icon-reset": RotateCcw,
+	"icon-grip-horizontal": GripHorizontal,
+	"icon-grip-vertical": GripVertical,
 } as const;
 
 export type IconId = keyof typeof ICONS;

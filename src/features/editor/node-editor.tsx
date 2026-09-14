@@ -1,4 +1,5 @@
 import { useRef } from "preact/hooks";
+import { Icon } from "../../shared/icon";
 import { useRowSortable } from "./use-row-sortable";
 
 export interface NodeView {
@@ -30,7 +31,7 @@ export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 				{nodes.map((node) => (
 					<div class="node-row" key={node.id}>
 						<button type="button" class="drag-handle" aria-label={`Reorder ${node.name}`}>
-							⠿
+							<Icon id="icon-grip-vertical" />
 						</button>
 						<span class="node-swatch" style={{ backgroundColor: node.swatchColor }} />
 						<input

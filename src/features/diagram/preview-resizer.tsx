@@ -155,7 +155,7 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 				onKeyDown={onSplitterKeyDown}
 				onPointerDown={onSplitterPointerDown}
 			>
-				<span class="preview-grip" aria-hidden="true" />
+				<Icon id="icon-grip-horizontal" />
 			</div>
 			<button
 				type="button"
@@ -165,15 +165,6 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 				onClick={() => apply(heightRef.current + PREVIEW_HEIGHT_STEP)}
 			>
 				<Icon id="icon-plus" />
-			</button>
-			<button
-				type="button"
-				class="preview-size-button preview-reset"
-				aria-label="Reset diagram preview size"
-				title="Reset preview size"
-				onClick={() => apply(DEFAULT_PREVIEW_HEIGHT)}
-			>
-				<Icon id="icon-reset" />
 			</button>
 		</>
 	);
