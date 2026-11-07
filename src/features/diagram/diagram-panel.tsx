@@ -34,13 +34,8 @@ type ExportOptionsProps = {
 /** Not a choice component: these are one-shot actions with no current value to mark. */
 function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOptionsProps) {
 	return (
-		<div
-			class="export-options"
-			// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — a labelled pair of one-shot export actions, not a submittable form control.
-			role="group"
-			aria-label={label}
-			aria-labelledby={labelledBy}
-		>
+		// biome-ignore lint/a11y/useSemanticElements: These are export actions, not form controls requiring a fieldset.
+		<div class="export-options" role="group" aria-label={label} aria-labelledby={labelledBy}>
 			<button type="button" class="choice-option" onClick={onExportSvg}>
 				SVG
 			</button>

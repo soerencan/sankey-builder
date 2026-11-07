@@ -1,5 +1,5 @@
-import { isComplete } from "./graph";
 import type { CompleteLink, State } from "./graph";
+import { isComplete } from "./graph";
 
 // d3-sankey multiplies y-coordinates by link values; near Number.MAX_VALUE
 // that overflows into NaN geometry even though the value itself is finite.

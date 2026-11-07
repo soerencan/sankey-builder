@@ -30,13 +30,8 @@ export function ChoiceGroup<Option extends { value: string }>({
 	labelledBy,
 }: ChoiceGroupProps<Option>) {
 	return (
-		<div
-			class={groupClass}
-			// biome-ignore lint/a11y/useSemanticElements: role="group" with an accessible name, no <fieldset>/<legend> — a live custom radio-group of pressed buttons, not a submittable form control.
-			role="group"
-			aria-label={label}
-			aria-labelledby={labelledBy}
-		>
+		// biome-ignore lint/a11y/useSemanticElements: These buttons change settings immediately, not as part of a submittable form.
+		<div class={groupClass} role="group" aria-label={label} aria-labelledby={labelledBy}>
 			{options.map((option) => (
 				<button
 					key={option.value}

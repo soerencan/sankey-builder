@@ -5,8 +5,8 @@ import { MAX_LINK_VALUE } from "../../model/validation";
 import { Icon } from "../../shared/icon";
 import type { LinkEditorActions } from "./link-editor";
 import {
-	type LinkValueInvalidReason,
 	exceedsFractionDigits,
+	type LinkValueInvalidReason,
 	parseLinkValue,
 	truncateFractionDigits,
 } from "./link-value";

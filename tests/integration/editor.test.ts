@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { STORAGE_KEY } from "../../src/platform/storage";
 import {
 	byRole,
@@ -523,7 +523,9 @@ describe("node & link editing", () => {
 		// Each link row keeps its DOM identity.
 		const linkRowElsAfter = Array.from(document.querySelectorAll("#link-editor .link-row"));
 		expect(linkRowElsAfter.length).toBe(linkRowElsBefore.length);
-		linkRowElsAfter.forEach((row, i) => expect(row).toBe(linkRowElsBefore[i]));
+		linkRowElsAfter.forEach((row, i) => {
+			expect(row).toBe(linkRowElsBefore[i]);
+		});
 
 		const optionsAfter = Array.from(
 			document.querySelectorAll<HTMLOptionElement>("#link-editor option.node-option"),

@@ -1,10 +1,10 @@
 import { useMemo } from "preact/hooks";
 import type { Diagram } from "../../model/graph";
 import type { LinkColorMode } from "../../model/settings";
-import { createNodeColorResolver } from "./colors";
 import type { NodeColorResolver } from "./colors";
-import { layoutDiagram } from "./layout";
+import { createNodeColorResolver } from "./colors";
 import type { LayoutLink } from "./layout";
+import { layoutDiagram } from "./layout";
 
 function linkStroke(mode: LinkColorMode, nodeColor: NodeColorResolver): (d: LayoutLink) => string {
 	if (mode === "source") return (d) => nodeColor(d.source);

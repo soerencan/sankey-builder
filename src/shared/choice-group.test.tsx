@@ -122,7 +122,9 @@ describe("ChoiceGroup", () => {
 
 		// toBe per element: toEqual would pass on structurally identical clones.
 		expect(after).toHaveLength(before.length);
-		after.forEach((button, index) => expect(button).toBe(before[index]));
+		after.forEach((button, index) => {
+			expect(button).toBe(before[index]);
+		});
 		expect(pressedBefore).toEqual(["true", "false", "false"]);
 		expect(after.map((button) => button.getAttribute("aria-pressed"))).toEqual([
 			"false",

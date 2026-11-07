@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SETTING_NAMES, isRawDiagram, normalizeDiagram, normalizeState } from "./codec";
+import { isRawDiagram, normalizeDiagram, normalizeState, SETTING_NAMES } from "./codec";
 import type { State } from "./graph";
 import { defaultState, withoutLinkId } from "./graph";
 import { DEFAULT_SETTINGS, DIAGRAM_SETTING_KEYS } from "./settings";

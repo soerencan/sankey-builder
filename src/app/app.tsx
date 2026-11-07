@@ -81,9 +81,11 @@ export function App({
 							<SankeySvg diagram={lastValidDiagram} />
 						</div>
 					</div>
+					{/* biome-ignore lint/a11y/useSemanticElements: These controls resize the viewport, not a form field. */}
 					<div
 						id="preview-resizer"
 						class="preview-resizer"
+						role="group"
 						aria-label="Diagram preview size controls"
 					>
 						<PreviewResizer diagramRef={diagramRef} />

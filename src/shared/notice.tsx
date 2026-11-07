@@ -39,10 +39,10 @@ export function NoticeRegion({ notices, dismissIo }: NoticeRegionProps) {
 			{NOTICE_ORDER.map((kind) => {
 				const notice = notices[kind];
 				return (
+					// A status message is not a form calculation result, so output would give it the wrong meaning.
 					<div
 						key={kind}
 						id={NOTICE_ID[kind]}
-						// biome-ignore lint/a11y/useSemanticElements: <output> represents the result of a form calculation, not an arbitrary status message, so role="status" on a plain <div> is the correct match here.
 						role="status"
 						aria-live="polite"
 						class={notice ? `notice-${notice.tone}` : undefined}

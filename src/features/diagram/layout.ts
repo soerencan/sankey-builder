@@ -1,3 +1,4 @@
+import type { SankeyLink, SankeyNode } from "d3-sankey";
 import {
 	sankey,
 	sankeyCenter,
@@ -6,7 +7,6 @@ import {
 	sankeyLinkHorizontal,
 	sankeyRight,
 } from "d3-sankey";
-import type { SankeyLink, SankeyNode } from "d3-sankey";
 import type { CompleteLink, Diagram, Node } from "../../model/graph";
 import { isComplete } from "../../model/graph";
 import type { Alignment } from "../../model/settings";
