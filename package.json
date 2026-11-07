@@ -21,7 +21,7 @@
 		"@types/d3-scale-chromatic": "^3.1.0",
 		"@types/sortablejs": "^1.15.9",
 		"happy-dom": "^20.11.0",
-		"typescript": "^5.7.0",
+		"typescript": "^7.0.2",
 		"vitest": "^3.0.0"
 	},
 	"trustedDependencies": ["@biomejs/biome"],
