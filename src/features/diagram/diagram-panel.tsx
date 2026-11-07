@@ -5,17 +5,14 @@ import { ChoiceDialog } from "../../shared/choice-dialog";
 import type { AccessibleName } from "../../shared/choice-group";
 import { Icon } from "../../shared/icon";
 import type { IoNoticeActions } from "../../shared/notice";
-import type { DialogHandle } from "../../shared/use-dialog";
 import { useDialog } from "../../shared/use-dialog";
 import { download } from "../files/download";
 import { PaletteChoices, SwatchStrip } from "../settings/choices";
 import { SETTING_LABELS } from "../settings/options";
-import { rasterizeSvg, serializeDiagramSvg, svgViewBoxSize } from "./export";
+import { createPngBlob, createSvgBlob } from "./export";
 
 const EXPORT_SVG_FILENAME = "sankey.svg";
 const EXPORT_PNG_FILENAME = "sankey.png";
-// 2x for hidpi-crisp output.
-const PNG_EXPORT_SCALE = 2;
 
 export interface DiagramPanelActions extends IoNoticeActions {
 	setDiagramSetting<K extends DiagramSettingKey>(key: K, value: Settings[K]): void;
@@ -54,26 +51,6 @@ function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOp
 	);
 }
 
-type SerializedDiagram = { svg: SVGSVGElement; xml: string };
-
-/**
- * Exports what is on screen: while the state is invalid the controller keeps
- * the last-valid diagram visible, and exporting that is deliberate.
- */
-function serializeVisibleDiagram(
-	diagramEl: HTMLElement,
-	actions: DiagramPanelActions,
-): SerializedDiagram | null {
-	const svgEl = diagramEl.querySelector("svg");
-	if (!svgEl) {
-		actions.reportIoError("Nothing to export — the diagram is empty.");
-		return null;
-	}
-	// Resolve currentColor before detaching the SVG from the themed page.
-	const labelColor = getComputedStyle(svgEl).color;
-	return { svg: svgEl, xml: serializeDiagramSvg(svgEl, { labelColor }) };
-}
-
 export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramPanelProps) {
 	const paletteDialog = useDialog();
 	const diagramExportDialog = useDialog();
@@ -86,39 +63,32 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 		actions.setDiagramSetting("palette", palettes[next]);
 	}
 
-	/** `fn` runs only when there is something to export; the dialog closes either way. */
-	function withVisibleDiagram(
-		dialog: DialogHandle,
-		fn: (diagramEl: HTMLElement, result: SerializedDiagram) => void,
-	): void {
+	/** Exports the visible last-valid diagram; the dialog closes even when empty. */
+	function withVisibleDiagram(fn: (svg: SVGSVGElement) => void): void {
 		actions.clearIoNotice();
 		const diagramEl = diagramRef.current;
 		if (diagramEl) {
-			const result = serializeVisibleDiagram(diagramEl, actions);
-			if (result) fn(diagramEl, result);
+			const svg = diagramEl.querySelector("svg");
+			if (svg) fn(svg);
+			else actions.reportIoError("Nothing to export — the diagram is empty.");
 		}
-		dialog.close();
+		diagramExportDialog.close();
 	}
 
-	function exportSvg(dialog: DialogHandle): void {
-		withVisibleDiagram(dialog, (diagramEl, result) => {
-			download(
-				diagramEl.ownerDocument,
-				new Blob([result.xml], { type: "image/svg+xml" }),
-				EXPORT_SVG_FILENAME,
-			);
+	function exportSvg(): void {
+		withVisibleDiagram((svg) => {
+			download(svg.ownerDocument, createSvgBlob(svg), EXPORT_SVG_FILENAME);
 		});
 	}
 
-	function exportPng(dialog: DialogHandle): void {
-		withVisibleDiagram(dialog, (diagramEl, result) => {
-			const { width, height } = svgViewBoxSize(result.svg);
-			rasterizeSvg(result.xml, width, height, PNG_EXPORT_SCALE, signal)
+	function exportPng(): void {
+		withVisibleDiagram((svg) => {
+			createPngBlob(svg, signal)
 				.then((blob) => {
-					// rasterizeSvg rejects on abort; this guards a resolve that raced
+					// Conversion rejects on abort; this guards a resolve that raced
 					// destroy() in the same tick.
 					if (signal.aborted) return;
-					download(diagramEl.ownerDocument, blob, EXPORT_PNG_FILENAME);
+					download(svg.ownerDocument, blob, EXPORT_PNG_FILENAME);
 				})
 				.catch((err) => {
 					if (signal.aborted) return;
@@ -205,8 +175,8 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 			>
 				<ExportOptions
 					label="Export diagram format"
-					onExportSvg={() => exportSvg(diagramExportDialog)}
-					onExportPng={() => exportPng(diagramExportDialog)}
+					onExportSvg={exportSvg}
+					onExportPng={exportPng}
 				/>
 			</ChoiceDialog>
 

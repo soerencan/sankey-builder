@@ -1,6 +1,19 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
+// 2x for hidpi-crisp output.
+const PNG_EXPORT_SCALE = 2;
 
-export function svgViewBoxSize(svg: SVGSVGElement): { width: number; height: number } {
+/** Converts the visible SVG synchronously so download stays in the click handler. */
+export function createSvgBlob(svg: SVGSVGElement): Blob {
+	const { xml } = snapshotDiagramSvg(svg);
+	return new Blob([xml], { type: "image/svg+xml" });
+}
+
+export function createPngBlob(svg: SVGSVGElement, signal: AbortSignal): Promise<Blob> {
+	const { xml, width, height } = snapshotDiagramSvg(svg);
+	return rasterizeSvg(xml, width, height, signal);
+}
+
+function svgViewBoxSize(svg: SVGSVGElement): { width: number; height: number } {
 	const values = (svg.getAttribute("viewBox") ?? "")
 		.trim()
 		.split(/[\s,]+/)
@@ -16,7 +29,9 @@ export function svgViewBoxSize(svg: SVGSVGElement): { width: number; height: num
  * opens at an arbitrary size in a bare viewer), currentColor resolved (it
  * falls back to black outside the page). The background stays transparent.
  */
-export function serializeDiagramSvg(svg: SVGSVGElement, opts: { labelColor: string }): string {
+function snapshotDiagramSvg(svg: SVGSVGElement): { xml: string; width: number; height: number } {
+	// Resolve currentColor before detaching the SVG from the themed page.
+	const labelColor = getComputedStyle(svg).color;
 	const { width, height } = svgViewBoxSize(svg);
 	const clone = svg.cloneNode(true) as SVGSVGElement;
 	clone.setAttribute("xmlns", SVG_NS);
@@ -24,11 +39,11 @@ export function serializeDiagramSvg(svg: SVGSVGElement, opts: { labelColor: stri
 	clone.setAttribute("height", String(height));
 
 	for (const el of Array.from(clone.querySelectorAll('[fill="currentColor"]'))) {
-		el.setAttribute("fill", opts.labelColor);
+		el.setAttribute("fill", labelColor);
 	}
 
 	const xml = new XMLSerializer().serializeToString(clone);
-	return `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
+	return { xml: `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`, width, height };
 }
 
 function rasterizeAbortError(): DOMException {
@@ -40,11 +55,10 @@ function rasterizeAbortError(): DOMException {
  * the pending load, and revokes the object URL, so a browser completion that
  * arrives after destroy can neither settle this promise nor double-revoke.
  */
-export function rasterizeSvg(
+function rasterizeSvg(
 	xml: string,
 	width: number,
 	height: number,
-	scale: number,
 	signal: AbortSignal,
 ): Promise<Blob> {
 	if (signal.aborted) return Promise.reject(rasterizeAbortError());
@@ -83,8 +97,8 @@ export function rasterizeSvg(
 			// settles.
 			try {
 				const canvas = document.createElement("canvas");
-				canvas.width = width * scale;
-				canvas.height = height * scale;
+				canvas.width = width * PNG_EXPORT_SCALE;
+				canvas.height = height * PNG_EXPORT_SCALE;
 				const ctx = canvas.getContext("2d");
 				if (!ctx) {
 					settle();

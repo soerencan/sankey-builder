@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { rasterizeSvg, serializeDiagramSvg } from "./export";
+import { createPngBlob, createSvgBlob } from "./export";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-// Arbitrary: serializeDiagramSvg reads whatever viewBox the svg has.
+// Arbitrary: export dimensions come from the visible SVG viewBox.
 const FIXTURE_WIDTH = 960;
 const FIXTURE_HEIGHT = 480;
 
@@ -13,6 +13,7 @@ const FIXTURE_HEIGHT = 480;
 function buildFixture(): SVGSVGElement {
 	const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
 	svg.setAttribute("viewBox", `0 0 ${FIXTURE_WIDTH} ${FIXTURE_HEIGHT}`);
+	svg.style.color = "rgb(18, 52, 86)";
 
 	const path = document.createElementNS(SVG_NS, "path");
 	path.setAttribute("d", "M0,0L10,10");
@@ -31,11 +32,13 @@ beforeEach(() => {
 	document.body.innerHTML = "";
 });
 
-describe("serializeDiagramSvg", () => {
-	it("includes the xml declaration, xmlns, and explicit pixel dimensions", () => {
+describe("createSvgBlob", () => {
+	it("includes the xml declaration, xmlns, and explicit pixel dimensions", async () => {
 		const svg = buildFixture();
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
+		const blob = createSvgBlob(svg);
+		expect(blob.type).toBe("image/svg+xml");
+		const xml = await blob.text();
 
 		expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n')).toBe(true);
 		expect(xml).toContain(`xmlns="${SVG_NS}"`);
@@ -43,46 +46,46 @@ describe("serializeDiagramSvg", () => {
 		expect(xml).toContain(`height="${FIXTURE_HEIGHT}"`);
 	});
 
-	it("takes export dimensions from the live svg viewBox", () => {
+	it("takes export dimensions from the live svg viewBox", async () => {
 		const svg = buildFixture();
 		svg.setAttribute("viewBox", "0 0 1440 480");
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
+		const xml = await createSvgBlob(svg).text();
 
 		expect(xml).toContain('width="1440"');
 		expect(xml).toContain('height="480"');
 	});
 
-	it("keeps the background transparent", () => {
+	it("keeps the background transparent", async () => {
 		const svg = buildFixture();
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
+		const xml = await createSvgBlob(svg).text();
 
 		const parsed = new DOMParser().parseFromString(xml, "image/svg+xml");
 		expect(parsed.querySelector("rect")).toBeNull();
 		expect(parsed.documentElement.firstElementChild?.tagName).toBe("path");
 	});
 
-	it("replaces currentColor fills with the resolved label color", () => {
+	it("replaces currentColor fills with the resolved label color", async () => {
 		const svg = buildFixture();
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
+		const xml = await createSvgBlob(svg).text();
 
 		expect(xml).not.toContain("currentColor");
-		expect(xml).toContain('fill="#123456"');
+		expect(xml).toContain('fill="rgb(18, 52, 86)"');
 	});
 
-	it("declares xmlns exactly once", () => {
+	it("declares xmlns exactly once", async () => {
 		// XMLSerializer's namespace handling is engine-dependent; a duplicate
 		// attribute would be malformed XML.
 		const svg = buildFixture();
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
+		const xml = await createSvgBlob(svg).text();
 
 		expect(xml.match(new RegExp(`xmlns="${SVG_NS}"`, "g"))).toHaveLength(1);
 	});
 
-	it("keeps nested gradient defs and their url() references intact", () => {
+	it("keeps nested gradient defs and their url() references intact", async () => {
 		const svg = buildFixture();
 		const gradient = document.createElementNS(SVG_NS, "linearGradient");
 		gradient.setAttribute("id", "link-grad-0");
@@ -91,7 +94,7 @@ describe("serializeDiagramSvg", () => {
 		link.setAttribute("stroke", "url(#link-grad-0)");
 		svg.appendChild(link);
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
+		const xml = await createSvgBlob(svg).text();
 
 		const parsed = new DOMParser().parseFromString(xml, "image/svg+xml");
 		expect(parsed.querySelector("linearGradient")?.getAttribute("id")).toBe("link-grad-0");
@@ -101,7 +104,7 @@ describe("serializeDiagramSvg", () => {
 	it("does not mutate the live input svg", () => {
 		const svg = buildFixture();
 
-		serializeDiagramSvg(svg, { labelColor: "#123456" });
+		createSvgBlob(svg);
 
 		expect(svg.hasAttribute("width")).toBe(false);
 		expect(svg.hasAttribute("height")).toBe(false);
@@ -131,6 +134,7 @@ class FakeCanvas {
 /** happy-dom has no image loading or canvas adapter, so the img/canvas callbacks are driven by hand. `imgs` collects every `new Image()` in call order. */
 function stubRasterizeGlobals() {
 	const imgs: FakeImg[] = [];
+	const canvases: FakeCanvas[] = [];
 	class TrackedFakeImg extends FakeImg {
 		constructor() {
 			super();
@@ -142,28 +146,46 @@ function stubRasterizeGlobals() {
 	const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
 	const originalCreateElement = document.createElement.bind(document);
 	vi.spyOn(document, "createElement").mockImplementation((tag: string, options?: unknown) => {
-		if (tag === "canvas") return new FakeCanvas() as unknown as HTMLCanvasElement;
+		if (tag === "canvas") {
+			const canvas = new FakeCanvas();
+			canvases.push(canvas);
+			return canvas as unknown as HTMLCanvasElement;
+		}
 		return originalCreateElement(tag, options as ElementCreationOptions | undefined);
 	});
-	return { imgs, createObjectURL, revokeObjectURL };
+	return { imgs, canvases, createObjectURL, revokeObjectURL };
 }
 
-describe("rasterizeSvg", () => {
+describe("createPngBlob", () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
 		vi.restoreAllMocks();
 	});
 
-	it("resolves with the rasterized blob and revokes the object URL exactly once", async () => {
-		const { imgs, createObjectURL, revokeObjectURL } = stubRasterizeGlobals();
+	it("converts the themed SVG at twice its viewBox size and revokes the object URL once", async () => {
+		const { imgs, canvases, createObjectURL, revokeObjectURL } = stubRasterizeGlobals();
 		const controller = new AbortController();
+		const svg = buildFixture();
+		svg.setAttribute("viewBox", "0 0 1440 480");
 
-		const promise = rasterizeSvg("<svg/>", 100, 50, 1, controller.signal);
+		const promise = createPngBlob(svg, controller.signal);
+		// Conversion captures the visible diagram before the async image load.
+		svg.querySelector("text")?.remove();
 		imgs[0].onload?.();
 
 		const blob = await promise;
 		expect(blob.type).toBe("image/png");
+		expect(canvases[0].width).toBe(2880);
+		expect(canvases[0].height).toBe(960);
 		expect(createObjectURL).toHaveBeenCalledTimes(1);
+		const input = createObjectURL.mock.calls[0][0] as Blob;
+		expect(input.type).toBe("image/svg+xml");
+		const xml = await input.text();
+		expect(xml).toContain('width="1440"');
+		expect(xml).toContain('height="480"');
+		expect(xml).toContain('fill="rgb(18, 52, 86)"');
+		expect(xml).toContain("Node A");
+		expect(xml).not.toContain("<rect");
 		expect(revokeObjectURL).toHaveBeenCalledTimes(1);
 		expect(revokeObjectURL).toHaveBeenCalledWith("blob:fake-svg");
 	});
@@ -173,7 +195,7 @@ describe("rasterizeSvg", () => {
 		const controller = new AbortController();
 		const removeEventListener = vi.spyOn(controller.signal, "removeEventListener");
 
-		const promise = rasterizeSvg("<svg/>", 100, 50, 1, controller.signal);
+		const promise = createPngBlob(buildFixture(), controller.signal);
 		imgs[0].onload?.();
 		await promise;
 
@@ -185,7 +207,7 @@ describe("rasterizeSvg", () => {
 		const controller = new AbortController();
 		controller.abort();
 
-		await expect(rasterizeSvg("<svg/>", 100, 50, 1, controller.signal)).rejects.toMatchObject({
+		await expect(createPngBlob(buildFixture(), controller.signal)).rejects.toMatchObject({
 			name: "AbortError",
 		});
 		expect(imgs).toHaveLength(0);
@@ -197,7 +219,7 @@ describe("rasterizeSvg", () => {
 		const { imgs, revokeObjectURL } = stubRasterizeGlobals();
 		const controller = new AbortController();
 
-		const promise = rasterizeSvg("<svg/>", 100, 50, 1, controller.signal);
+		const promise = createPngBlob(buildFixture(), controller.signal);
 		controller.abort();
 
 		await expect(promise).rejects.toMatchObject({ name: "AbortError" });
@@ -211,7 +233,7 @@ describe("rasterizeSvg", () => {
 		const { imgs, revokeObjectURL } = stubRasterizeGlobals();
 		const controller = new AbortController();
 
-		const promise = rasterizeSvg("<svg/>", 100, 50, 1, controller.signal);
+		const promise = createPngBlob(buildFixture(), controller.signal);
 		const onload = imgs[0].onload;
 		controller.abort();
 		await expect(promise).rejects.toMatchObject({ name: "AbortError" });
@@ -227,7 +249,7 @@ describe("rasterizeSvg", () => {
 		const controller = new AbortController();
 		const removeEventListener = vi.spyOn(controller.signal, "removeEventListener");
 
-		const promise = rasterizeSvg("<svg/>", 100, 50, 1, controller.signal);
+		const promise = createPngBlob(buildFixture(), controller.signal);
 		imgs[0].onerror?.();
 
 		await expect(promise).rejects.toThrow("Could not load the diagram svg for rasterization.");
@@ -272,7 +294,7 @@ describe("rasterizeSvg", () => {
 		vi.stubGlobal("Image", TrackedFakeImgFiresErrorOnSrcClear);
 		const controller = new AbortController();
 
-		const promise = rasterizeSvg("<svg/>", 100, 50, 1, controller.signal);
+		const promise = createPngBlob(buildFixture(), controller.signal);
 		controller.abort();
 
 		await expect(promise).rejects.toMatchObject({ name: "AbortError" });
