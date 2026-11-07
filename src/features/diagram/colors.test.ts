@@ -16,8 +16,8 @@ describe("createNodeColorResolver", () => {
 
 	it("changes resolved colors when the active palette switches", () => {
 		const state = defaultState();
-		const observable10 = createNodeColorResolver(state.nodes, state.settings.palette);
-		const before = state.nodes.map((n) => observable10(n));
+		const initial = createNodeColorResolver(state.nodes, state.settings.palette);
+		const before = state.nodes.map((n) => initial(n));
 
 		state.settings.palette = "dark2";
 		const dark2 = createNodeColorResolver(state.nodes, state.settings.palette);

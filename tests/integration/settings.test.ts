@@ -57,7 +57,7 @@ describe("toolbar & settings", () => {
 			PALETTE_CHOICES.map((option) => option.label),
 		);
 		expect(options.find((option) => option.getAttribute("aria-selected") === "true")).toBe(
-			byRole(dialog, "option", SETTING_LABELS.palette.observable10),
+			byRole(dialog, "option", SETTING_LABELS.palette.set2),
 		);
 	});
 
@@ -71,15 +71,19 @@ describe("toolbar & settings", () => {
 		const dropdown = byRole(dialog, "combobox", "Color palette");
 		click(dropdown);
 		await tick();
-		const set2Option = byRole<HTMLButtonElement>(dialog, "option", SETTING_LABELS.palette.set2);
-		click(set2Option);
+		const tableauOption = byRole<HTMLButtonElement>(
+			dialog,
+			"option",
+			SETTING_LABELS.palette.tableau10,
+		);
+		click(tableauOption);
 		await tick();
 
 		const stored = getStoredState();
-		expect(stored.settings.palette).toBe("set2");
-		expect(set2Option.getAttribute("aria-selected")).toBe("true");
+		expect(stored.settings.palette).toBe("tableau10");
+		expect(tableauOption.getAttribute("aria-selected")).toBe("true");
 		expect(
-			byRole<HTMLButtonElement>(dialog, "option", SETTING_LABELS.palette.observable10).getAttribute(
+			byRole<HTMLButtonElement>(dialog, "option", SETTING_LABELS.palette.set2).getAttribute(
 				"aria-selected",
 			),
 		).toBe("false");
@@ -105,13 +109,11 @@ describe("toolbar & settings", () => {
 
 		await press("ArrowDown");
 		await press("ArrowDown");
-		expect(dropdown.getAttribute("aria-activedescendant")).toBe("setting-palette-tableau10");
+		expect(dropdown.getAttribute("aria-activedescendant")).toBe("setting-palette-observable10");
 		await press("Escape");
 		expect(dropdown.getAttribute("aria-expanded")).toBe("false");
 		expect(dialog.open).toBe(true);
-		expect(getStoredState().settings?.palette ?? defaultState().settings.palette).toBe(
-			"observable10",
-		);
+		expect(getStoredState().settings?.palette ?? defaultState().settings.palette).toBe("set2");
 
 		await press("End");
 		await press("Enter");
@@ -126,14 +128,14 @@ describe("toolbar & settings", () => {
 		click(trigger);
 		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		expect(dialog.open).toBe(true);
-		chooseSetting("Node alignment", "left");
+		chooseSetting("Node alignment", "justify");
 		chooseSetting("Aspect ratio", "3:1");
-		chooseSetting("Link colors", "static");
+		chooseSetting("Link colors", "neutral");
 		expect(dialog.open).toBe(true);
 		expect(getStoredState().settings).toMatchObject({
-			alignment: "left",
+			alignment: "justify",
 			aspectRatio: "3:1",
-			linkColor: "static",
+			linkColor: "neutral",
 		});
 		for (const path of Array.from(document.querySelectorAll("#diagram svg path"))) {
 			expect(path.getAttribute("stroke")).toBe("#aaa");
@@ -147,9 +149,9 @@ describe("toolbar & settings", () => {
 
 	it("switching back to gradient re-renders per-link gradients", () => {
 		mountApp();
-		chooseSetting("Link colors", "static");
-		chooseSetting("Link colors", "source-target");
-		expect(getStoredState().settings.linkColor).toBe("source-target");
+		chooseSetting("Link colors", "neutral");
+		chooseSetting("Link colors", "gradient");
+		expect(getStoredState().settings.linkColor).toBe("gradient");
 		expect(document.querySelectorAll("#diagram linearGradient").length).toBeGreaterThan(0);
 		expect(document.querySelector('#diagram path[stroke="url(#link-grad-0)"]')).not.toBeNull();
 	});
@@ -234,10 +236,10 @@ describe("diagram-only settings redraw and persist", () => {
 
 		const svgHtmlBefore = document.querySelector("#diagram svg")?.outerHTML;
 
-		chooseSetting("Link colors", "static");
+		chooseSetting("Link colors", "neutral");
 
 		expect(document.querySelector("#diagram svg")?.outerHTML).not.toBe(svgHtmlBefore);
-		expect(getStoredState().settings.linkColor).toBe("static");
+		expect(getStoredState().settings.linkColor).toBe("neutral");
 	});
 
 	it("changing alignment redraws the diagram and persists", () => {
@@ -246,10 +248,10 @@ describe("diagram-only settings redraw and persist", () => {
 
 		const svgHtmlBefore = document.querySelector("#diagram svg")?.outerHTML;
 
-		chooseSetting("Node alignment", "left");
+		chooseSetting("Node alignment", "justify");
 
 		expect(document.querySelector("#diagram svg")?.outerHTML).not.toBe(svgHtmlBefore);
-		expect(getStoredState().settings.alignment).toBe("left");
+		expect(getStoredState().settings.alignment).toBe("justify");
 	});
 
 	it("changing aspect ratio redraws the diagram and persists", () => {
@@ -278,10 +280,10 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 		const svgBefore = document.querySelector("#diagram svg");
 		const svgHtmlBefore = svgBefore?.outerHTML;
 
-		const alignment = chooseSetting("Node alignment", "left");
+		const alignment = chooseSetting("Node alignment", "justify");
 
-		expect(getStoredState().settings.alignment).toBe("left");
-		expect(alignment.value).toBe("left");
+		expect(getStoredState().settings.alignment).toBe("justify");
+		expect(alignment.value).toBe("justify");
 		expect(document.getElementById("error")?.textContent).toContain("cycle");
 
 		// Identity alone can't tell no redraw from an identical one; markup can.

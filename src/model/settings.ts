@@ -6,8 +6,8 @@
 
 // Tuple order is display order; nothing else orders the choices.
 export const SETTING_DOMAINS = {
-	palette: ["observable10", "tableau10", "category10", "set2", "dark2"],
-	linkColor: ["source", "source-target", "target", "static"],
+	palette: ["set2", "observable10", "tableau10", "category10", "dark2"],
+	linkColor: ["target", "source", "gradient", "neutral"],
 	alignment: ["left", "center", "right", "justify"],
 	aspectRatio: ["a-series", "3:2", "16:9", "2:1", "3:1"],
 	theme: ["auto", "light", "dark"],
@@ -97,9 +97,9 @@ export function aspectRatioOption(value: AspectRatio): AspectRatioOption {
 // --- Defaults ---
 
 export const DEFAULT_SETTINGS: Settings = {
-	palette: "observable10",
-	linkColor: "source-target",
-	alignment: "justify",
-	aspectRatio: "2:1",
+	palette: "set2",
+	linkColor: "target",
+	alignment: "left",
+	aspectRatio: "16:9",
 	theme: "auto",
 };

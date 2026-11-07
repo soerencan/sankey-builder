@@ -42,7 +42,7 @@ describe("application boot", () => {
 		expect(diagram?.style.getPropertyValue("--diagram-preview-height")).toBe("400px");
 		expect(diagram?.querySelector("svg")?.getAttribute("viewBox")).toBe(viewBoxBefore);
 		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("400");
-		expect(getStoredState().settings.aspectRatio).toBe("2:1");
+		expect(getStoredState().settings.aspectRatio).toBe("16:9");
 	});
 
 	it("boots without throwing and renders the default diagram", () => {

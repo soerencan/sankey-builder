@@ -142,9 +142,9 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 				</div>
 				{(
 					[
+						["linkColor", "Link colors"],
 						["alignment", "Node alignment"],
 						["aspectRatio", "Aspect ratio"],
-						["linkColor", "Link colors"],
 					] as const
 				).map(([key, label]) => (
 					<label class="setting-field" key={key}>

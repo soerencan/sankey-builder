@@ -80,7 +80,7 @@ describe("import & export", () => {
 			],
 			settings: {
 				palette: "set2",
-				linkColor: "static",
+				linkColor: "neutral",
 				alignment: "left",
 				// A theme in the file must be ignored, not applied.
 				theme: "dark",
@@ -106,10 +106,10 @@ describe("import & export", () => {
 		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n1", "n2", "n3"]);
 		expect(stored.settings.palette).toBe("set2");
-		expect(stored.settings.linkColor).toBe("static");
+		expect(stored.settings.linkColor).toBe("neutral");
 		expect(stored.settings.theme).toBe("light");
 		expect(byRole(document, "option", "Set 2").getAttribute("aria-selected")).toBe("true");
-		expect(byRole<HTMLSelectElement>(document, "combobox", "Link colors").value).toBe("static");
+		expect(byRole<HTMLSelectElement>(document, "combobox", "Link colors").value).toBe("neutral");
 
 		// An import without repairs isn't announced; the changed data is the
 		// feedback.

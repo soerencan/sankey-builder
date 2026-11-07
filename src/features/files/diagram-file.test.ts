@@ -14,7 +14,7 @@ function sampleState(): State {
 		settings: {
 			...DEFAULT_SETTINGS,
 			palette: "dark2",
-			linkColor: "static",
+			linkColor: "neutral",
 			alignment: "center",
 			aspectRatio: "16:9",
 			theme: "dark",
@@ -74,6 +74,32 @@ describe("serializeState", () => {
 });
 
 describe("parseImport round-trip", () => {
+	it.each(["source-target", "static"])(
+		"defaults unsupported link color %s on import and export",
+		(value) => {
+			const state = sampleState();
+			const result = parseImport(
+				JSON.stringify({
+					...state,
+					settings: { ...state.settings, linkColor: value },
+				}),
+			);
+
+			expect(result.ok).toBe(true);
+			if (!result.ok) throw new Error("expected the diagram to import with repaired settings");
+			expect(result.repairs).toEqual(["settings: unknown link color — using default"]);
+			expect(result.diagram.settings).toEqual({
+				...pickDiagramSettings(state.settings),
+				linkColor: DEFAULT_SETTINGS.linkColor,
+			});
+			const exported = serializeState({
+				...result.diagram,
+				settings: { ...result.diagram.settings, theme: state.settings.theme },
+			});
+			expect(JSON.parse(exported).settings.linkColor).toBe(DEFAULT_SETTINGS.linkColor);
+		},
+	);
+
 	it("round-trips a valid state losslessly (sans theme and link ids)", () => {
 		const state = sampleState();
 		const result = parseImport(serializeState(state));
@@ -178,7 +204,7 @@ describe("parseImport repairs", () => {
 
 	it("falls back to the default palette and reports an unknown one", () => {
 		const result = importPayload({ nodes: [], links: [], settings: { palette: "rainbow" } });
-		expect(result.diagram.settings.palette).toBe("observable10");
+		expect(result.diagram.settings.palette).toBe("set2");
 		expect(result.repairs).toContain("settings: unknown palette — using default");
 	});
 

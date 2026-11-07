@@ -84,7 +84,7 @@ describe("SankeySvg", () => {
 		expect(container.childNodes).toHaveLength(0);
 	});
 
-	describe.each<LinkColorMode>(["source", "source-target", "target", "static"])(
+	describe.each<LinkColorMode>(["source", "gradient", "target", "neutral"])(
 		"link color mode %s",
 		(linkColor) => {
 			it("wires up strokes and gradients as expected", () => {
@@ -98,7 +98,7 @@ describe("SankeySvg", () => {
 				const gradients = container.querySelectorAll("linearGradient");
 				const paths = Array.from(container.querySelectorAll("path"));
 
-				if (linkColor === "source-target") {
+				if (linkColor === "gradient") {
 					expect(gradients).toHaveLength(state.links.length);
 					for (let index = 0; index < state.links.length; index++) {
 						const gradient = container.querySelector(`linearGradient#link-grad-${index}`);
@@ -110,7 +110,7 @@ describe("SankeySvg", () => {
 					}
 				} else {
 					expect(gradients).toHaveLength(0);
-					const expectedStroke = linkColor === "static" ? "#aaa" : undefined;
+					const expectedStroke = linkColor === "neutral" ? "#aaa" : undefined;
 					for (const path of paths) {
 						const stroke = path.getAttribute("stroke");
 						expect(stroke).not.toBeNull();

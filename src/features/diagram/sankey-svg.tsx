@@ -9,7 +9,7 @@ import { layoutDiagram } from "./layout";
 function linkStroke(mode: LinkColorMode, nodeColor: NodeColorResolver): (d: LayoutLink) => string {
 	if (mode === "source") return (d) => nodeColor(d.source);
 	if (mode === "target") return (d) => nodeColor(d.target);
-	if (mode === "static") return () => "#aaa";
+	if (mode === "neutral") return () => "#aaa";
 	return (d) => `url(#link-grad-${d.index})`;
 }
 
@@ -40,13 +40,13 @@ export function SankeySvg({ diagram }: SankeySvgProps) {
 	return (
 		// role="img" and aria-label name the svg without a <title>, which export.ts's clone would otherwise leak into exported files.
 		<svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Sankey diagram">
-			{/* One <g> per link so the source-target mode can nest a per-link
+			{/* One <g> per link so the gradient mode can nest a per-link
 			    <linearGradient> next to its <path>. Gradient ids use d3-sankey's
 			    `link.index`, unique within a render. */}
 			<g fill="none" stroke-opacity={0.5}>
 				{links.map((link) => (
 					<g key={link.index}>
-						{diagram.settings.linkColor === "source-target" && (
+						{diagram.settings.linkColor === "gradient" && (
 							<linearGradient
 								id={`link-grad-${link.index}`}
 								gradientUnits="userSpaceOnUse"

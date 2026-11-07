@@ -43,6 +43,22 @@ function stripLinkIds(state: State) {
 }
 
 describe("loadState", () => {
+	it.each(["source-target", "static"])("defaults unsupported saved link color %s", (value) => {
+		const storage = fakeLocalStorage({
+			[STORAGE_KEY]: JSON.stringify({
+				...defaultState(),
+				settings: { ...DEFAULT_SETTINGS, linkColor: value },
+			}),
+		});
+
+		const state = loadState(storage);
+		expect(state.settings.linkColor).toBe(DEFAULT_SETTINGS.linkColor);
+		saveState(storage, state);
+		expect(JSON.parse(storage.getItem(STORAGE_KEY) as string).settings.linkColor).toBe(
+			DEFAULT_SETTINGS.linkColor,
+		);
+	});
+
 	it("returns the default state when nothing is stored", () => {
 		expect(stripLinkIds(loadState(fakeLocalStorage()))).toEqual(stripLinkIds(defaultState()));
 	});
@@ -70,7 +86,7 @@ describe("loadState", () => {
 			settings: {
 				...DEFAULT_SETTINGS,
 				palette: "dark2",
-				linkColor: "static",
+				linkColor: "neutral",
 				alignment: "center",
 				aspectRatio: "16:9",
 				theme: "dark",
@@ -94,7 +110,7 @@ describe("loadState", () => {
 			settings: {
 				...DEFAULT_SETTINGS,
 				palette: "dark2",
-				linkColor: "static",
+				linkColor: "neutral",
 				alignment: "center",
 				aspectRatio: "16:9",
 				theme: "dark",

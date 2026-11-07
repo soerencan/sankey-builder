@@ -60,10 +60,10 @@ describe("aspectRatioOption", () => {
 describe("DEFAULT_SETTINGS", () => {
 	it("has the expected default value for every setting", () => {
 		expect(DEFAULT_SETTINGS).toEqual({
-			palette: "observable10",
-			linkColor: "source-target",
-			alignment: "justify",
-			aspectRatio: "2:1",
+			palette: "set2",
+			linkColor: "target",
+			alignment: "left",
+			aspectRatio: "16:9",
 			theme: "auto",
 		});
 	});

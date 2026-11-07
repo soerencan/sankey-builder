@@ -25,10 +25,10 @@ describe("defaultState", () => {
 		expect(state.nodes).toHaveLength(4);
 		expect(state.links).toHaveLength(3);
 		expect(state.settings).toEqual({
-			palette: "observable10",
-			linkColor: "source-target",
-			alignment: "justify",
-			aspectRatio: "2:1",
+			palette: "set2",
+			linkColor: "target",
+			alignment: "left",
+			aspectRatio: "16:9",
 			theme: "auto",
 		});
 	});
@@ -282,7 +282,7 @@ describe("replaceDiagram", () => {
 			settings: {
 				...pickDiagramSettings(DEFAULT_SETTINGS),
 				palette: "tableau10" as const,
-				linkColor: "static" as const,
+				linkColor: "neutral" as const,
 				alignment: "center" as const,
 				aspectRatio: "16:9" as const,
 			},
@@ -311,7 +311,7 @@ describe("replaceDiagram", () => {
 		const state = defaultState();
 		replaceDiagram(state, diagram());
 		expect(state.settings.palette).toBe("tableau10");
-		expect(state.settings.linkColor).toBe("static");
+		expect(state.settings.linkColor).toBe("neutral");
 		expect(state.settings.alignment).toBe("center");
 		expect(state.settings.aspectRatio).toBe("16:9");
 	});

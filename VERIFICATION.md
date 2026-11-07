@@ -39,7 +39,7 @@ Check wide layouts at 1440px and 1024px, and narrower layouts at 768px, 390px, a
 
 ## Panels and diagram controls
 
-The three panels are Theme, Appearance, and Export diagram. Appearance contains a swatch-only Color palette dropdown and native selects for Node alignment, Aspect ratio, and Link colors.
+The three panels are Theme, Appearance, and Export diagram. Appearance contains Color palette, Link colors, Node alignment, and Aspect ratio in that order. Color palette is a swatch-only dropdown; the others are native selects.
 
 - [ ] Appearance and Export remain visible on one toolbar row without clipped icons, including below 320px.
 - [ ] On wide screens, panels anchor near their trigger and stay within the viewport. Open one, then scroll or resize to check repositioning.
@@ -83,7 +83,7 @@ Use the built site for native file-picker, download, and canvas checks. Run expo
 
 - [ ] Use Export JSON in the Data header. `sankey.json` downloads without console errors about blob URLs. Import it through Import JSON and confirm the diagram, editors, and settings return correctly.
 - [ ] Use Export diagram, then SVG. `sankey.svg` opens standalone with a transparent background and labels matching the current theme: dark labels in Light, light labels in Dark.
-- [ ] Export PNG. `sankey.png` has a transparent background and matching label colors. With the default 2:1 aspect ratio, its size is 1920 by 960 pixels. Change the aspect ratio and confirm PNG dimensions are twice the SVG's logical dimensions. Resizing only the preview does not change them.
+- [ ] Export PNG. `sankey.png` has a transparent background and matching label colors. With the default 16:9 aspect ratio, its size is 1706 by 960 pixels. Change the aspect ratio and confirm PNG dimensions are twice the SVG's logical dimensions. Resizing only the preview does not change them.
 - [ ] Check PNG output with single-color links and source-to-target gradients. Gradients rasterize as gradients, with no canvas or blob-URL errors. Repeat in Safari, where image loading and rasterization can differ.
 - [ ] At 360px and 390px, notices and their Dismiss button remain readable without overlap or horizontal overflow.
 - [ ] With a screen reader, check polite notice announcements. Repeated invalid value drafts produce inline errors without repeated page-level announcements. An unrelated action does not reannounce unchanged notices.

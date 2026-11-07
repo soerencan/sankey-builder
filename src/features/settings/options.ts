@@ -14,17 +14,17 @@ import type { IconId } from "../../shared/icon";
  */
 export const SETTING_LABELS: { [K in keyof Settings]: Record<Settings[K], string> } = {
 	palette: {
+		set2: "Set 2",
 		observable10: "Observable 10",
 		tableau10: "Tableau 10",
 		category10: "Category 10",
-		set2: "Set 2",
 		dark2: "Dark 2",
 	},
 	linkColor: {
-		source: "Source",
-		"source-target": "Source to target (gradient)",
 		target: "Target",
-		static: "Neutral",
+		source: "Source",
+		gradient: "Gradient",
+		neutral: "Neutral",
 	},
 	alignment: {
 		left: "Left",
