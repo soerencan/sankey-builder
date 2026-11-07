@@ -31,7 +31,7 @@ function isExternal(ref: string): boolean {
 }
 
 beforeAll(() => {
-	// The same build CI's artifact job ships.
+	// The same build CI's build job ships.
 	execFileSync("bun", ["run", "build"], { cwd: REPO_ROOT });
 	distHtml = readFileSync(join(DIST_DIR, "index.html"), "utf8");
 });

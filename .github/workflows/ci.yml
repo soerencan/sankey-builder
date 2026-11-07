@@ -36,9 +36,9 @@ jobs:
       - run: make typecheck
 
   # Excludes tests/build/dist.test.ts (which runs its own production build) to
-  # avoid building dist/ twice in CI — that coverage lives in the artifact
+  # avoid building dist/ twice in CI — that coverage lives in the build
   # job below.
-  tests:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -54,7 +54,7 @@ jobs:
   # tests/build/dist.test.ts builds dist/ and leaves it in place, so the
   # Pages artifact ships exactly the bundle that was boot-tested and deploy
   # never builds a second time.
-  artifact:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -72,7 +72,7 @@ jobs:
 
   # Gated on every check job so a commit whose checks fail can't reach Pages.
   deploy:
-    needs: [lint, typecheck, tests, artifact]
+    needs: [lint, typecheck, test, build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency:
