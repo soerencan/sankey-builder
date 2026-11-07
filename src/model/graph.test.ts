@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
-	type Link,
-	type Node,
-	type State,
 	addLink,
 	addNode,
 	defaultState,
 	deleteLink,
 	deleteNode,
 	isComplete,
+	type Link,
 	moveLink,
 	moveNode,
+	type Node,
 	nextLinkId,
 	nextNodeId,
 	replaceDiagram,
+	type State,
 	updateLink,
 	withoutLinkId,
 } from "./graph";

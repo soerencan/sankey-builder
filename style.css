@@ -1,16 +1,17 @@
 :root {
 	color-scheme: light dark;
 
-	--font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans",
-		sans-serif;
+	--font-sans:
+		system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
 	--radius-sm: 4px;
 	--radius-md: 7px;
 	--radius-pill: 1e5px;
 	--ease-out: cubic-bezier(0.25, 0, 0.4, 1);
 	/* light-dark() follows color-scheme, which the theme blocks below set, so
      shadows switch with the app theme rather than the OS preference alone. */
-	--shadow-raised: 0 3px 5px -2px light-dark(hsl(220 3% 15% / 4%), hsl(220 40% 2% / 28%)), 0 7px
-		14px -5px light-dark(hsl(220 3% 15% / 6%), hsl(220 40% 2% / 30%));
+	--shadow-raised:
+		0 3px 5px -2px light-dark(hsl(220 3% 15% / 4%), hsl(220 40% 2% / 28%)),
+		0 7px 14px -5px light-dark(hsl(220 3% 15% / 6%), hsl(220 40% 2% / 30%));
 	--shadow-floating:
 		0 -1px 3px 0 light-dark(hsl(220 3% 15% / 3%), hsl(220 40% 2% / 27%)),
 		0 1px 2px -5px light-dark(hsl(220 3% 15% / 3%), hsl(220 40% 2% / 27%)),
@@ -195,6 +196,7 @@ body {
 
 .data-section {
 	padding: 1rem;
+	container-type: inline-size;
 }
 
 .data-sections {
@@ -265,9 +267,12 @@ select {
 	-webkit-appearance: none;
 	appearance: none;
 	padding-right: 1.7rem;
-	background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%),
+	background-image:
+		linear-gradient(45deg, transparent 50%, var(--ink) 50%),
 		linear-gradient(135deg, var(--ink) 50%, transparent 50%);
-	background-position: calc(100% - 0.95rem) 50%, calc(100% - 0.65rem) 50%;
+	background-position:
+		calc(100% - 0.95rem) 50%,
+		calc(100% - 0.65rem) 50%;
 	background-size: 0.3rem 0.3rem;
 	background-repeat: no-repeat;
 }
@@ -743,11 +748,6 @@ dialog[open] {
 		border-inline-start: 0;
 		border-top: 1px solid var(--border);
 	}
-}
-
-/* Wrap cramped link rows by their section's own content width. */
-.data-section {
-	container-type: inline-size;
 }
 
 /* Narrow editors use separate groups so each link remains clear

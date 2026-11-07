@@ -4,8 +4,8 @@ import { startApp } from "../../src/app/start-app";
 import { STORAGE_KEY } from "../../src/platform/storage";
 import { bodyMarkup } from "./fixture";
 
-export { settle, tick } from "./tick";
 export { accessibleName, allByRole, byRole } from "./dom-queries";
+export { settle, tick } from "./tick";
 
 export interface AppFixture {
 	app: AppHandle;

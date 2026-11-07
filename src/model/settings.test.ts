@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
 	ASPECT_RATIO_OPTIONS,
+	aspectRatioOption,
 	DEFAULT_SETTINGS,
 	DIAGRAM_SETTING_KEYS,
-	SETTING_DOMAINS,
-	aspectRatioOption,
 	isSettingValue,
 	pickDiagramSettings,
+	SETTING_DOMAINS,
 } from "./settings";
 
 const SETTING_KEYS = Object.keys(SETTING_DOMAINS) as (keyof typeof SETTING_DOMAINS)[];

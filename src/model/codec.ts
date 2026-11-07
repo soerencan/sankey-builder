@@ -1,7 +1,7 @@
 import type { Diagram, Link, Node, State } from "./graph";
 import { defaultState, nextLinkId } from "./graph";
 import type { DiagramSettingKey, DiagramSettings } from "./settings";
-import { DEFAULT_SETTINGS, DIAGRAM_SETTING_KEYS, assignSetting, isSettingValue } from "./settings";
+import { assignSetting, DEFAULT_SETTINGS, DIAGRAM_SETTING_KEYS, isSettingValue } from "./settings";
 import { MAX_LINK_VALUE } from "./validation";
 
 export interface RawDiagram {

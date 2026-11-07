@@ -5,13 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { byRole } from "../../../tests/helpers/dom-queries";
 import { tick } from "../../../tests/helpers/tick";
 import {
+	clampPreviewHeight,
 	DEFAULT_PREVIEW_HEIGHT,
+	loadPreviewHeight,
 	MAX_PREVIEW_HEIGHT,
 	MIN_PREVIEW_HEIGHT,
 	PREVIEW_HEIGHT_STORAGE_KEY,
 	PreviewResizer,
-	clampPreviewHeight,
-	loadPreviewHeight,
 } from "./preview-resizer";
 
 function mount(): { diagramEl: HTMLElement; container: HTMLElement } {

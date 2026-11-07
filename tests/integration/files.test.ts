@@ -16,7 +16,6 @@ import {
 	getStoredState,
 	installMarkup,
 	mountApp,
-	requireElement,
 	settle,
 	tick,
 } from "../helpers/mount-app";

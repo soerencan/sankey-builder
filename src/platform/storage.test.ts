@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { State } from "../model/graph";
 import { defaultState, withoutLinkId } from "../model/graph";
 import { DEFAULT_SETTINGS } from "../model/settings";
-import { STORAGE_KEY, loadState, saveState } from "./storage";
+import { loadState, STORAGE_KEY, saveState } from "./storage";
 
 function fakeLocalStorage(initial: Record<string, string> = {}): Storage {
 	const store = new Map(Object.entries(initial));

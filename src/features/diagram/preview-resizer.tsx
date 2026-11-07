@@ -139,10 +139,10 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 			>
 				<Icon id="icon-minus" />
 			</button>
+			{/* biome-ignore lint/a11y/useSemanticElements: An hr cannot contain the grip icon or act as an interactive resize handle. */}
 			<div
 				id="preview-splitter"
 				ref={splitterRef}
-				// biome-ignore lint/a11y/useSemanticElements: an <hr> can't be focusable/draggable — this is an interactive slider-style splitter, not a decorative divider.
 				role="separator"
 				aria-label="Resize diagram preview"
 				aria-orientation="horizontal"

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeState } from "../../model/codec";
-import { type State, defaultState, moveLink, moveNode, withoutLinkId } from "../../model/graph";
+import { defaultState, moveLink, moveNode, type State, withoutLinkId } from "../../model/graph";
 import { DEFAULT_SETTINGS, pickDiagramSettings } from "../../model/settings";
 import { parseImport, serializeState } from "./diagram-file";
 

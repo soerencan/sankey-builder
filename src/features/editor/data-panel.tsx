@@ -72,12 +72,8 @@ export function DataPanel({
 		<>
 			<header class="data-card-header">
 				<h2 id="data-heading">Data</h2>
-				<div
-					class="data-card-actions"
-					// biome-ignore lint/a11y/useSemanticElements: groups action buttons, not submittable form controls, so <fieldset> doesn't apply here.
-					role="group"
-					aria-label="Data file actions"
-				>
+				{/* biome-ignore lint/a11y/useSemanticElements: These are file actions, not form controls requiring a fieldset. */}
+				<div class="data-card-actions" role="group" aria-label="Data file actions">
 					<button
 						type="button"
 						class="action-button"
