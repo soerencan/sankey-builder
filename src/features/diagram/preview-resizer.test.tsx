@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { render } from "preact";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { byRole } from "../../../tests/helpers/dom-queries";
 import { tick } from "../../../tests/helpers/tick";
 import {
@@ -14,12 +14,53 @@ import {
 	PreviewResizer,
 } from "./preview-resizer";
 
-function mount(): { diagramEl: HTMLElement; container: HTMLElement } {
+const observed = new Map<Element, { callback: ResizeObserverCallback; observer: ResizeObserver }>();
+
+class TestResizeObserver implements ResizeObserver {
+	private targets = new Set<Element>();
+	constructor(private callback: ResizeObserverCallback) {}
+	observe(target: Element): void {
+		this.targets.add(target);
+		observed.set(target, { callback: this.callback, observer: this });
+	}
+	unobserve(target: Element): void {
+		this.targets.delete(target);
+		observed.delete(target);
+	}
+	disconnect(): void {
+		for (const target of this.targets) observed.delete(target);
+		this.targets.clear();
+	}
+}
+
+function resize(panel: HTMLElement, width: number): void {
+	const entry = observed.get(panel);
+	entry?.callback(
+		[
+			{
+				target: panel,
+				contentRect: new DOMRect(0, 0, width, 0),
+				contentBoxSize: [],
+				borderBoxSize: [{ inlineSize: width, blockSize: 56 }],
+				devicePixelContentBoxSize: [],
+			},
+		],
+		entry.observer,
+	);
+}
+
+function mount(width = 0, aspectRatio = 2) {
+	const panel = document.createElement("section");
+	const toolbar = document.createElement("header");
+	toolbar.className = "diagram-toolbar";
+	Object.defineProperty(panel, "clientWidth", { value: width });
 	const diagramEl = document.createElement("div");
 	const container = document.createElement("div");
-	document.body.append(diagramEl, container);
-	render(<PreviewResizer diagramRef={{ current: diagramEl }} />, container);
-	return { diagramEl, container };
+	panel.append(toolbar, diagramEl, container);
+	document.body.append(panel);
+	const diagramRef = { current: diagramEl };
+	render(<PreviewResizer diagramRef={diagramRef} aspectRatio={aspectRatio} />, container);
+	return { diagramEl, diagramRef, toolbar, container };
 }
 
 function pointerEvent(type: string, clientY: number, pointerId = 1): Event {
@@ -34,7 +75,11 @@ function pointerEvent(type: string, clientY: number, pointerId = 1): Event {
 beforeEach(() => {
 	document.body.innerHTML = "";
 	localStorage.clear();
+	observed.clear();
+	vi.stubGlobal("ResizeObserver", TestResizeObserver);
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("preview height preference", () => {
 	it("clamps and rounds heights to the supported range", () => {
@@ -52,6 +97,67 @@ describe("preview height preference", () => {
 });
 
 describe("PreviewResizer", () => {
+	it("starts each adjustment from the displayed height when a saved preference exceeds the width limit", async () => {
+		localStorage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, "720");
+		const { diagramEl, container } = mount(600);
+		await tick();
+		const splitter = container.querySelector("#preview-splitter");
+		expect(splitter?.getAttribute("aria-valuemax")).toBe("300");
+		expect(splitter?.getAttribute("aria-valuenow")).toBe("300");
+		expect(
+			byRole<HTMLButtonElement>(container, "button", "Make diagram preview larger").disabled,
+		).toBe(true);
+
+		byRole<HTMLButtonElement>(container, "button", "Make diagram preview smaller").click();
+		await tick();
+		expect(diagramEl.style.getPropertyValue("--diagram-preview-height")).toBe("260px");
+		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("260");
+		splitter?.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+		await tick();
+		expect(
+			byRole<HTMLButtonElement>(container, "button", "Make diagram preview smaller").disabled,
+		).toBe(true);
+	});
+
+	it("starts dragging at the width limit and responds immediately after reversing at that limit", async () => {
+		localStorage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, "720");
+		const { container } = mount(600);
+		await tick();
+		const splitter = container.querySelector("#preview-splitter");
+		splitter?.dispatchEvent(pointerEvent("pointerdown", 500));
+		window.dispatchEvent(pointerEvent("pointermove", 480));
+		await tick();
+		expect(splitter?.getAttribute("aria-valuenow")).toBe("280");
+		window.dispatchEvent(pointerEvent("pointermove", 700));
+		window.dispatchEvent(pointerEvent("pointermove", 690));
+		window.dispatchEvent(pointerEvent("pointerup", 690));
+		await tick();
+		expect(splitter?.getAttribute("aria-valuenow")).toBe("290");
+	});
+
+	it("updates width limits without overwriting the saved preference, and reacts to aspect-ratio changes", async () => {
+		localStorage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, "720");
+		const { diagramRef, toolbar, container } = mount(600);
+		await tick();
+		const splitter = container.querySelector("#preview-splitter");
+		resize(toolbar, 1600);
+		await tick();
+		expect(splitter?.getAttribute("aria-valuenow")).toBe("720");
+		resize(toolbar, 600);
+		await tick();
+		expect(splitter?.getAttribute("aria-valuenow")).toBe("300");
+		expect(localStorage.getItem(PREVIEW_HEIGHT_STORAGE_KEY)).toBe("720");
+
+		render(<PreviewResizer diagramRef={diagramRef} aspectRatio={3} />, container);
+		await tick();
+		expect(splitter?.getAttribute("aria-valuemin")).toBe("200");
+		expect(splitter?.getAttribute("aria-valuemax")).toBe("200");
+		expect(splitter?.getAttribute("aria-disabled")).toBe("true");
+		for (const button of container.querySelectorAll("button")) expect(button.disabled).toBe(true);
+		render(null, container);
+		expect(observed.has(toolbar)).toBe(false);
+	});
+
 	it("applies the stored height and exposes range semantics", () => {
 		localStorage.setItem(PREVIEW_HEIGHT_STORAGE_KEY, "425");
 		const { diagramEl, container } = mount();

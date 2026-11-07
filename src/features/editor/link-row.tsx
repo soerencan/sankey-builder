@@ -192,9 +192,10 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 				type="button"
 				class="link-delete"
 				aria-label={`Delete link ${index + 1}`}
+				title={`Delete link ${index + 1}`}
 				onClick={() => actions.deleteLink(link.id)}
 			>
-				Delete
+				<Icon id="icon-delete" />
 			</button>
 			{/*
 				Last in DOM order so grid auto-placement gives it a fresh implicit

@@ -35,6 +35,7 @@ function persistPreviewHeight(storage: Storage, value: number): void {
 export interface PreviewResizerProps {
 	/** A sibling in App's tree, so it exists only after commit: read it from effects and handlers, never during render. */
 	diagramRef: RefObject<HTMLElement>;
+	aspectRatio: number;
 }
 
 interface DragState {
@@ -52,22 +53,52 @@ interface DragState {
  * updates into a microtask: a second click or pointermove landing before the
  * flush would otherwise compute from a stale height.
  */
-export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
+export function PreviewResizer({ diagramRef, aspectRatio }: PreviewResizerProps) {
 	const splitterRef = useRef<HTMLDivElement>(null);
 	const [height, setHeight] = useState(() => loadPreviewHeight(localStorage));
+	const [availableWidth, setAvailableWidth] = useState(0);
 	const heightRef = useRef(height);
 	const dragRef = useRef<DragState | null>(null);
+	const maximum =
+		availableWidth > 0
+			? Math.min(MAX_PREVIEW_HEIGHT, Math.floor(availableWidth / aspectRatio))
+			: MAX_PREVIEW_HEIGHT;
+	const minimum = Math.min(MIN_PREVIEW_HEIGHT, maximum);
+	const boundsRef = useRef({ minimum, maximum });
+	boundsRef.current = { minimum, maximum };
+	const displayedHeight = Math.min(maximum, Math.max(minimum, height));
+	const adjustable = minimum < maximum;
+
+	function currentHeight(): number {
+		const bounds = boundsRef.current;
+		return Math.min(bounds.maximum, Math.max(bounds.minimum, heightRef.current));
+	}
 
 	function apply(next: number): void {
-		const clamped = clampPreviewHeight(next);
+		const bounds = boundsRef.current;
+		const clamped = Math.min(bounds.maximum, Math.max(bounds.minimum, Math.round(next)));
+		if (clamped === currentHeight()) return;
 		heightRef.current = clamped;
 		setHeight(clamped);
 		persistPreviewHeight(localStorage, clamped);
 	}
 
 	useLayoutEffect(() => {
-		diagramRef.current?.style.setProperty("--diagram-preview-height", `${height}px`);
-	}, [height, diagramRef]);
+		const panel = diagramRef.current?.parentElement;
+		const toolbar = panel?.querySelector(".diagram-toolbar");
+		if (!panel || !toolbar) return;
+		setAvailableWidth(panel.clientWidth);
+		// The toolbar shares the available width without changing height when the preview resizes.
+		const observer = new ResizeObserver(([entry]) => {
+			if (entry) setAvailableWidth(entry.borderBoxSize[0]?.inlineSize ?? entry.contentRect.width);
+		});
+		observer.observe(toolbar, { box: "border-box" });
+		return () => observer.disconnect();
+	}, [diagramRef]);
+
+	useLayoutEffect(() => {
+		diagramRef.current?.style.setProperty("--diagram-preview-height", `${displayedHeight}px`);
+	}, [displayedHeight, diagramRef]);
 
 	// Window-level listeners, since a drag continues once the pointer leaves
 	// the splitter.
@@ -76,7 +107,13 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 		const onPointerMove = (event: PointerEvent) => {
 			const drag = dragRef.current;
 			if (!drag) return;
-			apply(drag.startHeight + event.clientY - drag.startY);
+			const next = drag.startHeight + event.clientY - drag.startY;
+			apply(next);
+			const { minimum, maximum } = boundsRef.current;
+			if (next < minimum || next > maximum) {
+				drag.startY = event.clientY;
+				drag.startHeight = currentHeight();
+			}
 		};
 
 		// A canceled gesture keeps the height applied so far, like a pointerup
@@ -109,19 +146,20 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 
 	function onSplitterKeyDown(event: JSX.TargetedKeyboardEvent<HTMLDivElement>): void {
 		let next: number | undefined;
-		if (event.key === "ArrowUp") next = heightRef.current - PREVIEW_HEIGHT_STEP;
-		else if (event.key === "ArrowDown") next = heightRef.current + PREVIEW_HEIGHT_STEP;
-		else if (event.key === "Home") next = MIN_PREVIEW_HEIGHT;
-		else if (event.key === "End") next = MAX_PREVIEW_HEIGHT;
+		if (event.key === "ArrowUp") next = currentHeight() - PREVIEW_HEIGHT_STEP;
+		else if (event.key === "ArrowDown") next = currentHeight() + PREVIEW_HEIGHT_STEP;
+		else if (event.key === "Home") next = boundsRef.current.minimum;
+		else if (event.key === "End") next = boundsRef.current.maximum;
 		if (next === undefined) return;
 		event.preventDefault();
 		apply(next);
 	}
 
 	function onSplitterPointerDown(event: JSX.TargetedPointerEvent<HTMLDivElement>): void {
+		if (!adjustable) return;
 		dragRef.current = {
 			startY: event.clientY,
-			startHeight: heightRef.current,
+			startHeight: currentHeight(),
 			pointerId: event.pointerId,
 		};
 		splitterRef.current?.setPointerCapture?.(event.pointerId);
@@ -135,7 +173,8 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 				class="preview-size-button"
 				aria-label="Make diagram preview smaller"
 				title="Make preview smaller"
-				onClick={() => apply(heightRef.current - PREVIEW_HEIGHT_STEP)}
+				disabled={displayedHeight <= minimum}
+				onClick={() => apply(currentHeight() - PREVIEW_HEIGHT_STEP)}
 			>
 				<Icon id="icon-minus" />
 			</button>
@@ -146,11 +185,12 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 				role="separator"
 				aria-label="Resize diagram preview"
 				aria-orientation="horizontal"
-				aria-valuemin={MIN_PREVIEW_HEIGHT}
-				aria-valuemax={MAX_PREVIEW_HEIGHT}
-				aria-valuenow={height}
-				aria-valuetext={`${height} pixels`}
-				tabIndex={0}
+				aria-valuemin={minimum}
+				aria-valuemax={maximum}
+				aria-valuenow={displayedHeight}
+				aria-valuetext={`${displayedHeight} pixels`}
+				aria-disabled={!adjustable || undefined}
+				tabIndex={adjustable ? 0 : -1}
 				title="Drag vertically to resize the preview"
 				onKeyDown={onSplitterKeyDown}
 				onPointerDown={onSplitterPointerDown}
@@ -162,7 +202,8 @@ export function PreviewResizer({ diagramRef }: PreviewResizerProps) {
 				class="preview-size-button"
 				aria-label="Make diagram preview larger"
 				title="Make preview larger"
-				onClick={() => apply(heightRef.current + PREVIEW_HEIGHT_STEP)}
+				disabled={displayedHeight >= maximum}
+				onClick={() => apply(currentHeight() + PREVIEW_HEIGHT_STEP)}
 			>
 				<Icon id="icon-plus" />
 			</button>

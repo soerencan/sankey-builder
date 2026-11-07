@@ -88,7 +88,10 @@ export function App({
 						role="group"
 						aria-label="Diagram preview size controls"
 					>
-						<PreviewResizer diagramRef={diagramRef} />
+						<PreviewResizer
+							diagramRef={diagramRef}
+							aspectRatio={aspectRatio.width / aspectRatio.height}
+						/>
 					</div>
 				</section>
 

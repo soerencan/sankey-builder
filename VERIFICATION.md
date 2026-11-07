@@ -24,12 +24,12 @@ Open [localhost:8000/sankey-builder/](http://localhost:8000/sankey-builder/). Th
 
 ## Layout and theme
 
-Check wide layouts at 1440px and 1024px, and narrower layouts at 768px, 390px, and 360px. Include 320px when changing toolbar or icon sizing. Use both light and dark themes.
+The two layout breakpoints are 35rem and 60rem (560px and 960px at the default font size). Compact layouts are below 35rem, medium layouts are from 35rem to below 60rem, and wide layouts are 60rem and above. Check 559px, 560px, 561px, 959px, 960px, and 961px around the transitions, plus 1440px, 1024px, 768px, 390px, 360px, 320px, and 280px. Use both light and dark themes.
 
 - [ ] The page order stays consistent visually, in the DOM, and for keyboard and screen-reader navigation: header and notices, diagram, Data actions, Nodes, Links, footer.
-- [ ] The diagram panel spans the available content width above the Data card. Nodes and Links sit side by side in a wide Data card and stack in that order when it narrows. Check the container-query transition for overlap or unusably narrow columns.
+- [ ] The diagram panel spans the available content width above the Data card. Nodes and Links sit side by side in wide layouts and stack in that order in medium and compact layouts. Check both transitions for overlap or unusably narrow controls.
 - [ ] The header title, theme button, Data heading, and file actions remain legible without collisions. There is no horizontal page scrollbar.
-- [ ] Narrow link rows stack source, target, value, and Delete vertically, with the drag handle beside the source. The layout follows the editor's width, and field errors remain readable.
+- [ ] Compact link rows put source and target on separate rows, followed by value and Delete together, with the drag handle beside the source. Medium and wide link rows stay horizontal. Icon delete buttons keep their accessible names, and field errors remain readable.
 - [ ] Scrolling follows normal document flow. Keyboard focus brings controls into view without unexpected jumps.
 - [ ] With all links deleted, the empty preview retains the selected aspect ratio, and the toolbar and Data card remain usable.
 - [ ] The footer stays below the Data card, wraps at narrow widths, and has legible links with comfortable touch targets.
@@ -42,14 +42,14 @@ Check wide layouts at 1440px and 1024px, and narrower layouts at 768px, 390px, a
 The three panels are Theme, Appearance, and Export diagram. Appearance contains Color palette, Link colors, Node alignment, and Aspect ratio in that order. Color palette is a swatch-only dropdown; the others are native selects.
 
 - [ ] Appearance and Export remain visible on one toolbar row without clipped icons, including below 320px.
-- [ ] On wide screens, panels anchor near their trigger and stay within the viewport. Open one, then scroll or resize to check repositioning.
-- [ ] On narrow screens, panels become full-width bottom sheets with rounded top corners, a transparent backdrop, and scrollable content. Close remains reachable, and the page behind the panel cannot be used until dismissal.
+- [ ] In wide and medium layouts, panels anchor near their trigger and stay within the viewport. Open one, then scroll or resize to check repositioning.
+- [ ] In compact layouts, panels become full-width bottom sheets with rounded top corners, a transparent backdrop, and scrollable content. Close remains reachable, and the page behind the panel cannot be used until dismissal.
 - [ ] Opening Theme focuses the selected choice. Appearance focuses Color palette; Export diagram focuses its first control. Selected choices have a tint and checkmark distinct from the keyboard focus ring.
 - [ ] Tab and Shift+Tab stay usable within each panel. Interior padding does not dismiss it; outside clicks, Escape, and Close dismiss it and visibly return focus to its trigger.
 - [ ] Theme choices close their panel. Appearance stays open while its dropdowns update the diagram; the selections survive a reload. Node alignment changes horizontal placement where the graph permits, while preserving node order within each column.
 - [ ] Color palette shows eight segments per bar, with no visible palette names. Arrow keys and Home/End navigate its options; Enter or Space selects, Tab selects and advances focus, and Escape closes only the dropdown. All palettes remain reachable by scrolling in short viewports.
 - [ ] Export diagram presents SVG and PNG at every screen size. Choosing a format closes the panel and restores focus, including with an empty diagram.
-- [ ] On wide layouts, use the preview's smaller/larger buttons, drag its horizontal handle, and try Arrow Up, Arrow Down, Home, and End with that handle focused. The preview resizes smoothly without changing the exported dimensions. On narrow layouts, these controls hide and the preview fits the available width.
+- [ ] In wide and medium layouts, use the preview's smaller/larger buttons, drag its horizontal handle, and try Arrow Up, Arrow Down, Home, and End with that handle focused. Every enabled control visibly changes the preview, and buttons disable at the limits imposed by the available width and selected aspect ratio. Check resizing the window and changing aspect ratios, including when the width leaves no adjustment range. The controls expose the displayed height and current limits to assistive technology. Resizing preserves the exported dimensions. In compact layouts, the controls hide and the preview fits the available width; returning to a larger window restores the saved height within its current limits.
 
 ### Physical iPhone checks
 

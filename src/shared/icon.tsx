@@ -8,6 +8,7 @@ import {
 	Plus,
 	Settings,
 	Sun,
+	Trash2,
 	Upload,
 	X,
 } from "lucide-preact";
@@ -23,6 +24,7 @@ const ICONS = {
 	"icon-minus": Minus,
 	"icon-plus": Plus,
 	"icon-close": X,
+	"icon-delete": Trash2,
 	"icon-grip-horizontal": GripHorizontal,
 	"icon-grip-vertical": GripVertical,
 } as const;

@@ -48,9 +48,10 @@ export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 							type="button"
 							class="node-delete"
 							aria-label={`Delete ${node.name}`}
+							title={`Delete ${node.name}`}
 							onClick={() => actions.deleteNode(node.id)}
 						>
-							Delete
+							<Icon id="icon-delete" />
 						</button>
 					</div>
 				))}

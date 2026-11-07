@@ -91,7 +91,7 @@ body {
 	align-items: center;
 	justify-content: space-between;
 	gap: 0.75rem;
-	padding: 1rem 1.5rem;
+	padding: 1rem;
 	border-bottom: 1px solid var(--border);
 }
 
@@ -113,7 +113,7 @@ body {
 	display: flex;
 	align-items: center;
 	gap: 1rem;
-	padding: 0.75rem 1.5rem;
+	padding: 0.75rem 1rem;
 	font-size: 0.85rem;
 	border-bottom: 1px solid var(--border);
 }
@@ -144,7 +144,7 @@ body {
 	gap: 1.5rem;
 	width: min(100%, 96rem);
 	margin-inline: auto;
-	padding: 1.5rem;
+	padding: 1rem;
 }
 
 .app-footer {
@@ -152,7 +152,7 @@ body {
 	flex-wrap: wrap;
 	justify-content: center;
 	column-gap: 1.5rem;
-	padding: 0 1.5rem 1.5rem;
+	padding: 0 1rem 1rem;
 	font-size: 0.85rem;
 	color: color-mix(in srgb, var(--ink) 70%, var(--surface));
 }
@@ -167,8 +167,6 @@ body {
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-raised);
 	overflow: hidden;
-	container-type: inline-size;
-	container-name: data-card;
 }
 
 .data-card-header {
@@ -196,16 +194,15 @@ body {
 
 .data-section {
 	padding: 1rem;
-	container-type: inline-size;
 }
 
 .data-sections {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-columns: minmax(0, 1fr);
 }
 
 .data-section + .data-section {
-	border-inline-start: 1px solid var(--border);
+	border-top: 1px solid var(--border);
 }
 
 .data-section h2,
@@ -219,10 +216,8 @@ input[type="number"],
 select {
 	font: inherit;
 	accent-color: var(--accent);
-	/* Native selects ignore some padding and render shorter than text inputs,
-     so a shared height keeps stacked control rows even. The pointer-coarse
-     block below raises it to 44px. */
-	min-height: 2.25rem;
+	/* Keep native selects and text inputs level within each editor row. */
+	min-height: 2.75rem;
 }
 
 button {
@@ -291,12 +286,12 @@ select,
 .node-rows {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--editor-row-gap, 0.5rem);
 }
 
 .node-row {
 	display: grid;
-	grid-template-columns: auto auto 1fr auto;
+	grid-template-columns: auto auto minmax(0, 1fr) auto;
 	align-items: center;
 	gap: 0.5rem;
 }
@@ -312,11 +307,6 @@ select,
 	min-width: 0;
 }
 
-.node-delete {
-	color: var(--danger);
-	border-color: transparent;
-}
-
 .add-link {
 	margin-top: 0.75rem;
 }
@@ -324,12 +314,12 @@ select,
 .link-rows {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: 1.5rem;
 }
 
 .link-row {
 	display: grid;
-	grid-template-columns: auto 1fr 1fr auto auto;
+	grid-template-columns: 2rem minmax(0, 1fr) 2.75rem;
 	align-items: center;
 	gap: 0.5rem;
 }
@@ -337,10 +327,13 @@ select,
 .link-source,
 .link-target {
 	min-width: 0;
+	grid-column: 2 / -1;
 }
 
 .link-value {
-	width: 4.5rem;
+	grid-column: 2;
+	min-width: 0;
+	width: 100%;
 }
 
 .link-row select[data-placeholder="true"],
@@ -360,8 +353,7 @@ select,
 	box-shadow: 0 0 0 2px var(--danger);
 }
 
-/* Spans the full row width regardless of column count, so it works unchanged
-   in both the 5-column row and the narrow container-query wrap. */
+/* Keep validation below all fields in both inline and compact link rows. */
 .field-error {
 	grid-column: 1 / -1;
 	color: var(--danger);
@@ -373,6 +365,16 @@ select,
 }
 
 .link-delete {
+	grid-column: 3;
+}
+
+.node-delete,
+.link-delete {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.75rem;
+	padding: 0;
 	color: var(--danger);
 	border-color: transparent;
 }
@@ -444,8 +446,6 @@ select,
 	overflow: hidden;
 	/* Shared with the coarse-pointer override below. */
 	--toolbar-height: 3.5rem;
-	container-type: inline-size;
-	container-name: diagram-panel;
 	background: var(--surface);
 }
 
@@ -470,7 +470,7 @@ select,
 .sankey-canvas {
 	flex: 0 0 auto;
 	min-width: 0;
-	width: min(100%, calc(var(--diagram-preview-height, 360px) * var(--diagram-aspect-number, 2)));
+	width: 100%;
 	aspect-ratio: var(--diagram-aspect-ratio, 2 / 1);
 	align-self: center;
 	/* Read via getComputedStyle as the SVG/PNG export background, so it must
@@ -491,7 +491,7 @@ select,
 }
 
 .preview-resizer {
-	display: flex;
+	display: none;
 	align-items: center;
 	justify-content: center;
 	min-height: 2.25rem;
@@ -525,6 +525,7 @@ select,
    Diagram toolbar and appearance settings.
    ========================================================================== */
 .toolbar-button {
+	min-width: 2.75rem;
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
@@ -591,29 +592,21 @@ select,
 	flex: 1 1 0;
 }
 
-@container diagram-panel (max-width: 820px) {
-	.sankey-canvas {
-		width: 100%;
-	}
-
-	.preview-resizer {
-		display: none;
-	}
-}
-
 /* ==========================================================================
    Dialogs (native <dialog>, wired by src/shared/use-dialog.ts).
    ========================================================================== */
 dialog {
 	position: fixed;
-	inset: var(--panel-top, 8px) auto auto var(--panel-left, 8px);
-	margin: 0;
-	width: 320px;
-	max-width: calc(100vw - 16px);
-	max-height: calc(100dvh - 16px);
-	padding: 0;
+	inset: auto 0 0;
+	margin: auto 0 0;
+	width: 100%;
+	max-width: none;
+	max-height: min(85dvh, 42rem);
+	padding: 0 0 env(safe-area-inset-bottom);
 	border: 1px solid var(--border);
-	border-radius: 12px;
+	border-inline: 0;
+	border-bottom: 0;
+	border-radius: 16px 16px 0 0;
 	box-shadow: var(--shadow-floating);
 	background: var(--surface);
 	color: var(--ink);
@@ -736,87 +729,88 @@ dialog[open] {
 
 /* ==========================================================================
    Responsive layout. The page itself always follows normal document flow;
-   only the Data card's internal columns and modal presentation adapt.
+   compact, medium, and wide layouts share two viewport breakpoints.
    ========================================================================== */
-@media (max-width: 820px) {
+@media (min-width: 35rem) {
+	.app-header {
+		padding-inline: 1.5rem;
+	}
+
+	.notice-region > div {
+		padding-inline: 1.5rem;
+	}
+
 	.app-layout {
-		padding: 1rem;
+		padding: 1.5rem;
 	}
 
-	/* Diagram and theme controls read as bottom sheets on narrow viewports. */
-	dialog {
-		position: fixed;
-		inset: auto 0 0 0;
-		margin-block-end: 0;
-		margin-block-start: auto;
-		width: 100%;
-		max-width: none;
-		max-height: min(85dvh, 42rem);
-		padding-bottom: env(safe-area-inset-bottom);
-		overflow-y: auto;
-		border-radius: 16px 16px 0 0;
-		border-inline: 0;
-		border-bottom: 0;
-		box-shadow: 0 -8px 28px -12px light-dark(hsl(220 20% 15% / 18%), hsl(220 40% 2% / 55%));
-	}
-}
-
-/* Stack the Data card's sections when each would otherwise become too narrow
-   for its editor controls. The breakpoint follows the card, not the viewport. */
-@container data-card (max-width: 52rem) {
-	.data-sections {
-		grid-template-columns: minmax(0, 1fr);
+	.app-footer {
+		padding: 0 1.5rem 1.5rem;
 	}
 
-	.data-section + .data-section {
-		border-inline-start: 0;
-		border-top: 1px solid var(--border);
+	button,
+	input[type="text"],
+	input[type="number"],
+	select {
+		min-height: 2.25rem;
 	}
-}
 
-/* Narrow editors use separate groups so each link remains clear
-   when its controls no longer fit on one line. */
-@container (max-width: 380px) {
-	.data-section .link-rows {
-		gap: 1.5rem;
+	.toolbar-button {
+		min-width: 0;
+	}
+
+	.node-delete,
+	.link-delete {
+		width: 2.25rem;
+	}
+
+	.link-rows {
+		gap: var(--editor-row-gap, 0.5rem);
 	}
 
 	.link-row {
-		grid-template-columns: auto minmax(0, 1fr);
-		grid-template-areas:
-			"handle source"
-			". target"
-			". value"
-			". delete";
+		grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto auto;
 	}
 
-	.link-row button,
-	.link-row select,
-	.link-row input {
-		min-height: 44px;
-	}
-
-	.link-row .drag-handle {
-		grid-area: handle;
-	}
-
-	.link-source {
-		grid-area: source;
-	}
-
-	.link-target {
-		grid-area: target;
+	.link-source,
+	.link-target,
+	.link-value,
+	.link-delete {
+		grid-column: auto;
 	}
 
 	.link-value {
-		grid-area: value;
-		width: 100%;
-		max-width: 100%;
+		width: 4.5rem;
 	}
 
-	.link-delete {
-		grid-area: delete;
-		justify-self: end;
+	.sankey-canvas {
+		width: min(100%, calc(var(--diagram-preview-height, 360px) * var(--diagram-aspect-number, 2)));
+	}
+
+	.preview-resizer {
+		display: flex;
+	}
+
+	dialog {
+		inset: var(--panel-top, 8px) auto auto var(--panel-left, 8px);
+		margin: 0;
+		width: 320px;
+		max-width: calc(100vw - 16px);
+		max-height: calc(100dvh - 16px);
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: 12px;
+	}
+}
+
+@media (min-width: 60rem) {
+	.data-sections {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.data-section + .data-section {
+		border-top: 0;
+		border-inline-start: 1px solid var(--border);
 	}
 }
 
@@ -825,7 +819,8 @@ dialog[open] {
 	button,
 	select,
 	input[type="text"],
-	input[type="number"] {
+	input[type="number"],
+	.notice-dismiss {
 		min-height: 44px;
 	}
 
@@ -840,13 +835,23 @@ dialog[open] {
 
 	/* Icon-only buttons stay ~32px wide under min-height alone. */
 	.toolbar-button,
-	.preview-size-button {
+	.preview-size-button,
+	.notice-dismiss {
 		min-width: 44px;
 	}
 
-	.node-rows,
-	.link-rows {
-		gap: 0.75rem;
+	:root {
+		--editor-row-gap: 0.75rem;
+	}
+
+	.node-delete,
+	.link-delete {
+		width: 44px;
+	}
+
+	.preview-size-button,
+	#preview-splitter {
+		min-height: 44px;
 	}
 
 	/* Grows the toolbar row to the 44px buttons rather than clipping. */
@@ -874,4 +879,9 @@ dialog[open] {
 .link-delete:focus-visible {
 	background: color-mix(in srgb, var(--danger) 12%, transparent);
 	border-color: var(--danger);
+}
+
+#preview-splitter[aria-disabled="true"] {
+	cursor: default;
+	opacity: 0.5;
 }
