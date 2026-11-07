@@ -71,8 +71,8 @@ describe("validate", () => {
 		it("treats a state whose only structural problem is an incomplete link as valid", () => {
 			const state: State = {
 				nodes: [
-					{ id: "n1", name: "A" },
-					{ id: "n2", name: "B" },
+					{ id: "n1", name: "A", colorIndex: 0 },
+					{ id: "n2", name: "B", colorIndex: 1 },
 				],
 				links: [{ id: "l1", source: null, target: null, value: 1 }],
 				settings: defaultState().settings,
@@ -89,8 +89,8 @@ describe("validate", () => {
 		it("does not let an incomplete link participate in cycle detection", () => {
 			const state: State = {
 				nodes: [
-					{ id: "n1", name: "A" },
-					{ id: "n2", name: "B" },
+					{ id: "n1", name: "A", colorIndex: 0 },
+					{ id: "n2", name: "B", colorIndex: 1 },
 				],
 				links: [
 					{ id: "l1", source: "n1", target: "n2", value: 1 },
@@ -107,8 +107,8 @@ describe("validate", () => {
 		it("reports a simple 2-node cycle by node names", () => {
 			const state: State = {
 				nodes: [
-					{ id: "n1", name: "A" },
-					{ id: "n2", name: "B" },
+					{ id: "n1", name: "A", colorIndex: 0 },
+					{ id: "n2", name: "B", colorIndex: 1 },
 				],
 				links: [
 					{ id: "l1", source: "n1", target: "n2", value: 1 },
@@ -125,10 +125,10 @@ describe("validate", () => {
 		it("reports a longer cycle by node names", () => {
 			const state: State = {
 				nodes: [
-					{ id: "n1", name: "A" },
-					{ id: "n2", name: "B" },
-					{ id: "n3", name: "C" },
-					{ id: "n4", name: "D" },
+					{ id: "n1", name: "A", colorIndex: 0 },
+					{ id: "n2", name: "B", colorIndex: 1 },
+					{ id: "n3", name: "C", colorIndex: 2 },
+					{ id: "n4", name: "D", colorIndex: 3 },
 				],
 				links: [
 					{ id: "l1", source: "n1", target: "n2", value: 1 },
@@ -148,7 +148,7 @@ describe("validate", () => {
 			// The codec normally nulls a dangling endpoint first; validate must
 			// still cope, since DFS starts only from `state.nodes`.
 			const state: State = {
-				nodes: [{ id: "n1", name: "A" }],
+				nodes: [{ id: "n1", name: "A", colorIndex: 0 }],
 				links: [{ id: "l1", source: "n1", target: "missing", value: 1 }],
 				settings: defaultState().settings,
 			};
@@ -157,7 +157,7 @@ describe("validate", () => {
 
 		it("falls back to the raw id when a dangling link also has a bad value", () => {
 			const state: State = {
-				nodes: [{ id: "n1", name: "A" }],
+				nodes: [{ id: "n1", name: "A", colorIndex: 0 }],
 				links: [{ id: "l1", source: "n1", target: "missing", value: 0 }],
 				settings: defaultState().settings,
 			};
@@ -182,8 +182,8 @@ describe("validate", () => {
 		it("reports value errors (per-link, in link order) before cycle errors", () => {
 			const state: State = {
 				nodes: [
-					{ id: "n1", name: "A" },
-					{ id: "n2", name: "B" },
+					{ id: "n1", name: "A", colorIndex: 0 },
+					{ id: "n2", name: "B", colorIndex: 1 },
 				],
 				links: [
 					{ id: "l1", source: "n1", target: "n2", value: 1 },

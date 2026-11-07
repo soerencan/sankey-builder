@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { normalizeDiagram } from "../../model/codec";
 import { defaultState, deleteNode, moveNode, renameNode } from "../../model/graph";
 import { paletteColors } from "../settings/palettes";
 import { createNodeColorResolver } from "./colors";
@@ -28,7 +29,7 @@ describe("createNodeColorResolver", () => {
 	it("assigns the i-th node the i-th palette color", () => {
 		const palette = "observable10";
 		const colors = paletteColors(palette);
-		const nodes = colors.map((_, i) => ({ id: `n${i}`, name: `Node ${i}` }));
+		const nodes = colors.map((_, i) => ({ id: `n${i}`, name: `Node ${i}`, colorIndex: i }));
 		const resolve = createNodeColorResolver(nodes, palette);
 		nodes.forEach((node, i) => {
 			expect(resolve(node)).toBe(colors[i]);
@@ -41,6 +42,7 @@ describe("createNodeColorResolver", () => {
 		const nodes = Array.from({ length: colors.length + 1 }, (_, i) => ({
 			id: `n${i}`,
 			name: `Node ${i}`,
+			colorIndex: i,
 		}));
 		const resolve = createNodeColorResolver(nodes, palette);
 
@@ -52,17 +54,20 @@ describe("createNodeColorResolver", () => {
 		const resolve = createNodeColorResolver(state.nodes, state.settings.palette);
 		const colors = paletteColors(state.settings.palette);
 
-		expect(resolve({ id: "unknown", name: "Unknown" })).toBe(colors[0]);
+		expect(resolve({ id: "unknown" })).toBe(colors[0]);
 	});
 
-	it("gives a duplicate node id the color of its first occurrence, and the next node the following index", () => {
+	it("keeps legacy palette order after normalization, sharing colors for duplicate ids", () => {
 		const palette = "observable10";
 		const colors = paletteColors(palette);
-		const nodes = [
-			{ id: "a", name: "A" },
-			{ id: "a", name: "A again" },
-			{ id: "b", name: "B" },
-		];
+		const { nodes } = normalizeDiagram({
+			nodes: [
+				{ id: "a", name: "A" },
+				{ id: "a", name: "A again" },
+				{ id: "b", name: "B" },
+			],
+			links: [],
+		});
 		const resolve = createNodeColorResolver(nodes, palette);
 
 		expect(resolve(nodes[0])).toBe(colors[0]);

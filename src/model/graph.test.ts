@@ -55,14 +55,14 @@ describe("nextNodeId", () => {
 		[
 			"survives hydration with gappy ids",
 			[
-				{ id: "n1", name: "A" },
-				{ id: "n7", name: "B" },
+				{ id: "n1", name: "A", colorIndex: 0 },
+				{ id: "n7", name: "B", colorIndex: 1 },
 			],
 			"n8",
 		],
 		[
 			"ignores ids that don't match the n<number> pattern",
-			[{ id: "custom", name: "Custom" }],
+			[{ id: "custom", name: "Custom", colorIndex: 0 }],
 			"n1",
 		],
 	])("%s", (_label, nodes, expected) => {
@@ -104,8 +104,8 @@ describe("deleteNode", () => {
 	it("prunes only links referencing the deleted id, leaving null endpoints untouched", () => {
 		const state: State = {
 			nodes: [
-				{ id: "n1", name: "A" },
-				{ id: "n2", name: "B" },
+				{ id: "n1", name: "A", colorIndex: 0 },
+				{ id: "n2", name: "B", colorIndex: 1 },
 			],
 			links: [
 				{ id: "l1", source: "n1", target: null, value: 1 },
@@ -126,8 +126,8 @@ describe("addLink", () => {
 	it("creates an unassigned null/null/value-1 link with a fresh id", () => {
 		const state: State = {
 			nodes: [
-				{ id: "n1", name: "A" },
-				{ id: "n2", name: "B" },
+				{ id: "n1", name: "A", colorIndex: 0 },
+				{ id: "n2", name: "B", colorIndex: 1 },
 			],
 			links: [],
 			settings: defaultState().settings,
@@ -211,10 +211,10 @@ describe("deleteLink", () => {
 describe("moveNode", () => {
 	function fourNodes(): State {
 		const nodes: Node[] = [
-			{ id: "n1", name: "A" },
-			{ id: "n2", name: "B" },
-			{ id: "n3", name: "C" },
-			{ id: "n4", name: "D" },
+			{ id: "n1", name: "A", colorIndex: 0 },
+			{ id: "n2", name: "B", colorIndex: 1 },
+			{ id: "n3", name: "C", colorIndex: 2 },
+			{ id: "n4", name: "D", colorIndex: 3 },
 		];
 		return { nodes, links: [], settings: defaultState().settings };
 	}
@@ -240,7 +240,7 @@ describe("moveNode", () => {
 
 	it("is a no-op for a single-item array", () => {
 		const state: State = {
-			nodes: [{ id: "n1", name: "A" }],
+			nodes: [{ id: "n1", name: "A", colorIndex: 0 }],
 			links: [],
 			settings: defaultState().settings,
 		};
@@ -277,7 +277,7 @@ describe("moveLink", () => {
 describe("replaceDiagram", () => {
 	function diagram() {
 		return {
-			nodes: [{ id: "n1", name: "Replaced" }],
+			nodes: [{ id: "n1", name: "Replaced", colorIndex: 0 }],
 			links: [{ id: "l1", source: "n1", target: null, value: 5 }],
 			settings: {
 				...pickDiagramSettings(DEFAULT_SETTINGS),
@@ -303,7 +303,7 @@ describe("replaceDiagram", () => {
 	it("replaces nodes and links", () => {
 		const state = defaultState();
 		replaceDiagram(state, diagram());
-		expect(state.nodes).toEqual([{ id: "n1", name: "Replaced" }]);
+		expect(state.nodes).toEqual([{ id: "n1", name: "Replaced", colorIndex: 0 }]);
 		expect(state.links).toEqual([{ id: "l1", source: "n1", target: null, value: 5 }]);
 	});
 

@@ -2,7 +2,7 @@ import type { Node } from "../../model/graph";
 import type { Palette } from "../../model/settings";
 import { paletteColors } from "../settings/palettes";
 
-export type NodeColorResolver = (node: Node) => string;
+export type NodeColorResolver = (node: Pick<Node, "id">) => string;
 
 /**
  * Built fresh per caller rather than a module-level singleton, which would
@@ -17,7 +17,7 @@ export function createNodeColorResolver(
 	const colors = paletteColors(palette);
 	const index = new Map<string, number>();
 	for (const node of nodes) {
-		if (!index.has(node.id)) index.set(node.id, node.colorIndex ?? index.size);
+		if (!index.has(node.id)) index.set(node.id, node.colorIndex);
 	}
 	return (node) => colors[(index.get(node.id) ?? 0) % colors.length];
 }

@@ -10,7 +10,7 @@ function diagramOf(state: ReturnType<typeof defaultState>): Diagram {
 describe("layoutDiagram", () => {
 	it("preserves link editor order at shared endpoints, including links that skip columns", () => {
 		const state = defaultState();
-		state.nodes = ["a", "b", "c", "d"].map((id) => ({ id, name: id }));
+		state.nodes = ["a", "b", "c", "d"].map((id, colorIndex) => ({ id, name: id, colorIndex }));
 		state.links = [
 			{ id: "l1", source: "a", target: "c", value: 2 },
 			{ id: "draft", source: null, target: "c", value: 1 },
@@ -44,7 +44,7 @@ describe("layoutDiagram", () => {
 		(alignment) => {
 			const state = defaultState();
 			state.settings.alignment = alignment;
-			state.nodes = ["a", "b", "c", "d"].map((id) => ({ id, name: id }));
+			state.nodes = ["a", "b", "c", "d"].map((id, colorIndex) => ({ id, name: id, colorIndex }));
 			state.links = [
 				{ id: "l1", source: "a", target: "d", value: 1 },
 				{ id: "l2", source: "b", target: "c", value: 1 },
@@ -171,12 +171,12 @@ describe("layoutDiagram", () => {
 		const state = defaultState();
 		const diagram: Diagram = {
 			nodes: [
-				{ id: "a", name: "A" },
-				{ id: "b", name: "B" },
-				{ id: "c", name: "C" },
-				{ id: "e", name: "E" },
-				{ id: "d", name: "D" },
-				{ id: "f", name: "F" },
+				{ id: "a", name: "A", colorIndex: 0 },
+				{ id: "b", name: "B", colorIndex: 1 },
+				{ id: "c", name: "C", colorIndex: 2 },
+				{ id: "e", name: "E", colorIndex: 3 },
+				{ id: "d", name: "D", colorIndex: 4 },
+				{ id: "f", name: "F", colorIndex: 5 },
 			],
 			links: [
 				{ id: "l1", source: "a", target: "b", value: 1 },

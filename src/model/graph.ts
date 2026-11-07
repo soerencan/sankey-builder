@@ -4,8 +4,8 @@ import { DEFAULT_SETTINGS, pickDiagramSettings } from "./settings";
 export interface Node {
 	id: string;
 	name: string;
-	/** Stable palette slot; omitted only by legacy callers before normalization. */
-	colorIndex?: number;
+	/** Stable palette slot; legacy omissions are repaired by the codec. */
+	colorIndex: number;
 }
 
 /**
@@ -83,9 +83,9 @@ export function addNode(state: State, paletteSize: number): void {
 	const id = nextNodeId(state);
 	// Count displayed colors, including slots wrapped by a shorter palette.
 	const usage = Array<number>(paletteSize).fill(0);
-	state.nodes.forEach((node, index) => {
-		usage[(node.colorIndex ?? index) % paletteSize] += 1;
-	});
+	for (const node of state.nodes) {
+		usage[node.colorIndex % paletteSize] += 1;
+	}
 	const colorIndex = usage.indexOf(Math.min(...usage));
 	state.nodes.push({ id, name: `Node ${id.slice(1)}`, colorIndex });
 }
