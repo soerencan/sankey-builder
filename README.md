@@ -2,6 +2,8 @@
 
 Build Sankey diagrams in the browser. Edit nodes and links, choose colors and alignment, and see the diagram update as you work. The app saves your work in the current browser and supports System, Light, and Dark themes.
 
+[Open Sankey Builder](https://soerencan.github.io/sankey-builder/)
+
 ## Development
 
 Use the Bun version in [`.bun-version`](.bun-version) and the Node version in [`.nvmrc`](.nvmrc). Bun runs the development server and build; Node runs Vitest and TypeScript. If you use nvm, run `nvm use` to select Node.
