@@ -174,7 +174,7 @@ describe("application lifecycle", () => {
 		// Asserted directly rather than clicking a query that may have found
 		// nothing.
 		expect(allByRole(document, "button", "Add node")).toHaveLength(0);
-		expect(allByRole(document, "button", "Next palette")).toHaveLength(0);
+		expect(allByRole(document, "button", "Appearance")).toHaveLength(0);
 
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(nodeRowsBefore);
 		expect(localStorage.getItem(STORAGE_KEY)).toBe(storedBefore);

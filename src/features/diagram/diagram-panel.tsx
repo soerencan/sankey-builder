@@ -7,8 +7,8 @@ import { Icon } from "../../shared/icon";
 import type { IoNoticeActions } from "../../shared/notice";
 import { useDialog } from "../../shared/use-dialog";
 import { download } from "../files/download";
-import { PaletteChoices, SwatchStrip } from "../settings/choices";
 import { SETTING_LABELS } from "../settings/options";
+import { PaletteSelect } from "../settings/palette-select";
 import { createPngBlob, createSvgBlob } from "./export";
 
 const EXPORT_SVG_FILENAME = "sankey.svg";
@@ -47,16 +47,8 @@ function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOp
 }
 
 export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramPanelProps) {
-	const paletteDialog = useDialog();
 	const diagramExportDialog = useDialog();
 	const displayDialog = useDialog();
-
-	function cyclePalette(step: 1 | -1): void {
-		const palettes = SETTING_DOMAINS.palette;
-		const current = palettes.indexOf(settings.palette);
-		const next = (current + step + palettes.length) % palettes.length;
-		actions.setDiagramSetting("palette", palettes[next]);
-	}
 
 	/** Exports the visible last-valid diagram; the dialog closes even when empty. */
 	function withVisibleDiagram(fn: (svg: SVGSVGElement) => void): void {
@@ -100,32 +92,6 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 				<h2 id="diagram-heading" class="visually-hidden">
 					Diagram
 				</h2>
-				<button
-					type="button"
-					class="toolbar-button"
-					aria-label="Previous palette"
-					onClick={() => cyclePalette(-1)}
-				>
-					<Icon id="icon-chevron-left" />
-				</button>
-				<button
-					type="button"
-					id="palette-preview"
-					class="toolbar-button"
-					aria-haspopup="dialog"
-					aria-label={`Palette: ${SETTING_LABELS.palette[settings.palette]}`}
-					onClick={(event) => paletteDialog.open(event.currentTarget)}
-				>
-					<SwatchStrip palette={settings.palette} />
-				</button>
-				<button
-					type="button"
-					class="toolbar-button"
-					aria-label="Next palette"
-					onClick={() => cyclePalette(1)}
-				>
-					<Icon id="icon-chevron-right" />
-				</button>
 				<div class="diagram-actions">
 					<button
 						type="button"
@@ -152,17 +118,6 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 				</div>
 			</header>
 
-			<ChoiceDialog id="palette-dialog" heading="Palette" handle={paletteDialog}>
-				<PaletteChoices
-					value={settings.palette}
-					label="Palette"
-					onSelect={(value) => {
-						actions.setDiagramSetting("palette", value);
-						paletteDialog.close();
-					}}
-				/>
-			</ChoiceDialog>
-
 			<ChoiceDialog
 				id="diagram-export-dialog"
 				heading="Export diagram"
@@ -176,6 +131,15 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 			</ChoiceDialog>
 
 			<ChoiceDialog id="display-dialog" heading="Appearance" handle={displayDialog}>
+				<div class="setting-field">
+					<span id="setting-palette-label">Color palette</span>
+					<PaletteSelect
+						id="setting-palette"
+						value={settings.palette}
+						labelledBy="setting-palette-label"
+						onSelect={(value) => actions.setDiagramSetting("palette", value)}
+					/>
+				</div>
 				{(
 					[
 						["alignment", "Node alignment"],

@@ -40,71 +40,84 @@ function addIsolatedNode(): void {
 }
 
 describe("toolbar & settings", () => {
-	it("palette-next advances the carousel: state, preview label, and rendered colors all follow", () => {
+	it("Appearance focuses the palette dropdown and exposes all palette options", async () => {
 		mountApp();
 
-		const fills = () =>
-			Array.from(document.querySelectorAll("#diagram svg rect")).map((r) => r.getAttribute("fill"));
-		const before = fills();
+		click(byRole(document, "button", "Appearance"));
 
-		click(byRole(document, "button", "Next palette"));
-
-		const preview = document.getElementById("palette-preview");
-		expect(preview?.getAttribute("aria-label")).toBe("Palette: Tableau 10");
-		expect(fills()).not.toEqual(before);
-
-		const stored = getStoredState();
-		expect(stored.settings.palette).toBe("tableau10");
-	});
-
-	it("palette-prev wraps from the first palette (observable10) to the last (dark2)", () => {
-		mountApp();
-
-		click(byRole(document, "button", "Previous palette"));
-
-		const preview = document.getElementById("palette-preview");
-		expect(preview?.getAttribute("aria-label")).toBe("Palette: Dark 2");
-		const stored = getStoredState();
-		expect(stored.settings.palette).toBe("dark2");
-	});
-
-	it("clicking the palette preview opens the palette dialog", () => {
-		mountApp();
-
-		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
-		expect(dialog).toBeInstanceOf(HTMLDialogElement);
-		expect(dialog.open).toBe(false);
-
-		click(document.getElementById("palette-preview"));
-
+		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		expect(dialog.open).toBe(true);
-
-		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
+		const dropdown = byRole(dialog, "combobox", "Color palette");
+		expect(document.activeElement).toBe(dropdown);
+		click(dropdown);
+		await tick();
+		expect(dropdown.getAttribute("aria-expanded")).toBe("true");
+		const options = allByRole<HTMLButtonElement>(byRole(dialog, "listbox"), "option");
 		expect(options.map((option) => accessibleName(option))).toEqual(
 			PALETTE_CHOICES.map((option) => option.label),
 		);
+		expect(options.find((option) => option.getAttribute("aria-selected") === "true")).toBe(
+			byRole(dialog, "option", SETTING_LABELS.palette.observable10),
+		);
 	});
 
-	it("choosing a palette in the dialog sets state, updates aria-pressed, and closes with focus back on the preview", () => {
+	it("choosing a palette closes its dropdown and leaves Appearance open for further edits", async () => {
 		mountApp();
 
-		const preview = document.getElementById("palette-preview");
-		click(preview);
+		const trigger = byRole(document, "button", "Appearance");
+		click(trigger);
 
-		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
-		const set2Option = byRole<HTMLButtonElement>(dialog, "button", SETTING_LABELS.palette.set2);
+		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
+		const dropdown = byRole(dialog, "combobox", "Color palette");
+		click(dropdown);
+		await tick();
+		const set2Option = byRole<HTMLButtonElement>(dialog, "option", SETTING_LABELS.palette.set2);
 		click(set2Option);
+		await tick();
 
 		const stored = getStoredState();
 		expect(stored.settings.palette).toBe("set2");
-		expect(set2Option.getAttribute("aria-pressed")).toBe("true");
+		expect(set2Option.getAttribute("aria-selected")).toBe("true");
 		expect(
-			byRole<HTMLButtonElement>(dialog, "button", SETTING_LABELS.palette.observable10).getAttribute(
-				"aria-pressed",
+			byRole<HTMLButtonElement>(dialog, "option", SETTING_LABELS.palette.observable10).getAttribute(
+				"aria-selected",
 			),
 		).toBe("false");
+		expect(dialog.open).toBe(true);
+		expect(dropdown.getAttribute("aria-expanded")).toBe("false");
+		expect(document.activeElement).toBe(dropdown);
+		click(byRole(dialog, "button", "Close"));
 		expect(dialog.open).toBe(false);
-		expect(document.activeElement).toBe(preview);
+		expect(document.activeElement).toBe(trigger);
+	});
+
+	it("palette keyboard navigation can cancel without changing colors or commit a selection", async () => {
+		mountApp();
+		click(byRole(document, "button", "Appearance"));
+		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
+		const dropdown = byRole(dialog, "combobox", "Color palette");
+		async function press(key: string): Promise<void> {
+			dropdown.dispatchEvent(
+				new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+			);
+			await tick();
+		}
+
+		await press("ArrowDown");
+		await press("ArrowDown");
+		expect(dropdown.getAttribute("aria-activedescendant")).toBe("setting-palette-tableau10");
+		await press("Escape");
+		expect(dropdown.getAttribute("aria-expanded")).toBe("false");
+		expect(dialog.open).toBe(true);
+		expect(getStoredState().settings?.palette ?? defaultState().settings.palette).toBe(
+			"observable10",
+		);
+
+		await press("End");
+		await press("Enter");
+		expect(getStoredState().settings.palette).toBe("dark2");
+		expect(dropdown.getAttribute("aria-expanded")).toBe("false");
+		expect(document.activeElement).toBe(dropdown);
 	});
 
 	it("Appearance opens labelled native settings, stays open during edits, and restores focus on close", () => {
@@ -280,14 +293,17 @@ describe("a diagram-setting change made while the graph is invalid", () => {
 // Unlike the diagram-only settings, a palette change reaches the node
 // editor's swatches, but as a style patch, not a rebuild.
 describe("palette changes patch node-editor swatches", () => {
-	it("choosing a palette from the dialog updates swatch colors, redraws the SVG, and persists", () => {
+	it("choosing a palette from the dialog updates swatch colors, redraws the SVG, and persists", async () => {
 		mountApp();
 
 		const svgHtmlBefore = document.querySelector("#diagram svg")?.outerHTML;
 
-		click(document.getElementById("palette-preview"));
-		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "button", SETTING_LABELS.palette.tableau10));
+		click(byRole(document, "button", "Appearance"));
+		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
+		click(byRole(dialog, "combobox", "Color palette"));
+		await tick();
+		click(byRole(dialog, "option", SETTING_LABELS.palette.tableau10));
+		await tick();
 
 		const swatches = Array.from(
 			document.querySelectorAll<HTMLElement>("#node-editor .node-swatch"),
@@ -372,11 +388,11 @@ describe("theme changes leave the diagram and its notices unchanged", () => {
 });
 
 describe("dialog markup vs settings metadata contract", () => {
-	it("palette dialog: rendered option order and labels match PALETTE_CHOICES", () => {
+	it("Appearance palette options: order and labels match PALETTE_CHOICES", () => {
 		mountApp();
 
-		const dialog = document.getElementById("palette-dialog") as HTMLDialogElement;
-		const options = allByRole<HTMLButtonElement>(byRole(dialog, "group"), "button");
+		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
+		const options = allByRole<HTMLButtonElement>(byRole(dialog, "listbox"), "option");
 		expect(options.map((option) => accessibleName(option))).toEqual(
 			PALETTE_CHOICES.map((option) => option.label),
 		);

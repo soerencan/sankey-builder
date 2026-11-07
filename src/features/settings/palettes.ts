@@ -13,10 +13,12 @@ import {
 } from "d3-scale-chromatic";
 import type { Palette } from "../../model/settings";
 
+export const PALETTE_SIZE = 8;
+
 const PALETTES: Record<Palette, readonly string[]> = {
-	observable10: schemeObservable10,
-	tableau10: schemeTableau10,
-	category10: schemeCategory10,
+	observable10: schemeObservable10.slice(0, PALETTE_SIZE),
+	tableau10: schemeTableau10.slice(0, PALETTE_SIZE),
+	category10: schemeCategory10.slice(0, PALETTE_SIZE),
 	set2: schemeSet2,
 	dark2: schemeDark2,
 };

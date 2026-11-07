@@ -39,14 +39,15 @@ Check wide layouts at 1440px and 1024px, and narrower layouts at 768px, 390px, a
 
 ## Panels and diagram controls
 
-The four panels are Theme, Palette, Appearance, and Export diagram. Appearance contains native selects for Node alignment, Aspect ratio, and Link colors. These settings do not have separate panels.
+The three panels are Theme, Appearance, and Export diagram. Appearance contains a swatch-only Color palette dropdown and native selects for Node alignment, Aspect ratio, and Link colors.
 
-- [ ] Palette navigation, Appearance, and Export remain visible without clipped icons. The toolbar can wrap at very narrow widths.
+- [ ] Appearance and Export remain visible on one toolbar row without clipped icons, including below 320px.
 - [ ] On wide screens, panels anchor near their trigger and stay within the viewport. Open one, then scroll or resize to check repositioning.
 - [ ] On narrow screens, panels become full-width bottom sheets with rounded top corners, a transparent backdrop, and scrollable content. Close remains reachable, and the page behind the panel cannot be used until dismissal.
-- [ ] Opening Theme or Palette focuses the selected choice. Other panels focus their first control. Selected choices have a tint and checkmark distinct from the keyboard focus ring.
+- [ ] Opening Theme focuses the selected choice. Appearance focuses Color palette; Export diagram focuses its first control. Selected choices have a tint and checkmark distinct from the keyboard focus ring.
 - [ ] Tab and Shift+Tab stay usable within each panel. Interior padding does not dismiss it; outside clicks, Escape, and Close dismiss it and visibly return focus to its trigger.
-- [ ] Theme and palette choices close their panel. Appearance stays open while its selects update the diagram; the selections survive a reload. Node alignment changes horizontal placement where the graph permits, while preserving node order within each column.
+- [ ] Theme choices close their panel. Appearance stays open while its dropdowns update the diagram; the selections survive a reload. Node alignment changes horizontal placement where the graph permits, while preserving node order within each column.
+- [ ] Color palette shows eight segments per bar, with no visible palette names. Arrow keys and Home/End navigate its options; Enter or Space selects, Tab selects and advances focus, and Escape closes only the dropdown. All palettes remain reachable by scrolling in short viewports.
 - [ ] Export diagram presents SVG and PNG at every screen size. Choosing a format closes the panel and restores focus, including with an empty diagram.
 - [ ] On wide layouts, use the preview's smaller/larger buttons, drag its horizontal handle, and try Arrow Up, Arrow Down, Home, and End with that handle focused. The preview resizes smoothly without changing the exported dimensions. On narrow layouts, these controls hide and the preview fits the available width.
 

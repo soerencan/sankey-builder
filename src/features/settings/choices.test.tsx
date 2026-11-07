@@ -5,9 +5,9 @@ import { render } from "preact";
 import { describe, expect, it, vi } from "vitest";
 import { accessibleName, allByRole, byRole } from "../../../tests/helpers/dom-queries";
 import { SETTING_DOMAINS } from "../../model/settings";
-import { PaletteChoices, SWATCH_COUNT, SwatchStrip, ThemeChoices } from "./choices";
+import { SwatchStrip, ThemeChoices } from "./choices";
 import { SETTING_LABELS } from "./options";
-import { paletteColors } from "./palettes";
+import { PALETTE_SIZE, paletteColors } from "./palettes";
 
 function mount(vnode: ComponentChild) {
 	const container = document.createElement("div");
@@ -15,24 +15,6 @@ function mount(vnode: ComponentChild) {
 	render(vnode, container);
 	return container;
 }
-
-describe("PaletteChoices", () => {
-	it("renders one button per palette in SETTING_DOMAINS order, tracking aria-pressed and reporting the clicked value", () => {
-		const onSelect = vi.fn();
-		const container = mount(<PaletteChoices value="set2" label="Palette" onSelect={onSelect} />);
-
-		const buttons = allByRole<HTMLButtonElement>(container, "button");
-		expect(buttons.map((button) => accessibleName(button))).toEqual(
-			SETTING_DOMAINS.palette.map((value) => SETTING_LABELS.palette[value]),
-		);
-		expect(buttons.map((button) => button.getAttribute("aria-pressed"))).toEqual(
-			SETTING_DOMAINS.palette.map((value) => String(value === "set2")),
-		);
-
-		byRole<HTMLButtonElement>(container, "button", SETTING_LABELS.palette.dark2).click();
-		expect(onSelect).toHaveBeenCalledWith("dark2");
-	});
-});
 
 describe("ThemeChoices", () => {
 	it("renders one button per theme in SETTING_DOMAINS order, tracking aria-pressed and reporting the clicked value", () => {
@@ -65,13 +47,13 @@ describe("labelledBy", () => {
 });
 
 describe("SwatchStrip", () => {
-	it("renders SWATCH_COUNT swatches with the palette's first colors", () => {
+	it("renders PALETTE_SIZE swatches with the palette's first colors", () => {
 		const container = mount(<SwatchStrip palette="tableau10" />);
 
 		const swatches = Array.from(container.querySelectorAll<HTMLElement>(".swatch"));
-		expect(swatches).toHaveLength(SWATCH_COUNT);
+		expect(swatches).toHaveLength(PALETTE_SIZE);
 		expect(swatches.map((swatch) => swatch.style.backgroundColor)).toEqual(
-			paletteColors("tableau10").slice(0, SWATCH_COUNT),
+			paletteColors("tableau10"),
 		);
 	});
 });

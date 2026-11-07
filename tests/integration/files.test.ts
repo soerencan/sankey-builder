@@ -108,9 +108,7 @@ describe("import & export", () => {
 		expect(stored.settings.palette).toBe("set2");
 		expect(stored.settings.linkColor).toBe("static");
 		expect(stored.settings.theme).toBe("light");
-		expect(document.getElementById("palette-preview")?.getAttribute("aria-label")).toBe(
-			"Palette: Set 2",
-		);
+		expect(byRole(document, "option", "Set 2").getAttribute("aria-selected")).toBe("true");
 		expect(byRole<HTMLSelectElement>(document, "combobox", "Link colors").value).toBe("static");
 
 		// An import without repairs isn't announced; the changed data is the

@@ -86,10 +86,10 @@ it("keeps saved colors through reordering, renaming, and deletion", () => {
 	for (const node of state.nodes) expect(after(node)).toBe(before(node));
 });
 
-it("keeps palette slots when switching to a shorter palette and back", () => {
+it("wraps saved palette slots beyond eight consistently across palettes", () => {
 	const nodes = [{ id: "a", name: "A", colorIndex: 9 }];
 	expect(createNodeColorResolver(nodes, "dark2")(nodes[0])).toBe(paletteColors("dark2")[1]);
 	expect(createNodeColorResolver(nodes, "observable10")(nodes[0])).toBe(
-		paletteColors("observable10")[9],
+		paletteColors("observable10")[1],
 	);
 });
