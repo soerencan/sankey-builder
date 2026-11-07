@@ -35,7 +35,7 @@ describe("serializeDiagramSvg", () => {
 	it("includes the xml declaration, xmlns, and explicit pixel dimensions", () => {
 		const svg = buildFixture();
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456", background: "#fff" });
+		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
 
 		expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n')).toBe(true);
 		expect(xml).toContain(`xmlns="${SVG_NS}"`);
@@ -47,32 +47,26 @@ describe("serializeDiagramSvg", () => {
 		const svg = buildFixture();
 		svg.setAttribute("viewBox", "0 0 1440 480");
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456", background: "#fff" });
+		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
 
 		expect(xml).toContain('width="1440"');
 		expect(xml).toContain('height="480"');
-		const parsed = new DOMParser().parseFromString(xml, "image/svg+xml");
-		expect(parsed.querySelector("rect")?.getAttribute("width")).toBe("1440");
 	});
 
-	it("prepends an opaque background rect as the first child", () => {
+	it("keeps the background transparent", () => {
 		const svg = buildFixture();
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456", background: "rgb(10, 20, 30)" });
+		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
 
 		const parsed = new DOMParser().parseFromString(xml, "image/svg+xml");
-		const root = parsed.documentElement;
-		const firstChild = root.firstElementChild;
-		expect(firstChild?.tagName).toBe("rect");
-		expect(firstChild?.getAttribute("width")).toBe(String(FIXTURE_WIDTH));
-		expect(firstChild?.getAttribute("height")).toBe(String(FIXTURE_HEIGHT));
-		expect(firstChild?.getAttribute("fill")).toBe("rgb(10, 20, 30)");
+		expect(parsed.querySelector("rect")).toBeNull();
+		expect(parsed.documentElement.firstElementChild?.tagName).toBe("path");
 	});
 
 	it("replaces currentColor fills with the resolved label color", () => {
 		const svg = buildFixture();
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456", background: "#fff" });
+		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
 
 		expect(xml).not.toContain("currentColor");
 		expect(xml).toContain('fill="#123456"');
@@ -83,7 +77,7 @@ describe("serializeDiagramSvg", () => {
 		// attribute would be malformed XML.
 		const svg = buildFixture();
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456", background: "#fff" });
+		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
 
 		expect(xml.match(new RegExp(`xmlns="${SVG_NS}"`, "g"))).toHaveLength(1);
 	});
@@ -97,7 +91,7 @@ describe("serializeDiagramSvg", () => {
 		link.setAttribute("stroke", "url(#link-grad-0)");
 		svg.appendChild(link);
 
-		const xml = serializeDiagramSvg(svg, { labelColor: "#123456", background: "#fff" });
+		const xml = serializeDiagramSvg(svg, { labelColor: "#123456" });
 
 		const parsed = new DOMParser().parseFromString(xml, "image/svg+xml");
 		expect(parsed.querySelector("linearGradient")?.getAttribute("id")).toBe("link-grad-0");
@@ -107,7 +101,7 @@ describe("serializeDiagramSvg", () => {
 	it("does not mutate the live input svg", () => {
 		const svg = buildFixture();
 
-		serializeDiagramSvg(svg, { labelColor: "#123456", background: "#fff" });
+		serializeDiagramSvg(svg, { labelColor: "#123456" });
 
 		expect(svg.hasAttribute("width")).toBe(false);
 		expect(svg.hasAttribute("height")).toBe(false);

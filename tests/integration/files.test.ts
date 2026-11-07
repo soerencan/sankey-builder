@@ -468,8 +468,8 @@ describe("import & export", () => {
 
 		expect(blob).toBeDefined();
 		const svgText = await (blob as Blob).text();
-		// +1 for the background rect serializeDiagramSvg adds.
-		expect((svgText.match(/<rect/g) ?? []).length).toBe(rectsBefore + 1);
+		// Export preserves the diagram rectangles without adding a background.
+		expect((svgText.match(/<rect/g) ?? []).length).toBe(rectsBefore);
 		expect(svgText).toContain(oldName);
 		expect(svgText).not.toContain("Renamed For Export Test");
 		// The download itself is the feedback.

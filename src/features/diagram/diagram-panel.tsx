@@ -69,12 +69,9 @@ function serializeVisibleDiagram(
 		actions.reportIoError("Nothing to export — the diagram is empty.");
 		return null;
 	}
-	// Detached from the page, currentColor and the background would resolve
-	// to black and transparent; the .sankey-canvas host carries the theme's
-	// background.
+	// Resolve currentColor before detaching the SVG from the themed page.
 	const labelColor = getComputedStyle(svgEl).color;
-	const background = getComputedStyle(svgEl.parentElement as Element).backgroundColor;
-	return { svg: svgEl, xml: serializeDiagramSvg(svgEl, { labelColor, background }) };
+	return { svg: svgEl, xml: serializeDiagramSvg(svgEl, { labelColor }) };
 }
 
 export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramPanelProps) {

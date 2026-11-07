@@ -14,13 +14,9 @@ export function svgViewBoxSize(svg: SVGSVGElement): { width: number; height: num
 /**
  * Makes the on-screen svg standalone: explicit dimensions (a viewBox alone
  * opens at an arbitrary size in a bare viewer), currentColor resolved (it
- * falls back to black outside the page), and an opaque background (the live
- * svg relies on the page's surface color showing through).
+ * falls back to black outside the page). The background stays transparent.
  */
-export function serializeDiagramSvg(
-	svg: SVGSVGElement,
-	opts: { labelColor: string; background: string },
-): string {
+export function serializeDiagramSvg(svg: SVGSVGElement, opts: { labelColor: string }): string {
 	const { width, height } = svgViewBoxSize(svg);
 	const clone = svg.cloneNode(true) as SVGSVGElement;
 	clone.setAttribute("xmlns", SVG_NS);
@@ -30,14 +26,6 @@ export function serializeDiagramSvg(
 	for (const el of Array.from(clone.querySelectorAll('[fill="currentColor"]'))) {
 		el.setAttribute("fill", opts.labelColor);
 	}
-
-	const background = clone.ownerDocument.createElementNS(SVG_NS, "rect");
-	background.setAttribute("x", "0");
-	background.setAttribute("y", "0");
-	background.setAttribute("width", String(width));
-	background.setAttribute("height", String(height));
-	background.setAttribute("fill", opts.background);
-	clone.insertBefore(background, clone.firstChild);
 
 	const xml = new XMLSerializer().serializeToString(clone);
 	return `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
