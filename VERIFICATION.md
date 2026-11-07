@@ -1,174 +1,88 @@
-# Verification checklist
+# Browser verification
 
-Manual acceptance pass for Sankey Builder. Run in a real browser, served
-either via `make dev` (Bun's dev server) or a static host serving a `make
-build` output (`dist/`) — the app loads as an ES module, which requires an
-HTTP(S) origin; `file://` is not supported.
+Use this checklist to check behavior that the happy-dom tests do not exercise: visual layout, native dialogs and file pickers, operating-system themes, touch gestures, editing events, and image rasterization. For application changes, run the automated checks as well; they cover graph edits, validation, persistence, import repair, control wiring, and lifecycle cleanup.
 
-GitHub Pages serves this project from a `/sankey-builder/` subpath, so it's
-worth spot-checking `dist/` under one too (`tests/build/dist.test.ts` already
-asserts asset URLs are relative, but a real browser catches anything that
-test misses):
+Run the sections relevant to the change. Record the revision, browser and version, operating system, viewport sizes, input method, and checks actually performed. Identify anything left untested.
 
+## Setup and served load
+
+Follow the README's [production preview instructions](README.md#preview-the-production-build). Use the built site for downloads, license notices, or deployment checks.
+
+GitHub Pages serves the app under `/sankey-builder/`. To check the built site under that subpath:
+
+```sh
+preview_root=$(mktemp -d)
+mkdir -p "$preview_root/sankey-builder"
+cp -R dist/. "$preview_root/sankey-builder/"
+python3 -m http.server 8000 --directory "$preview_root"
 ```
-rm -rf /tmp/pages-check
-make build
-mkdir -p /tmp/pages-check/sankey-builder && cp -r dist/* /tmp/pages-check/sankey-builder/
-python3 -m http.server 8000 --directory /tmp/pages-check
-```
 
-Then open `http://localhost:8000/sankey-builder/` and confirm the app loads
-and renders with no console errors about failed asset requests.
+Open [localhost:8000/sankey-builder/](http://localhost:8000/sankey-builder/). The build tests check relative asset URLs; a browser run checks that those assets load and render together.
 
-This list covers only what `make test` cannot see: rendered visuals (real
-layout, media/container queries), live OS theme changes, pointer/touch drag
-feel, native `<dialog>` cancel/backdrop behavior, and cross-engine paste
-behavior. Node/link editing, cycle and value validation, import/export
-parsing and repair, persistence, and every control's click-driven wiring are
-continuously asserted by the automated suite (`make test`) and are not
-repeated here.
+- [ ] Load with no saved state, then reload with saved state. Confirm the diagram renders without console errors, warnings, or failed asset requests.
+- [ ] In the built site, open Third-party licenses from the footer. Confirm package notices are readable, follow the OS color scheme, and link back to the app under the same subpath.
 
-## Cold start / served load
+## Layout and theme
 
-- [ ] Load the app fresh (no prior localStorage entry) and again with a prior entry already saved: zero console errors or warnings in either case (happy-dom doesn't surface console output the way a real browser does).
+Check wide layouts at 1440px and 1024px, and narrower layouts at 768px, 390px, and 360px. Include 320px when changing toolbar or icon sizing. Use both light and dark themes.
 
-## Theme
+- [ ] The page order stays consistent visually, in the DOM, and for keyboard and screen-reader navigation: header and notices, diagram, Data actions, Nodes, Links, footer.
+- [ ] The diagram panel spans the available content width above the Data card. Nodes and Links sit side by side in a wide Data card and stack in that order when it narrows. Check the container-query transition for overlap or unusably narrow columns.
+- [ ] The header title, theme button, Data heading, and file actions remain legible without collisions. There is no horizontal page scrollbar.
+- [ ] Narrow link rows stack source, target, value, and Delete vertically, with the drag handle beside the source. The layout follows the editor's width, and field errors remain readable.
+- [ ] Scrolling follows normal document flow. Keyboard focus brings controls into view without unexpected jumps.
+- [ ] With all links deleted, the empty preview retains the selected aspect ratio, and the toolbar and Data card remain usable.
+- [ ] The footer stays below the Data card, wraps at narrow widths, and has legible links with comfortable touch targets.
+- [ ] System theme follows OS light/dark changes without a reload. Explicit Light and Dark choices override the OS preference.
+- [ ] Error text, delete buttons, focus rings, and native selects are legible in both themes. Diagram and Data surfaces have no unintended light seams.
+- [ ] On a coarse pointer, buttons, handles, selects, and inputs have comfortable touch targets of at least 44px height.
 
-- [ ] On System (Auto), the page visually matches the OS light/dark preference, and flipping the OS preference updates the page live, without reload.
-- [ ] In dark mode, error text and the node/link delete buttons render legibly — no low-contrast red-on-dark.
-- [ ] Native form controls (selects) render dark chrome in dark mode and light chrome in light mode, matching the theme.
-- [ ] The app header (title plus theme button) stays on one line at 360px, with no wrapping or clipping.
-- [ ] At wide widths, the theme selector opens as a compact surface anchored beneath the top-right theme button and remains wholly within the viewport.
-- [ ] At 360px and 390px, the theme selector opens as a bottom sheet (full width, flush to the bottom edge, rounded top corners only) with comfortably tappable System, Light, and Dark choices.
-- [ ] Tab/Shift+Tab reach every choice in the theme selector, and touch operation does not depend on hover.
-- [ ] With the theme selector open, pressing Escape or clicking the backdrop closes it (native `<dialog>` behavior, not exercised by the automated suite) and focus visibly returns to the theme button.
+## Panels and diagram controls
 
-## Layout feel
+The four panels are Theme, Palette, Appearance, and Export diagram. Appearance contains native selects for Node alignment, Aspect ratio, and Link colors. These settings do not have separate panels.
 
-- [ ] At wide widths, the diagram panel appears first and spans the available content width; the Data card follows below at the same width.
-- [ ] The actual DOM, visual, screen-reader, and keyboard order all agree: app header → diagram → Data header/actions → Nodes → Links → footer.
-- [ ] When the Data card is sufficiently wide, Nodes and Links render side by side with balanced usable space; resizing through the Data-card container-query breakpoint stacks them cleanly as Nodes then Links.
-- [ ] The Data header actions do not collide with or wrap the Data title into an awkward multi-line header at 360px, 390px, or 768px.
-- [ ] Scrolling is ordinary document scrolling: the diagram moves out of view naturally before the Data sections, without jumps or content passing beneath it.
-- [ ] The footer (Source on GitHub, MIT License, Third-party licenses) sits below the Data card as one centered line at wide widths and wraps to further lines at 360px rather than overflowing; its links stay legible in both themes and are comfortably tappable on a coarse pointer.
-- [ ] Against a served `dist/`, the Third-party licenses link opens the generated page, which renders in the current OS color scheme, lists every bundled package with its license text, and links back to the app.
+- [ ] Palette navigation, Appearance, and Export remain visible without clipped icons. The toolbar can wrap at very narrow widths.
+- [ ] On wide screens, panels anchor near their trigger and stay within the viewport. Open one, then scroll or resize to check repositioning.
+- [ ] On narrow screens, panels become full-width bottom sheets with rounded top corners, a transparent backdrop, and scrollable content. Close remains reachable, and the page behind the panel cannot be used until dismissal.
+- [ ] Opening Theme or Palette focuses the selected choice. Other panels focus their first control. Selected choices have a tint and checkmark distinct from the keyboard focus ring.
+- [ ] Tab and Shift+Tab stay usable within each panel. Interior padding does not dismiss it; outside clicks, Escape, and Close dismiss it and visibly return focus to its trigger.
+- [ ] Theme and palette choices close their panel. Appearance stays open while its selects update the diagram; the selections survive a reload. Node alignment changes horizontal placement where the graph permits, while preserving node order within each column.
+- [ ] Export diagram presents SVG and PNG at every screen size. Choosing a format closes the panel and restores focus, including with an empty diagram.
+- [ ] On wide layouts, use the preview's smaller/larger buttons, drag its horizontal handle, and try Arrow Up, Arrow Down, Home, and End with that handle focused. The preview resizes smoothly without changing the exported dimensions. On narrow layouts, these controls hide and the preview fits the available width.
 
-## Responsive
+### Physical iPhone checks
 
-Media/container queries do no real layout under happy-dom, so none of this is
-automated — verify in a real browser (resize the window and use device
-emulation).
+- [ ] In Safari, open and close each sheet in portrait and landscape, with the browser controls expanded and collapsed. Page, sheet, and bottom edge share a continuous background, without a dimming flash or border seam.
+- [ ] Sheet content clears the home indicator; long content scrolls and Close remains reachable. Tapping outside dismisses the sheet without activating controls behind it.
+- [ ] Native selects remain usable and focusing them does not trigger unwanted page zoom.
 
-- [ ] At desktop widths (for example 1440px and 1024px), the diagram remains first at full content width.
-- [ ] At 768px, 390px, and 360px, the same diagram-first DOM order is preserved; only controls and the Data card's internal Nodes/Links layout adapt.
-- [ ] Across the Data-card container-query breakpoint, Nodes and Links switch exactly once between side-by-side and stacked layouts, with no intermediate collision, overlap, or awkward sliver column.
-- [ ] No horizontal scrollbar at 360px, 390px, and 768px widths.
-- [ ] With an EMPTY diagram (delete all links at phone width), the diagram box collapses to an appropriate placeholder rather than leaving an excessive blank block; the toolbar and Data card remain usable.
-- [ ] At phone width, Tab through the entire page and confirm focused controls scroll into view normally, with no unexpected scroll jump.
-- [ ] Narrow the Data card until a link row wraps to two lines (source/target on top; handle, value, delete below with the handle leftmost). The wrap responds to the containing card/section width rather than an unrelated viewport breakpoint.
-- [ ] On a real phone (coarse pointer): buttons, the drag handles, selects, and inputs are comfortably tappable (~44px), with slightly larger row spacing.
-- [ ] In dark mode, the diagram and Data surfaces match cleanly with no light seams or content visible through margins.
+## Row dragging
 
-## Diagram toolbar
+SortableJS uses a floating clone on all platforms (`forceFallback`). Tests cover keyboard reordering and drag callbacks; check the actual gesture and visual feedback here.
 
-- [ ] Palette stays unchanged. Appearance and Export are visible on desktop and phone.
-- [ ] At 320, 360, 390, 768, and 1440px there is no overflow or clipped icon. The toolbar may wrap on very small touch screens.
-- [ ] Appearance opens a compact panel on desktop and a bottom sheet on phones. Node alignment, Aspect ratio, and Link colors use labelled native selects.
-- [ ] Changing each select updates the diagram and persists after reload; Appearance stays open.
-- [ ] Node alignment changes horizontal column placement where the topology permits it; it does not change node order within a column.
-- [ ] Close, backdrop click, and Escape dismiss the panel and restore focus to Appearance.
-- [ ] All touch controls are at least 44px high. Native dropdowns remain usable on iPhone.
-- [ ] Export opens its own format picker on every screen size and restores focus to Export after downloading.
+- [ ] Drag a node and a link by their vertical grip handles. The floating row follows the pointer, its original slot becomes a dimmed placeholder, and neighboring rows animate into position.
+- [ ] Drop each row in a new position. Row order, diagram order, and endpoint choices update without a jump or a leftover clone. The clone shows the current input values and selected endpoints.
+- [ ] Drag between the Nodes and Links lists. No row crosses into the other list, and no placeholder or clone remains afterward.
+- [ ] Starting from a name field, value field, or select allows normal editing without initiating a drag.
+- [ ] Mouse dragging starts immediately. On touch, a brief hold of about 150ms lifts the row; a quick tap does not. Movement during the hold cancels the pending lift so a scroll gesture starting on a row can scroll.
+- [ ] During dragging, neither the row nor surrounding page text becomes selected. On iOS, no text-selection callout appears.
+- [ ] Return the row to its original position and release to leave its order unchanged. Pointer/touch dragging has no Escape-to-cancel behavior.
 
+## Link-value input across browsers
 
-## Row reordering (drag feel)
+The editor allows four decimal places. It intercepts `beforeinput` to block extra typed digits and truncate pasted or dropped decimals. When an event does not expose its text through `data`, or composition input bypasses that interception, validation must still keep the invalid draft out of saved state and diagram geometry. Test native editing events, not only scripted input dispatches.
 
-Reordering is driven by SortableJS (`forceFallback` mode — a synthetic drag
-on every platform, not native HTML5 DnD). The keyboard path and the Sortable
-wiring itself (instance options, cross-box group separation, the `onEnd`
-commit) are automated; the actual drag *feel* is not.
+- [ ] In Chrome, Safari, and Firefox, paste `1.23456789` into an empty value field. Record whether it truncates to `1.2345` or shows an inline error. Truncated input updates the diagram; an invalid draft leaves the last committed value unchanged.
+- [ ] Drop the same text into a value field. Check truncation or inline validation according to the browser's event behavior.
+- [ ] With a mobile input method editor (IME), enter an over-precise value. Confirm validation catches any input that bypasses the keystroke limit.
 
-- [ ] Grab a node row by its ⠿ handle and drag (mouse): a floating clone of the row detaches and tracks the pointer/cursor exactly, with a raised shadow; the row's original slot in the list shows a dimmed placeholder that moves live as you drag over other rows, and the list around it animates (siblings slide) rather than jumping.
-- [ ] Releasing the drag drops the row where the placeholder was, and the diagram/dropdowns update to the new order.
-- [ ] Dragging a node row over the *link* box (or vice-versa) does nothing — no cross-box move; the floating clone snaps back to its box, no stray placeholder left behind.
-- [ ] Starting a drag from a non-handle part of the row (e.g. the name field or a dropdown) does NOT initiate a reorder — text selection and normal control behavior are unaffected.
-- [ ] Touch (real phone or touch emulation): a mouse drag starts immediately, but a touch drag requires a brief press-and-hold (~150ms) on the handle before it lifts — a quick tap doesn't start a drag. During that hold, wiggling the finger more than a few pixels cancels the pending drag rather than starting one, so a scroll gesture that begins on a row still scrolls the page instead of lifting it.
-- [ ] Touch: once a drag has lifted, the row/handle text is never selected/highlighted during the gesture (no iOS text-selection callout).
-- [ ] During any drag (mouse or touch), the rest of the page's text doesn't show selection highlighting even if the pointer strays off the handle mid-gesture.
-- [ ] There's no Escape-to-cancel for a pointer/touch drag (keyboard-arrow moves are unaffected) — dropping outside any row, or releasing back at the row's origin, is the way to abandon a drag without reordering.
+## Import, export, and notices
 
-## Link value paste truncation (cross-engine)
+Use the built site for native file-picker, download, and canvas checks. Run exports on wide and narrow layouts, in light and dark themes.
 
-The 4-decimal cap is enforced at `beforeinput`, which reads the pasted text
-from the event's `data`. Some engines deliver paste with `data: null` (payload
-lives in `dataTransfer` instead), in which case truncation can't run and the
-edit silently degrades to the aria-invalid highlight — still safe, just not
-truncated. This can't be automated (happy-dom doesn't run the native editing
-pipeline), so verify per engine which behavior actually occurs.
-
-- [ ] Chrome: paste `1.23456789` into a link value → field truncates to `1.2345` and the diagram updates.
-- [ ] Safari: paste `1.23456789` → note whether it truncates to `1.2345` or falls back to the red aria-invalid highlight (some WebKit builds send paste `beforeinput` with null `data`).
-- [ ] Firefox: paste `1.23456789` → same check as Safari; record truncate vs. highlight.
-- [ ] Drag-and-drop text (e.g. drag `1.23456789` from another field) into a link value → truncates in engines that send `insertFromDrop` with `data`, otherwise highlights. Verify it's never worse than the highlight.
-- [ ] Mobile IME keyboard: typing digits that arrive via `insertCompositionText` bypasses the keystroke block — confirm over-precise input lands on the aria-invalid highlight (acceptable) rather than reaching state as bad geometry.
-
-## Export / Import
-
-The parse/serialize logic and the DOM wiring are automated (unit +
-integration), but the real browser download dialog, native file picker, and
-canvas rasterization aren't reachable from happy-dom — verify those against a
-served app (`make dev` or a served `dist/`).
-
-- [ ] Export: click Export JSON in the Data header → the download lands in Downloads as `sankey.json` with no console errors about blob URLs or the object-URL lifecycle.
-- [ ] Import: click Import in the Data header → the native file picker opens; choosing a previously exported file replaces the diagram, editors, and controls with zero console errors.
-- [ ] Export SVG: use Export → SVG on both wide and narrow layouts → `sankey.svg` downloads and opens standalone in a browser with a transparent background and node labels matching the current theme's colors (light theme → dark labels; dark theme → light labels).
-- [ ] Export PNG: use Export → PNG on both wide and narrow layouts → `sankey.png` downloads at 1920x960 with a transparent background and node labels matching the current theme's colors, with no console errors about blob URLs, canvas tainting, or the object-URL lifecycle — check both light and dark theme, and both link color modes (single color and source→target gradient, which must rasterize as a real gradient, not a solid fallback).
-- [ ] Safari PNG export specifically: repeat the above in Safari — canvas + SVG rasterization (drawImage of an svg: URL, toBlob) is the part most likely to diverge from Chrome/Firefox; confirm the PNG downloads and its colors/dimensions match.
-- [ ] Feedback in the consolidated notice region does not cause overlap or horizontal overflow at 360px or 390px.
-- [ ] With a screen reader running, confirm the `aria-live="polite"` notice region announces restrainedly: typing an invalid link value repeatedly does not trigger a root announcement (it's an inline field error, not a root notice), and an unrelated action (e.g. a settings change, or a second import) while a notice is already showing doesn't re-announce unchanged notice text.
-
-
-## Shared choice panels
-
-- [ ] Links, Export, Theme, Palette, and Aspect ratio use the same anchored desktop panel, transparent backdrop, header Close button, and viewport clamping/flipping. The workspace remains modal/inert until dismissal.
-- [ ] Every panel becomes a bottom sheet at narrow viewport widths, with a transparent backdrop, safe-area padding, and internally scrolling content. Close stays visible.
-- [ ] Selected list choices have a soft accent tint and decorative checkmark; keyboard focus has its own visible ring.
-- [ ] Clicking interior padding keeps a panel open; outside clicks, Escape, and header Close dismiss it and return focus. Resizing and scrolling reposition open desktop panels.
-- [ ] Palette and theme choices close their panel; Appearance stays open after settings changes. Export has its own panel.
-## Implementation verification — 2026-09-06
-
-- Automated: lint, TypeScript, unit/integration suites, and production build smoke tests passed.
-- Chromium: checked 1440, 1024, 768, 390, and 360px in light and dark themes. No horizontal overflow; every available panel remained in bounds and focused the selected choice or first export action.
-- Checked native Escape and Tab/Shift+Tab, focus return, and resizing an open Theme panel from 1440 to 1024px.
-- Touch emulation: verified coarse-pointer detection, 44px drag handles and value fields. Safe-area padding is implemented; physical-device inset and drag feel still require the checklist above.
-- Downloaded real SVG and PNG files during browser verification. Export handlers are unchanged; the final implementation restores the original label rendering and export typography.
-- Label sizing/fitting was explored and then explicitly deferred. A 72-node, six-stage graph reduced every label to an ellipsis at 360px; avoiding overlap alone did not preserve meaning. Revisit readable-scale navigation and labels in a dedicated follow-up.
-- Safari, Firefox, physical touch dragging, and assistive-technology checks remain manual follow-ups; they were not run in this Chromium session.
-
-## Continuous sheet surfaces — 2026-09-07
-
-- [ ] On iPhone Safari, open and close each sheet in light and dark themes with the bottom browser controls expanded and collapsed. The page, sheet, and bottom edge should share a continuous background without a dimming flash or bottom border seam.
-- [ ] Check both portrait and landscape: sheet content stays clear of the home indicator, the Close button remains reachable, and long content scrolls inside the sheet.
-- [ ] Tap outside the sheet to dismiss it; the transparent backdrop still blocks interaction with the page until dismissal.
-
-- Verified with agent-browser/Chromium: 390px and 1440px screenshots in both themes; 360px sheet bounds, internal scrolling, no horizontal overflow, Escape dismissal, and focus return. Root, body, and sheet colors match; backdrop is transparent and the mobile bottom border is zero. No browser errors. Physical iPhone Safari toolbar behavior remains unverified.
-
-## Simplified controls — 2026-09-07
-
-- Verified with agent-browser/Chromium at 320, 390, 768, and 1440px, including light and dark screenshots. Appearance and Export remain visible; JSON action labels remain visible on the smallest layout.
-- Exercised all three native selects, live diagram updates, Escape/focus return, and SVG export from the separate picker. No browser errors.
-- Native selects use 16px text to avoid iPhone's small-input focus zoom. Physical iPhone picker and browser-toolbar behavior still need device verification.
-
-## Icon actions — 2026-09-07
-
-- Appearance, diagram export, JSON import, and JSON export now use icon buttons with accessible names and native title tooltips. Import enters a box; export leaves it. The format picker shows SVG and PNG.
-- Verified with agent-browser/Chromium: 390px dark and 1440px light screenshots, 320px without horizontal overflow, and all four action buttons measuring 44×44px. Export opens the shortened format choices and Escape closes the picker.
-- Earlier notes about visible action labels and separate mobile action rows describe the previous revision.
-
-## Managed SVG icons — 2026-09-14
-
-- The shared Icon component uses explicit imports from Bun-managed lucide-preact. Import uses upload, export uses download, and Appearance uses a gear. Earlier box-arrow descriptions refer to the previous artwork.
-- The static sprite and copied license file are removed. Lucide's attribution is collected automatically from the installed package by the existing license generator.
-- Inspected the minified build's module metadata: only the 12 explicitly imported icons contribute code; unused catalog icons are excluded.
-- Verified in Chromium at 1440px and 320px, including light/dark themes and the Appearance sheet: square 24px icons, no clipping or horizontal overflow, no browser errors, and Escape restores focus.
-- Type checking, lint, and all 514 tests pass, including the production build and license attribution checks. Other browser engines were not checked.
+- [ ] Use Export JSON in the Data header. `sankey.json` downloads without console errors about blob URLs. Import it through Import JSON and confirm the diagram, editors, and settings return correctly.
+- [ ] Use Export diagram, then SVG. `sankey.svg` opens standalone with a transparent background and labels matching the current theme: dark labels in Light, light labels in Dark.
+- [ ] Export PNG. `sankey.png` has a transparent background and matching label colors. With the default 2:1 aspect ratio, its size is 1920 by 960 pixels. Change the aspect ratio and confirm PNG dimensions are twice the SVG's logical dimensions. Resizing only the preview does not change them.
+- [ ] Check PNG output with single-color links and source-to-target gradients. Gradients rasterize as gradients, with no canvas or blob-URL errors. Repeat in Safari, where image loading and rasterization can differ.
+- [ ] At 360px and 390px, notices and their Dismiss button remain readable without overlap or horizontal overflow.
+- [ ] With a screen reader, check polite notice announcements. Repeated invalid value drafts produce inline errors without repeated page-level announcements. An unrelated action does not reannounce unchanged notices.

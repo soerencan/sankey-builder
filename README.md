@@ -1,146 +1,67 @@
-# sankey-builder
+# Sankey Builder
 
-A D3 Sankey diagram generator: edit nodes and links in the browser, pick a
-color palette, control link coloring and node alignment, and see the diagram
-update live. State autosaves to localStorage, and the UI supports light/dark
-themes.
-
-## Usage
-
-Serve the built site with `make build` (see Development below) and host the
-resulting `dist/` directory statically — GitHub Pages, any static file host,
-or `python3 -m http.server` from inside `dist/` for a quick local check.
-Direct `file://` execution isn't supported: the app loads as an ES module,
-which browsers block from `file://` origins for security reasons.
-
-## Dependencies
-
-The runtime dependencies are D3 (`d3-scale-chromatic`, `d3-sankey`), Preact,
-SortableJS, and `lucide-preact`, all bundled by `bun build`. `package.json`
-and `bun.lock` are the source of truth for versions. The shared `Icon`
-component explicitly imports the Lucide icons used by the app so unused
-icons can be removed from the production bundle.
-
-## Architecture
-
-Preact owns the whole DOM: composition, controls, dialogs, editor markup, and
-the rendered Sankey diagram itself all render as components under one root
-(`src/app/app.tsx`, mounted by `src/app/start-app.tsx`). `layoutDiagram`
-(`src/features/diagram/layout.ts`) is a pure function that runs d3-sankey and
-returns plain positioned nodes and links; it takes no DOM and returns no DOM.
-`SankeySvg` (`src/features/diagram/sankey-svg.tsx`) renders that result as an
-`<svg>` vnode tree, memoized on the diagram reference so an unchanged
-reference leaves the DOM alone.
-
-Within `src/features/`, `settings` and `files` are leaf features that the
-others may depend on; `diagram` and `editor` never import from each other.
-`src/model/settings.ts` is the one owner of the settings shape: a single
-table declares every setting and its allowed values, and adding a setting
-means adding a row to that table plus entries in `DEFAULT_SETTINGS`,
-`SETTING_NAMES` (`src/model/codec.ts`, diagram settings only), and
-`SETTING_LABELS` (`src/features/settings/options.ts`); the compiler enforces
-all three. Wiring a control or an effect for the new setting is not enforced;
-that is what the integration tests are for. `normalizeDiagram`
-(`src/model/codec.ts`) is the one normalizer
-both the storage load path and the file import path call, so the two can't
-drift apart.
-
-The controller in `src/app/start-app.tsx` owns an `AbortController` whose
-signal reaches components that start async work (file reads, PNG
-rasterization); `destroy()` aborts it, removes any active drag clone, and
-unmounts. This exists for the tests, which mount and unmount the app
-hundreds of times per run.
-
-A few behaviours the tests pin and rely on:
-
-- Every diagram-changing action goes through `commit()`. A notice change
-  neither persists nor re-renders the diagram. A theme change is not a
-  diagram change: it persists and applies the theme but leaves every notice
-  and the rendered SVG element and markup unchanged.
-- The diagram on screen is always the last valid graph. An invalid graph
-  persists, shows its notice, and leaves the rendered SVG element untouched.
-- Incomplete links are inert: skipped by validation, omitted from layout and
-  export, kept by storage.
-- Notices render in fixed slots (graph, storage, io) that exist before they
-  have content.
-- Rows are keyed by id; a re-render never recreates a row or its Sortable
-  instance; a link-value draft follows its link through reorders.
-- Storage failure is a warning, never an exception. Import never silently
-  empties the diagram; field-level problems are repaired and reported.
-- After `destroy()`, nothing renders, persists, downloads, or reports, and a
-  second `startApp()` shares nothing with the first.
-
-## Verification
-
-[`VERIFICATION.md`](VERIFICATION.md) has a manual acceptance checklist to run
-through in a real browser after any change.
+Build Sankey diagrams in the browser. Edit nodes and links, choose colors and alignment, and see the diagram update as you work. The app saves your work in the current browser and supports System, Light, and Dark themes.
 
 ## Development
 
-Bun, at the version pinned in `.bun-version`, runs the dev server and the
-production build. Vitest and `tsc` run on the Node version pinned in
-`.nvmrc`, managed via nvm. Install dependencies once with `bun install`.
-Linting and formatting run on Biome, and tests run on Vitest against
-happy-dom.
+Use the Bun version in [`.bun-version`](.bun-version) and the Node version in [`.nvmrc`](.nvmrc). Bun runs the development server and build; Node runs Vitest and TypeScript. If you use nvm, run `nvm use` to select Node.
 
-The app is written in TypeScript under `src/`, entered via `src/main.ts` and
-loaded straight from `index.html` as an ES module — there's no committed
-bundle. `make dev` runs Bun's own dev server (HMR, on-the-fly TS/bundling)
-for local work. `make build` produces the canonical, clean production build:
-a hashed, minified JS/CSS bundle plus a generated `third-party-licenses.html`
-in `dist/`, ready to host statically. The footer's "Third-party licenses"
-link only resolves against a build, not under `make dev`.
+### Dev server
 
-Available `make` targets:
+```sh
+bun install
+make dev
+```
 
-| Target | Description |
+Open the URL printed by the development server. Bun bundles TypeScript and reloads changes during development.
+
+### Checks
+
+| Command | Purpose |
 | --- | --- |
-| `dev` | Serve the app locally with Bun's dev server |
-| `build` | Canonical production build — emits `dist/` |
-| `lint` | Check formatting and lint rules (no fixes) |
-| `format` | Fix formatting and lint issues |
-| `typecheck` | Type-check with `tsc --noEmit` |
-| `test` | Run all tests, including the dist build/boot smoke test |
-| `test-unit` | Run tests except the dist smoke test — fast local loop |
-| `test-dist` | Run only the dist smoke test (builds `dist/` from scratch, then boots it) |
+| `make lint` | Check formatting and lint rules with Biome |
+| `make format` | Apply Biome formatting and lint fixes |
+| `make typecheck` | Check TypeScript without emitting files |
+| `make test` | Run all tests, including the production build smoke tests |
+| `make test-unit` | Run tests without the production build smoke tests |
+| `make test-dist` | Build and test the production output |
 
-Unit tests live next to the module they cover (`src/`, `scripts/`). `tests/integration/`
-suites are broader: they boot the application through `startApp()`
-(`src/app/start-app.tsx`) against the real `index.html` markup with the real
-d3/SortableJS. `tests/build/dist.test.ts` goes one step further: it runs the
-build script (`bun run build`) itself, then boots the actual emitted `dist/`
-bundle, asserting its asset URLs are relative (so the site works from any
-subpath) and the default diagram renders.
+Unit tests sit beside their modules in `src/` and `scripts/`. Integration tests in `tests/integration/` start the app against the real HTML, D3, and SortableJS using happy-dom, a simulated browser environment. The build tests in `tests/build/dist.test.ts` build the site, check relative asset URLs and license notices, and boot the emitted bundle.
 
-One workflow, `.github/workflows/ci.yml`, runs four jobs in parallel on every
-PR and push to `main`: lint, typecheck, tests (`make test-unit`), and an
-artifact job (`make test-dist`, which builds and boots the real `dist/`
-output, then uploads it as a Pages artifact) — split that way so `dist/`
-isn't built twice per run. A fifth job, `deploy`, needs all four and runs
-only on a push to `main`, publishing the artifact job's `dist/` to GitHub
-Pages via `actions/deploy-pages`, so a commit whose checks fail can't reach
-Pages and nothing rebuilds what the artifact job already boot-tested. This
-requires the repository's Pages source to be set to "GitHub Actions" once
-(Settings → Pages) — after that, pushes to `main` deploy automatically.
+For manual browser checks, see [VERIFICATION.md](VERIFICATION.md).
 
-## Known limitations
+### Preview the production build
 
-- **Single-tab persistence** — localStorage autosave is last-writer-wins; two
-  tabs open on the same diagram will overwrite each other.
-- **Acyclic only** — circular links aren't supported (a d3-sankey design
-  constraint), and creating one is rejected with an inline error.
-- **Palette size** — named palettes recycle colors past 10 nodes (8 for Set 2
-  and Dark 2).
-- **Two-node links** — with exactly two nodes, a link's direction can't be
-  reversed (there's no second node to swap it with).
+```sh
+make build
+python3 -m http.server 8000 --directory dist
+```
+
+Open [localhost:8000](http://localhost:8000) to preview the built site, including its license notices. Opening `index.html` directly with `file://` is unsupported because browsers block its ES module imports.
+
+The footer's Third-party licenses link works in the built site; the page is not generated by `make dev`.
+
+### Continuous integration and deployment
+
+Every pull request runs lint, type checks, tests, and a production build. Changes merged into `main` deploy automatically to GitHub Pages after those checks pass. See [the CI workflow](.github/workflows/ci.yml) for details.
+
+## Codebase
+
+| Location | Responsibility |
+| --- | --- |
+| [`src/app/`](src/app/) | App startup, state changes, notices, and page composition |
+| [`src/model/`](src/model/) | Graph edits, settings, validation, and data normalization |
+| [`src/features/editor/`](src/features/editor/) | Node and link editing, value drafts, and row reordering |
+| [`src/features/diagram/`](src/features/diagram/) | Layout, SVG rendering, preview sizing, and image conversion |
+| [`src/features/settings/`](src/features/settings/) | Setting controls, palettes, and theme application |
+| [`src/features/files/`](src/features/files/) | JSON import/export and browser downloads |
+| [`src/platform/`](src/platform/) | Browser storage |
+| [`src/shared/`](src/shared/) | Shared controls, dialogs, icons, and notices |
+
+The `diagram` and `editor` features stay independent: neither imports from the other. Both may use `settings` and `files` for shared functionality.
+
+Editing state is separate from the displayed diagram so users can keep incomplete or invalid work. The preview and image exports show the last valid diagram.
 
 ## License
 
-Except for its third-party dependencies and artwork, this project is licensed
-under the [MIT License](LICENSE).
-
-The bundle strips the dependencies' license comments, so `make build`
-generates `dist/third-party-licenses.html` (`scripts/third-party-licenses.ts`)
-from the installed production dependency closure, including Lucide's icon
-licenses. The page footer links to it. Those third-party works retain their
-own licenses.
+The project's code is licensed under the [MIT License](LICENSE). Third-party dependencies retain their own licenses. `make build` generates `dist/third-party-licenses.html` from the installed production dependencies. The app's footer links to that page.
