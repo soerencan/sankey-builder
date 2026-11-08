@@ -14,11 +14,11 @@ import type { IconId } from "../../shared/icon";
  */
 export const SETTING_LABELS: { [K in keyof Settings]: Record<Settings[K], string> } = {
 	palette: {
-		set2: "Set 2",
-		observable10: "Observable 10",
-		tableau10: "Tableau 10",
-		category10: "Category 10",
-		dark2: "Dark 2",
+		grayscale: "Grayscale",
+		muted: "Muted",
+		balanced: "Balanced",
+		vivid: "Vivid",
+		intense: "Intense",
 	},
 	linkColor: {
 		target: "Target",

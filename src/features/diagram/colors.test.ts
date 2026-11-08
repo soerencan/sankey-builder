@@ -19,15 +19,15 @@ describe("createNodeColorResolver", () => {
 		const initial = createNodeColorResolver(state.nodes, state.settings.palette);
 		const before = state.nodes.map((n) => initial(n));
 
-		state.settings.palette = "dark2";
-		const dark2 = createNodeColorResolver(state.nodes, state.settings.palette);
-		const after = state.nodes.map((n) => dark2(n));
+		state.settings.palette = "grayscale";
+		const grayscale = createNodeColorResolver(state.nodes, state.settings.palette);
+		const after = state.nodes.map((n) => grayscale(n));
 
 		expect(after).not.toEqual(before);
 	});
 
 	it("assigns the i-th node the i-th palette color", () => {
-		const palette = "observable10";
+		const palette = "vivid";
 		const colors = paletteColors(palette);
 		const nodes = colors.map((_, i) => ({ id: `n${i}`, name: `Node ${i}`, colorIndex: i }));
 		const resolve = createNodeColorResolver(nodes, palette);
@@ -37,7 +37,7 @@ describe("createNodeColorResolver", () => {
 	});
 
 	it("wraps around when there are more nodes than palette colors", () => {
-		const palette = "observable10";
+		const palette = "vivid";
 		const colors = paletteColors(palette);
 		const nodes = Array.from({ length: colors.length + 1 }, (_, i) => ({
 			id: `n${i}`,
@@ -58,7 +58,7 @@ describe("createNodeColorResolver", () => {
 	});
 
 	it("keeps legacy palette order after normalization, sharing colors for duplicate ids", () => {
-		const palette = "observable10";
+		const palette = "vivid";
 		const colors = paletteColors(palette);
 		const { nodes } = normalizeDiagram({
 			nodes: [
@@ -88,8 +88,6 @@ it("keeps saved colors through reordering, renaming, and deletion", () => {
 
 it("wraps saved palette slots beyond eight consistently across palettes", () => {
 	const nodes = [{ id: "a", name: "A", colorIndex: 9 }];
-	expect(createNodeColorResolver(nodes, "dark2")(nodes[0])).toBe(paletteColors("dark2")[1]);
-	expect(createNodeColorResolver(nodes, "observable10")(nodes[0])).toBe(
-		paletteColors("observable10")[1],
-	);
+	expect(createNodeColorResolver(nodes, "grayscale")(nodes[0])).toBe(paletteColors("grayscale")[1]);
+	expect(createNodeColorResolver(nodes, "vivid")(nodes[0])).toBe(paletteColors("vivid")[1]);
 });

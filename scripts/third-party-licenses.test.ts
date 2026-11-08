@@ -96,7 +96,7 @@ describe("against this repository's installed dependencies", () => {
 	const names = new Set(notices.map((n) => n.name));
 
 	it("covers every direct production dependency and none of the dev tooling", () => {
-		for (const name of ["d3-sankey", "d3-scale-chromatic", "preact", "sortablejs"]) {
+		for (const name of ["culori", "d3-sankey", "open-color", "preact", "sortablejs"]) {
 			expect(names.has(name)).toBe(true);
 		}
 		for (const name of ["vitest", "typescript", "happy-dom", "@biomejs/biome"]) {
@@ -104,9 +104,10 @@ describe("against this repository's installed dependencies", () => {
 		}
 	});
 
-	it("carries the ColorBrewer notice embedded in d3-scale-chromatic's license", () => {
-		const chromatic = notices.find((n) => n.name === "d3-scale-chromatic");
-		expect(chromatic?.licenseText).toContain("ColorBrewer");
+	it("attributes the Open Color palette data", () => {
+		const openColor = notices.find((n) => n.name === "open-color");
+		expect(openColor?.license).toBe("MIT");
+		expect(openColor?.licenseText).toContain("heeyeun");
 	});
 
 	it("renders one section per package with its license text", () => {

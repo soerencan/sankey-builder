@@ -60,7 +60,7 @@ describe("aspectRatioOption", () => {
 describe("DEFAULT_SETTINGS", () => {
 	it("has the expected default value for every setting", () => {
 		expect(DEFAULT_SETTINGS).toEqual({
-			palette: "set2",
+			palette: "balanced",
 			linkColor: "target",
 			alignment: "left",
 			aspectRatio: "16:9",

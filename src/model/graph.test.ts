@@ -25,7 +25,7 @@ describe("defaultState", () => {
 		expect(state.nodes).toHaveLength(4);
 		expect(state.links).toHaveLength(3);
 		expect(state.settings).toEqual({
-			palette: "set2",
+			palette: "balanced",
 			linkColor: "target",
 			alignment: "left",
 			aspectRatio: "16:9",
@@ -281,7 +281,7 @@ describe("replaceDiagram", () => {
 			links: [{ id: "l1", source: "n1", target: null, value: 5 }],
 			settings: {
 				...pickDiagramSettings(DEFAULT_SETTINGS),
-				palette: "tableau10" as const,
+				palette: "muted" as const,
 				linkColor: "neutral" as const,
 				alignment: "center" as const,
 				aspectRatio: "16:9" as const,
@@ -310,7 +310,7 @@ describe("replaceDiagram", () => {
 	it("replaces the four diagram settings", () => {
 		const state = defaultState();
 		replaceDiagram(state, diagram());
-		expect(state.settings.palette).toBe("tableau10");
+		expect(state.settings.palette).toBe("muted");
 		expect(state.settings.linkColor).toBe("neutral");
 		expect(state.settings.alignment).toBe("center");
 		expect(state.settings.aspectRatio).toBe("16:9");

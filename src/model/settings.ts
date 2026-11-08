@@ -1,12 +1,8 @@
-/**
- * Deliberately d3-free: features/settings/palettes.ts and
- * features/diagram/colors.ts depend on this module, not the reverse, so
- * storage validation never pulls d3 in.
- */
+/** Setting validation stays independent of palette data and diagram rendering. */
 
 // Tuple order is display order; nothing else orders the choices.
 export const SETTING_DOMAINS = {
-	palette: ["set2", "observable10", "tableau10", "category10", "dark2"],
+	palette: ["grayscale", "muted", "balanced", "vivid", "intense"],
 	linkColor: ["target", "source", "gradient", "neutral"],
 	alignment: ["left", "center", "right", "justify"],
 	aspectRatio: ["a-series", "3:2", "16:9", "2:1", "3:1"],
@@ -97,7 +93,7 @@ export function aspectRatioOption(value: AspectRatio): AspectRatioOption {
 // --- Defaults ---
 
 export const DEFAULT_SETTINGS: Settings = {
-	palette: "set2",
+	palette: "balanced",
 	linkColor: "target",
 	alignment: "left",
 	aspectRatio: "16:9",

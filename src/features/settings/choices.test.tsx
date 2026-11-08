@@ -48,12 +48,10 @@ describe("labelledBy", () => {
 
 describe("SwatchStrip", () => {
 	it("renders PALETTE_SIZE swatches with the palette's first colors", () => {
-		const container = mount(<SwatchStrip palette="tableau10" />);
+		const container = mount(<SwatchStrip palette="muted" />);
 
 		const swatches = Array.from(container.querySelectorAll<HTMLElement>(".swatch"));
 		expect(swatches).toHaveLength(PALETTE_SIZE);
-		expect(swatches.map((swatch) => swatch.style.backgroundColor)).toEqual(
-			paletteColors("tableau10"),
-		);
+		expect(swatches.map((swatch) => swatch.style.backgroundColor)).toEqual(paletteColors("muted"));
 	});
 });

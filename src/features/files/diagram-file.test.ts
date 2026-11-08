@@ -13,7 +13,7 @@ function sampleState(): State {
 		links: [{ id: "l1", source: "n1", target: "n2", value: 5 }],
 		settings: {
 			...DEFAULT_SETTINGS,
-			palette: "dark2",
+			palette: "grayscale",
 			linkColor: "neutral",
 			alignment: "center",
 			aspectRatio: "16:9",
@@ -171,13 +171,13 @@ describe("parseImport repairs", () => {
 				{ id: "n2", name: "B", color: "#445566" },
 			],
 			links: [],
-			settings: { colorMode: "manual", palette: "set2" },
+			settings: { colorMode: "manual", palette: "balanced" },
 		});
 		expect(result.diagram.nodes).toEqual([
 			{ id: "n1", name: "A", colorIndex: 0 },
 			{ id: "n2", name: "B", colorIndex: 1 },
 		]);
-		expect(result.diagram.settings.palette).toBe("set2");
+		expect(result.diagram.settings.palette).toBe("balanced");
 		expect(result.repairs).toEqual([
 			"settings: manual colors are no longer supported — using the saved palette",
 		]);
@@ -204,9 +204,34 @@ describe("parseImport repairs", () => {
 
 	it("falls back to the default palette and reports an unknown one", () => {
 		const result = importPayload({ nodes: [], links: [], settings: { palette: "rainbow" } });
-		expect(result.diagram.settings.palette).toBe("set2");
+		expect(result.diagram.settings.palette).toBe("balanced");
 		expect(result.repairs).toContain("settings: unknown palette — using default");
 	});
+
+	it.each(["set2", "observable10", "tableau10", "category10", "dark2", "pop", "soft", "deep"])(
+		"imports the retired %s palette using Balanced without losing the diagram",
+		(palette) => {
+			const result = importPayload({
+				nodes: [
+					{ id: "a", name: "A", colorIndex: 2 },
+					{ id: "b", name: "B", colorIndex: 7 },
+				],
+				links: [{ source: "a", target: "b", value: 5 }],
+				settings: { palette, linkColor: "source", alignment: "center", aspectRatio: "2:1" },
+			});
+			expect(result.diagram.nodes.map((node) => node.colorIndex)).toEqual([2, 7]);
+			expect(result.diagram.links.map(withoutLinkId)).toEqual([
+				{ source: "a", target: "b", value: 5 },
+			]);
+			expect(result.diagram.settings).toEqual({
+				palette: "balanced",
+				linkColor: "source",
+				alignment: "center",
+				aspectRatio: "2:1",
+			});
+			expect(result.repairs).toEqual(["settings: unknown palette — using default"]);
+		},
+	);
 
 	it("coerces a dangling endpoint to null and reports it", () => {
 		const result = importPayload({
@@ -245,11 +270,11 @@ describe("parseImport repairs", () => {
 		const result = importPayload({
 			nodes: [{ id: "n1", name: "A", extra: "x" }],
 			links: [],
-			settings: { palette: "set2" },
+			settings: { palette: "balanced" },
 			meta: { author: "someone" },
 		});
 		expect(result.diagram.nodes).toEqual([{ id: "n1", name: "A", colorIndex: 0 }]);
-		expect(result.diagram.settings.palette).toBe("set2");
+		expect(result.diagram.settings.palette).toBe("balanced");
 		expect(result.repairs).toEqual([]);
 	});
 

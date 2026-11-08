@@ -132,7 +132,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 
 			<ChoiceDialog id="display-dialog" heading="Appearance" handle={displayDialog}>
 				<div class="setting-field">
-					<span id="setting-palette-label">Color palette</span>
+					<span id="setting-palette-label">Color saturation</span>
 					<PaletteSelect
 						id="setting-palette"
 						value={settings.palette}

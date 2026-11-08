@@ -158,7 +158,7 @@ describe("SankeySvg", () => {
 		// The default graph's depths are fixed regardless of alignment, so
 		// alignment alone wouldn't move a pixel; palette reliably repaints.
 		const changed = defaultState();
-		changed.settings.palette = "tableau10";
+		changed.settings.palette = "muted";
 		mount(container, diagramOf(changed));
 
 		expect(container.querySelector("svg")?.outerHTML).not.toBe(markupBefore);

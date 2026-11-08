@@ -47,7 +47,7 @@ describe("toolbar & settings", () => {
 
 		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
 		expect(dialog.open).toBe(true);
-		const dropdown = byRole(dialog, "combobox", "Color palette");
+		const dropdown = byRole(dialog, "combobox", "Color saturation");
 		expect(document.activeElement).toBe(dropdown);
 		click(dropdown);
 		await tick();
@@ -57,7 +57,7 @@ describe("toolbar & settings", () => {
 			PALETTE_CHOICES.map((option) => option.label),
 		);
 		expect(options.find((option) => option.getAttribute("aria-selected") === "true")).toBe(
-			byRole(dialog, "option", SETTING_LABELS.palette.set2),
+			byRole(dialog, "option", SETTING_LABELS.palette.balanced),
 		);
 	});
 
@@ -68,22 +68,18 @@ describe("toolbar & settings", () => {
 		click(trigger);
 
 		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
-		const dropdown = byRole(dialog, "combobox", "Color palette");
+		const dropdown = byRole(dialog, "combobox", "Color saturation");
 		click(dropdown);
 		await tick();
-		const tableauOption = byRole<HTMLButtonElement>(
-			dialog,
-			"option",
-			SETTING_LABELS.palette.tableau10,
-		);
-		click(tableauOption);
+		const mutedOption = byRole<HTMLButtonElement>(dialog, "option", SETTING_LABELS.palette.muted);
+		click(mutedOption);
 		await tick();
 
 		const stored = getStoredState();
-		expect(stored.settings.palette).toBe("tableau10");
-		expect(tableauOption.getAttribute("aria-selected")).toBe("true");
+		expect(stored.settings.palette).toBe("muted");
+		expect(mutedOption.getAttribute("aria-selected")).toBe("true");
 		expect(
-			byRole<HTMLButtonElement>(dialog, "option", SETTING_LABELS.palette.set2).getAttribute(
+			byRole<HTMLButtonElement>(dialog, "option", SETTING_LABELS.palette.balanced).getAttribute(
 				"aria-selected",
 			),
 		).toBe("false");
@@ -99,7 +95,7 @@ describe("toolbar & settings", () => {
 		mountApp();
 		click(byRole(document, "button", "Appearance"));
 		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
-		const dropdown = byRole(dialog, "combobox", "Color palette");
+		const dropdown = byRole(dialog, "combobox", "Color saturation");
 		async function press(key: string): Promise<void> {
 			dropdown.dispatchEvent(
 				new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
@@ -109,15 +105,15 @@ describe("toolbar & settings", () => {
 
 		await press("ArrowDown");
 		await press("ArrowDown");
-		expect(dropdown.getAttribute("aria-activedescendant")).toBe("setting-palette-observable10");
+		expect(dropdown.getAttribute("aria-activedescendant")).toBe("setting-palette-vivid");
 		await press("Escape");
 		expect(dropdown.getAttribute("aria-expanded")).toBe("false");
 		expect(dialog.open).toBe(true);
-		expect(getStoredState().settings?.palette ?? defaultState().settings.palette).toBe("set2");
+		expect(getStoredState().settings?.palette ?? defaultState().settings.palette).toBe("balanced");
 
 		await press("End");
 		await press("Enter");
-		expect(getStoredState().settings.palette).toBe("dark2");
+		expect(getStoredState().settings.palette).toBe("intense");
 		expect(dropdown.getAttribute("aria-expanded")).toBe("false");
 		expect(document.activeElement).toBe(dropdown);
 	});
@@ -302,19 +298,19 @@ describe("palette changes patch node-editor swatches", () => {
 
 		click(byRole(document, "button", "Appearance"));
 		const dialog = document.getElementById("display-dialog") as HTMLDialogElement;
-		click(byRole(dialog, "combobox", "Color palette"));
+		click(byRole(dialog, "combobox", "Color saturation"));
 		await tick();
-		click(byRole(dialog, "option", SETTING_LABELS.palette.tableau10));
+		click(byRole(dialog, "option", SETTING_LABELS.palette.muted));
 		await tick();
 
 		const swatches = Array.from(
 			document.querySelectorAll<HTMLElement>("#node-editor .node-swatch"),
 		);
-		const expectedColors = paletteColors("tableau10").slice(0, swatches.length);
+		const expectedColors = paletteColors("muted").slice(0, swatches.length);
 		expect(swatches.map((s) => s.style.backgroundColor)).toEqual(expectedColors);
 
 		expect(document.querySelector("#diagram svg")?.outerHTML).not.toBe(svgHtmlBefore);
-		expect(getStoredState().settings.palette).toBe("tableau10");
+		expect(getStoredState().settings.palette).toBe("muted");
 	});
 });
 

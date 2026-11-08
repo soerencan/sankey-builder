@@ -43,6 +43,22 @@ function stripLinkIds(state: State) {
 }
 
 describe("loadState", () => {
+	it.each(["set2", "observable10", "tableau10", "category10", "dark2", "pop", "soft", "deep"])(
+		"loads a retired %s palette as Balanced while preserving the saved graph and theme",
+		(palette) => {
+			const previous = defaultState();
+			previous.settings.theme = "dark";
+			const storage = fakeLocalStorage({
+				[STORAGE_KEY]: JSON.stringify({
+					...previous,
+					settings: { ...previous.settings, palette },
+				}),
+			});
+
+			expect(stripLinkIds(loadState(storage))).toEqual(stripLinkIds(previous));
+		},
+	);
+
 	it.each(["source-target", "static"])("defaults unsupported saved link color %s", (value) => {
 		const storage = fakeLocalStorage({
 			[STORAGE_KEY]: JSON.stringify({
@@ -85,7 +101,7 @@ describe("loadState", () => {
 			links: [{ id: "original-id", source: "n1", target: "n2", value: 5 }],
 			settings: {
 				...DEFAULT_SETTINGS,
-				palette: "dark2",
+				palette: "grayscale",
 				linkColor: "neutral",
 				alignment: "center",
 				aspectRatio: "16:9",
@@ -109,7 +125,7 @@ describe("loadState", () => {
 			links: [{ id: "l1", source: "n1", target: null, value: 3 }],
 			settings: {
 				...DEFAULT_SETTINGS,
-				palette: "dark2",
+				palette: "grayscale",
 				linkColor: "neutral",
 				alignment: "center",
 				aspectRatio: "16:9",

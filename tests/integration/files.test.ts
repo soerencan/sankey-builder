@@ -79,7 +79,7 @@ describe("import & export", () => {
 				{ source: "n2", target: "n3", value: 4 },
 			],
 			settings: {
-				palette: "set2",
+				palette: "balanced",
 				linkColor: "neutral",
 				alignment: "left",
 				// A theme in the file must be ignored, not applied.
@@ -105,10 +105,10 @@ describe("import & export", () => {
 
 		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n1", "n2", "n3"]);
-		expect(stored.settings.palette).toBe("set2");
+		expect(stored.settings.palette).toBe("balanced");
 		expect(stored.settings.linkColor).toBe("neutral");
 		expect(stored.settings.theme).toBe("light");
-		expect(byRole(document, "option", "Set 2").getAttribute("aria-selected")).toBe("true");
+		expect(byRole(document, "option", "Balanced").getAttribute("aria-selected")).toBe("true");
 		expect(byRole<HTMLSelectElement>(document, "combobox", "Link colors").value).toBe("neutral");
 
 		// An import without repairs isn't announced; the changed data is the

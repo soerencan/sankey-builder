@@ -166,13 +166,18 @@ describe("normalizeState", () => {
 
 		it.each<[string, Record<string, unknown>, keyof State["settings"], unknown]>([
 			[
-				"falls back to set2 for a prototype-chain hole (e.g. toString)",
+				"falls back to balanced for a prototype-chain hole (e.g. toString)",
 				{ palette: "toString" },
 				"palette",
-				"set2",
+				"balanced",
 			],
-			["falls back to set2 for an unknown palette", { palette: "rainbow" }, "palette", "set2"],
-			["keeps a recognized palette", { palette: "dark2" }, "palette", "dark2"],
+			[
+				"falls back to balanced for an unknown palette",
+				{ palette: "rainbow" },
+				"palette",
+				"balanced",
+			],
+			["keeps a recognized palette", { palette: "grayscale" }, "palette", "grayscale"],
 			[
 				"falls back to target for an unknown linkColor",
 				{ linkColor: "bogus" },
@@ -197,8 +202,8 @@ describe("normalizeState", () => {
 		});
 
 		it("loads a legacy manual colorMode silently, keeping the saved palette and dropping colorMode", () => {
-			const settings = normalizeWithSettings({ colorMode: "manual", palette: "set2" });
-			expect(settings.palette).toBe("set2");
+			const settings = normalizeWithSettings({ colorMode: "manual", palette: "balanced" });
+			expect(settings.palette).toBe("balanced");
 			expect("colorMode" in settings).toBe(false);
 		});
 	});
