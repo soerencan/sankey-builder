@@ -170,7 +170,7 @@ export function PreviewResizer({ diagramRef, aspectRatio }: PreviewResizerProps)
 		<>
 			<button
 				type="button"
-				class="preview-size-button"
+				class="icon-button preview-size-button"
 				aria-label="Make diagram preview smaller"
 				title="Make preview smaller"
 				disabled={displayedHeight <= minimum}
@@ -181,6 +181,7 @@ export function PreviewResizer({ diagramRef, aspectRatio }: PreviewResizerProps)
 			{/* biome-ignore lint/a11y/useSemanticElements: An hr cannot contain the grip icon or act as an interactive resize handle. */}
 			<div
 				id="preview-splitter"
+				class="icon-button"
 				ref={splitterRef}
 				role="separator"
 				aria-label="Resize diagram preview"
@@ -199,7 +200,7 @@ export function PreviewResizer({ diagramRef, aspectRatio }: PreviewResizerProps)
 			</div>
 			<button
 				type="button"
-				class="preview-size-button"
+				class="icon-button preview-size-button"
 				aria-label="Make diagram preview larger"
 				title="Make preview larger"
 				disabled={displayedHeight >= maximum}

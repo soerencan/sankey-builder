@@ -24,7 +24,7 @@ export function ThemeControl({ theme, actions }: ThemeControlProps) {
 			<button
 				type="button"
 				id="theme-button"
-				class="toolbar-button"
+				class="icon-button"
 				aria-haspopup="dialog"
 				aria-label={`Theme: ${label}`}
 				onClick={(event) => dialog.open(event.currentTarget)}

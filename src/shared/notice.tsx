@@ -49,7 +49,12 @@ export function NoticeRegion({ notices, dismissIo }: NoticeRegionProps) {
 					>
 						{notice?.message ?? ""}
 						{kind === "io" && notice && (
-							<button type="button" class="notice-dismiss" aria-label="Dismiss" onClick={dismissIo}>
+							<button
+								type="button"
+								class="icon-button notice-dismiss"
+								aria-label="Dismiss"
+								onClick={dismissIo}
+							>
 								<Icon id="icon-close" />
 							</button>
 						)}

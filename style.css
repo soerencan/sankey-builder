@@ -6,6 +6,7 @@
 	--radius-sm: 4px;
 	--radius-md: 7px;
 	--radius-pill: 1e5px;
+	--icon-button-size: 2.25rem;
 	--ease-out: cubic-bezier(0.25, 0, 0.4, 1);
 	/* light-dark() follows color-scheme, which the theme blocks below set, so
      shadows switch with the app theme rather than the OS preference alone. */
@@ -104,10 +105,6 @@ body {
 	font-size: 1.25rem;
 }
 
-#theme-button {
-	flex: 0 0 auto;
-}
-
 /* One in-flow region rather than floating toasts; only color varies by tone. */
 .notice-region > div {
 	display: flex;
@@ -120,10 +117,6 @@ body {
 
 .notice-dismiss {
 	margin-left: auto;
-	padding: 0.25rem;
-	min-height: 0;
-	border: none;
-	color: inherit;
 }
 
 .notice-region > div:empty {
@@ -243,6 +236,29 @@ button:disabled:hover {
 	background: transparent;
 }
 
+.icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: var(--icon-button-size);
+	height: var(--icon-button-size);
+	min-height: var(--icon-button-size);
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	background: transparent;
+	color: var(--ink);
+}
+
+.icon-button:hover {
+	background: var(--border);
+}
+
+.icon-button:focus-visible {
+	outline-offset: -2px;
+}
+
 input[type="text"],
 input[type="number"],
 select,
@@ -319,7 +335,7 @@ select,
 
 .link-row {
 	display: grid;
-	grid-template-columns: 2rem minmax(0, 1fr) 2.75rem;
+	grid-template-columns: 2rem minmax(0, 1fr) var(--icon-button-size);
 	align-items: center;
 	gap: 0.5rem;
 }
@@ -370,13 +386,7 @@ select,
 
 .node-delete,
 .link-delete {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 2.75rem;
-	padding: 0;
 	color: var(--danger);
-	border-color: transparent;
 }
 
 /* .row-ghost/.row-chosen/.row-fallback are the classes SortableJS toggles
@@ -390,7 +400,7 @@ select,
 	border-radius: var(--radius-sm);
 	padding: 0;
 	background: transparent;
-	color: color-mix(in srgb, var(--ink) 70%, transparent);
+	color: var(--ink);
 	cursor: grab;
 	transition: color 150ms var(--ease-out);
 	/* Without this, touch browsers hijack a vertical drag on the handle for
@@ -406,7 +416,6 @@ select,
 
 .drag-handle:hover {
 	background: transparent;
-	color: var(--ink);
 }
 
 .drag-handle:active {
@@ -494,30 +503,8 @@ select,
 	display: none;
 	align-items: center;
 	justify-content: center;
-	min-height: 2.25rem;
+	min-height: var(--icon-button-size);
 	border-top: 1px solid var(--border);
-}
-
-.preview-size-button,
-#preview-splitter {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 2.25rem;
-	min-height: 2.25rem;
-	padding: 0;
-	border: 0;
-	border-radius: var(--radius-md);
-}
-
-.preview-size-button:focus-visible,
-#preview-splitter:focus-visible {
-	outline-offset: -2px;
-}
-
-.preview-size-button,
-#preview-splitter {
-	color: color-mix(in srgb, var(--ink) 70%, transparent);
 }
 
 #preview-splitter {
@@ -529,36 +516,10 @@ select,
 /* ==========================================================================
    Diagram toolbar and appearance settings.
    ========================================================================== */
-.toolbar-button {
-	min-width: 2.75rem;
-	flex: 0 0 auto;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 0.3rem;
-	border-color: transparent;
-	padding: 0.35rem;
-}
-
-.toolbar-button:hover {
-	background: var(--border);
-}
-
 .diagram-actions {
 	display: flex;
 	gap: 0.5rem;
 	margin-inline-start: auto;
-}
-
-.action-button {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	flex: 0 0 44px;
-	width: 44px;
-	min-height: 44px;
-	padding: 0;
-	border-color: transparent;
 }
 
 .setting-field {
@@ -579,8 +540,8 @@ select,
 
 .icon {
 	flex: none;
-	width: 1.5rem;
-	height: 1.5rem;
+	width: 1.375rem;
+	height: 1.375rem;
 	display: block;
 }
 
@@ -632,14 +593,6 @@ dialog::backdrop {
 .dialog-header h3 {
 	margin: 0;
 	font-size: 0.9rem;
-}
-
-.dialog-close {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border: 0;
-	padding: 0.4rem;
 }
 
 .dialog-content {
@@ -760,15 +713,6 @@ dialog[open] {
 		min-height: 2.25rem;
 	}
 
-	.toolbar-button {
-		min-width: 0;
-	}
-
-	.node-delete,
-	.link-delete {
-		width: 2.25rem;
-	}
-
 	.link-rows {
 		gap: var(--editor-row-gap, 0.5rem);
 	}
@@ -824,8 +768,7 @@ dialog[open] {
 	button,
 	select,
 	input[type="text"],
-	input[type="number"],
-	.notice-dismiss {
+	input[type="number"] {
 		min-height: 44px;
 	}
 
@@ -838,25 +781,9 @@ dialog[open] {
 		inset-inline: calc((2rem - max(2rem, 44px)) / 2);
 	}
 
-	/* Icon-only buttons stay ~32px wide under min-height alone. */
-	.toolbar-button,
-	.preview-size-button,
-	.notice-dismiss {
-		min-width: 44px;
-	}
-
 	:root {
+		--icon-button-size: 2.75rem;
 		--editor-row-gap: 0.75rem;
-	}
-
-	.node-delete,
-	.link-delete {
-		width: 44px;
-	}
-
-	.preview-size-button,
-	#preview-splitter {
-		min-height: 44px;
 	}
 
 	/* Grows the toolbar row to the 44px buttons rather than clipping. */

@@ -98,7 +98,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						id="display-button"
 						aria-label="Appearance"
 						title="Appearance"
-						class="action-button"
+						class="icon-button"
 						aria-haspopup="dialog"
 						onClick={(event) => displayDialog.open(event.currentTarget)}
 					>
@@ -109,7 +109,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 						id="diagram-export-button"
 						aria-label="Export diagram"
 						title="Export diagram"
-						class="action-button"
+						class="icon-button"
 						aria-haspopup="dialog"
 						onClick={(event) => diagramExportDialog.open(event.currentTarget)}
 					>

@@ -35,7 +35,7 @@ The two layout breakpoints are 35rem and 60rem (560px and 960px at the default f
 - [ ] The footer stays below the Data card, wraps at narrow widths, and has legible links with comfortable touch targets.
 - [ ] System theme follows OS light/dark changes without a reload. Explicit Light and Dark choices override the OS preference.
 - [ ] Error text, delete buttons, focus rings, and native selects are legible in both themes. Diagram and Data surfaces have no unintended light seams.
-- [ ] On a coarse pointer, buttons, handles, selects, and inputs have comfortable touch targets of at least 44px height.
+- [ ] Icon action buttons use 22px icons in 36px square targets for a fine pointer and 44px square targets for a coarse pointer, with matching rounded hover and focus styling. The preview resize handle stays wider, and Delete stays red. On a coarse pointer, buttons, handles, selects, and inputs have comfortable touch targets of at least 44px height.
 
 ## Panels and diagram controls
 

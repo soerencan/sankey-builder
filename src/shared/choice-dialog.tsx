@@ -17,7 +17,7 @@ export function ChoiceDialog({ id, heading, handle, children }: ChoiceDialogProp
 				<h3 id={headingId}>{heading}</h3>
 				<button
 					type="button"
-					class="dialog-close"
+					class="icon-button dialog-close"
 					aria-label="Close"
 					onClick={() => handle.close()}
 				>

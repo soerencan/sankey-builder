@@ -190,7 +190,7 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 			/>
 			<button
 				type="button"
-				class="link-delete"
+				class="icon-button link-delete"
 				aria-label={`Delete link ${index + 1}`}
 				title={`Delete link ${index + 1}`}
 				onClick={() => actions.deleteLink(link.id)}

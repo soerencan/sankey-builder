@@ -76,7 +76,7 @@ export function DataPanel({
 				<div class="data-card-actions" role="group" aria-label="Data file actions">
 					<button
 						type="button"
-						class="action-button"
+						class="icon-button"
 						aria-label="Import JSON"
 						title="Import JSON"
 						onClick={() => fileInputRef.current?.click()}
@@ -86,7 +86,7 @@ export function DataPanel({
 					<button
 						type="button"
 						id="export-button"
-						class="action-button"
+						class="icon-button"
 						aria-label="Export JSON"
 						title="Export JSON"
 						onClick={handleExport}
