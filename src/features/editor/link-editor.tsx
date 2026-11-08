@@ -23,6 +23,10 @@ export function LinkEditor({ links, nodes, actions }: LinkEditorProps) {
 	const rowsRef = useRef<HTMLDivElement>(null);
 	const focus = useRowFocus(links);
 	useRowSortable(rowsRef, { rowClass: "link-row", onMove: actions.moveLink });
+	const rowActions: LinkEditorActions = {
+		...actions,
+		deleteLink: (id) => focus.deleteRow(id, () => actions.deleteLink(id)),
+	};
 
 	return (
 		<>
@@ -34,12 +38,17 @@ export function LinkEditor({ links, nodes, actions }: LinkEditorProps) {
 						link={link}
 						index={index}
 						nodes={nodes}
-						actions={actions}
+						actions={rowActions}
 						sourceRef={focus.fieldRef(link.id)}
 					/>
 				))}
 			</div>
-			<button type="button" class="add-link" onClick={() => focus.addRow(actions.addLink)}>
+			<button
+				type="button"
+				class="add-link"
+				ref={focus.addButtonRef}
+				onClick={() => focus.addRow(actions.addLink)}
+			>
 				<Icon id="icon-plus" />
 				Add link
 			</button>

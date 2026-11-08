@@ -54,14 +54,19 @@ export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 							class="icon-button node-delete"
 							aria-label={`Delete ${node.name}`}
 							title={`Delete ${node.name}`}
-							onClick={() => actions.deleteNode(node.id)}
+							onClick={() => focus.deleteRow(node.id, () => actions.deleteNode(node.id))}
 						>
 							<Icon id="icon-delete" />
 						</button>
 					</div>
 				))}
 			</div>
-			<button type="button" class="add-node" onClick={() => focus.addRow(actions.addNode)}>
+			<button
+				type="button"
+				class="add-node"
+				ref={focus.addButtonRef}
+				onClick={() => focus.addRow(actions.addNode)}
+			>
 				<Icon id="icon-plus" />
 				Add node
 			</button>

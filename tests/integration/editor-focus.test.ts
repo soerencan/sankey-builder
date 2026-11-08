@@ -39,4 +39,36 @@ describe("editor focus", () => {
 			expect(document.activeElement).toBe(fields[fields.length - 1]);
 		}
 	});
+
+	describe.each([
+		{ kind: "node", field: ".node-name", remove: ".node-delete", add: "Add node" },
+		{ kind: "link", field: ".link-source", remove: ".link-delete", add: "Add link" },
+	])("deleting a $kind", ({ field, remove, add }) => {
+		it.each(["first", "middle", "last"])(
+			"focuses a neighboring field after deleting the %s row",
+			(position) => {
+				mountApp();
+				const fields = document.querySelectorAll<HTMLElement>(field);
+				const buttons = document.querySelectorAll<HTMLButtonElement>(remove);
+				const index = position === "first" ? 0 : position === "middle" ? 2 : fields.length - 1;
+				const expected = fields[index + 1] ?? fields[index - 1];
+				buttons[index].focus();
+				click(buttons[index]);
+				expect(document.activeElement).toBe(expected);
+			},
+		);
+
+		it("focuses Add after deleting the only row, then focuses the next added row", () => {
+			mountApp();
+			const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(remove));
+			for (const button of buttons) {
+				button.focus();
+				click(button);
+			}
+			const addButton = byRole<HTMLButtonElement>(document, "button", add);
+			expect(document.activeElement).toBe(addButton);
+			click(addButton);
+			expect(document.activeElement).toBe(document.querySelector(field));
+		});
+	});
 });
