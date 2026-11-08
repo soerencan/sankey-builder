@@ -56,15 +56,19 @@ export function nextLinkId(): string {
 export function defaultState(): State {
 	return {
 		nodes: [
-			{ id: "n1", name: "Coal", colorIndex: 0 },
-			{ id: "n2", name: "Gas", colorIndex: 1 },
-			{ id: "n3", name: "Electricity", colorIndex: 2 },
-			{ id: "n4", name: "Homes", colorIndex: 3 },
+			{ id: "n1", name: "Salary", colorIndex: 0 },
+			{ id: "n2", name: "Freelance", colorIndex: 1 },
+			{ id: "n3", name: "Budget", colorIndex: 2 },
+			{ id: "n4", name: "Needs", colorIndex: 3 },
+			{ id: "n5", name: "Wants", colorIndex: 4 },
+			{ id: "n6", name: "Savings", colorIndex: 5 },
 		],
 		links: [
-			{ id: nextLinkId(), source: "n1", target: "n3", value: 10 },
-			{ id: nextLinkId(), source: "n2", target: "n3", value: 6 },
-			{ id: nextLinkId(), source: "n3", target: "n4", value: 14 },
+			{ id: nextLinkId(), source: "n1", target: "n3", value: 1600 },
+			{ id: nextLinkId(), source: "n2", target: "n3", value: 400 },
+			{ id: nextLinkId(), source: "n3", target: "n4", value: 1000 },
+			{ id: nextLinkId(), source: "n3", target: "n5", value: 600 },
+			{ id: nextLinkId(), source: "n3", target: "n6", value: 400 },
 		],
 		settings: { ...DEFAULT_SETTINGS },
 	};

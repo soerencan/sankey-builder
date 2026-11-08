@@ -204,7 +204,7 @@ describe("import & export", () => {
 		expect(setItem).not.toHaveBeenCalled();
 		setItem.mockRestore();
 		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(rectsBefore);
-		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(5);
 	});
 
 	it("reports import repairs in the notice with the exact counts + adjustments format", async () => {
@@ -440,7 +440,7 @@ describe("import & export", () => {
 
 		// A rename while still invalid: the export must show the old label,
 		// which discriminates stale from fresh where the rect count can't.
-		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
+		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Salary");
 		const oldName = nameInput.value;
 		nameInput.value = "Renamed For Export Test";
 		fireInput(nameInput);

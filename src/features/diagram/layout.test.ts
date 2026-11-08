@@ -101,8 +101,8 @@ describe("layoutDiagram", () => {
 
 		const layout = layoutDiagram(diagramOf(state));
 
-		expect(layout?.nodes).toHaveLength(4);
-		expect(layout?.links).toHaveLength(3);
+		expect(layout?.nodes).toHaveLength(6);
+		expect(layout?.links).toHaveLength(5);
 	});
 
 	it("gives every link a positive width in proportion to its value", () => {
@@ -114,8 +114,11 @@ describe("layoutDiagram", () => {
 		for (const link of links) {
 			expect(link.width).toBeGreaterThan(0);
 		}
-		// One scale factor maps value to width; links 1 and 2 carry 6 and 14.
-		expect(links[2].width / links[1].width).toBeCloseTo(14 / 6, 5);
+		// One scale factor maps value to width.
+		expect(links[2].width / links[1].width).toBeCloseTo(
+			state.links[2].value / state.links[1].value,
+			5,
+		);
 	});
 
 	it("keeps each link's source and target as the same node objects the nodes array exposes", () => {

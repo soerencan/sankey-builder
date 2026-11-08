@@ -192,9 +192,9 @@ describe("application lifecycle", () => {
 
 		const app = startApp(document);
 		try {
-			expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(4);
+			expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(6);
 
-			// An intact instance and a leaked listener both end at 5 rows, so
+			// An intact instance and a leaked listener both end at 7 rows, so
 			// the real detectors are the setItem count and the resizer step.
 			const realLocalStorage = localStorage;
 			const { storage: countingStorage, setItemCalls } = makeCountingStorage();
@@ -213,7 +213,7 @@ describe("application lifecycle", () => {
 				});
 			}
 
-			expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(5);
+			expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(7);
 			expect(setItemCalls.filter((key) => key === STORAGE_KEY)).toHaveLength(1);
 
 			// One click applies the step once (360 + 40 = 400, not 440).

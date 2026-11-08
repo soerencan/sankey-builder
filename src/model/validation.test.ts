@@ -19,7 +19,7 @@ describe("validate", () => {
 			state.links[0].value = value;
 			expect(validate(state)).toEqual({
 				ok: false,
-				error: "Link 1 (Coal to Electricity) needs a value greater than 0.",
+				error: "Link 1 (Salary to Budget) needs a value greater than 0.",
 			});
 		});
 
@@ -28,7 +28,7 @@ describe("validate", () => {
 			state.links.push({ id: "l4", source: "n1", target: "n3", value: -1 });
 			expect(validate(state)).toEqual({
 				ok: false,
-				error: "Link 4 (Coal to Electricity) needs a value greater than 0.",
+				error: "Link 6 (Salary to Budget) needs a value greater than 0.",
 			});
 		});
 	});
@@ -45,7 +45,7 @@ describe("validate", () => {
 			state.links[0].value = MAX_LINK_VALUE + 1;
 			expect(validate(state)).toEqual({
 				ok: false,
-				error: `Link 1 (Coal to Electricity) value is too large (maximum ${MAX_LINK_VALUE}).`,
+				error: `Link 1 (Salary to Budget) value is too large (maximum ${MAX_LINK_VALUE}).`,
 			});
 		});
 	});
@@ -56,7 +56,7 @@ describe("validate", () => {
 			state.links[0].target = state.links[0].source;
 			expect(validate(state)).toEqual({
 				ok: false,
-				error: "A link cannot connect Coal to itself.",
+				error: "A link cannot connect Salary to itself.",
 			});
 		});
 	});
@@ -175,7 +175,7 @@ describe("validate", () => {
 			state.links[0].value = Number.NaN;
 			expect(validate(state)).toEqual({
 				ok: false,
-				error: "A link cannot connect Coal to itself.",
+				error: "A link cannot connect Salary to itself.",
 			});
 		});
 

@@ -90,11 +90,11 @@ describe("production build (dist/)", () => {
 		await import(pathToFileURL(join(DIST_DIR, entryRef)).href);
 
 		const diagram = document.getElementById("diagram");
-		// defaultState has 4 nodes / 3 links.
+		// defaultState has 6 nodes / 5 links.
 		expect(diagram?.querySelector("svg")).not.toBeNull();
-		expect(diagram?.querySelectorAll("svg rect")).toHaveLength(4);
-		expect(diagram?.querySelectorAll("svg path")).toHaveLength(3);
-		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(4);
-		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
+		expect(diagram?.querySelectorAll("svg rect")).toHaveLength(6);
+		expect(diagram?.querySelectorAll("svg path")).toHaveLength(5);
+		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(6);
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(5);
 	});
 });

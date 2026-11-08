@@ -71,8 +71,8 @@ describe("NoticeRegion: consolidated notice slots", () => {
 
 		// With storage working again the storage notice clears while the
 		// unfixed cycle's error persists.
-		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
-		nameInput.value = "Lignite";
+		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Salary");
+		nameInput.value = "Base salary";
 		fireInput(nameInput);
 
 		expect(errorText()).toContain("cycle");

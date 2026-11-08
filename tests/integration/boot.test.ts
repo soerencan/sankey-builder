@@ -53,11 +53,11 @@ describe("application boot", () => {
 		const diagram = document.getElementById("diagram");
 		expect(diagram?.querySelector("svg")).not.toBeNull();
 
-		// defaultState has 4 nodes / 3 links.
-		expect(diagram?.querySelectorAll("svg rect")).toHaveLength(4);
-		expect(diagram?.querySelectorAll("svg path")).toHaveLength(3);
-		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(4);
-		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
+		// defaultState has 6 nodes / 5 links.
+		expect(diagram?.querySelectorAll("svg rect")).toHaveLength(6);
+		expect(diagram?.querySelectorAll("svg path")).toHaveLength(5);
+		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(6);
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(5);
 	});
 
 	it("throws a useful error naming the missing root when the static #app mount is absent", () => {

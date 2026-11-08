@@ -22,8 +22,8 @@ import { DEFAULT_SETTINGS, pickDiagramSettings } from "./settings";
 describe("defaultState", () => {
 	it("returns the starting graph and settings", () => {
 		const state = defaultState();
-		expect(state.nodes).toHaveLength(4);
-		expect(state.links).toHaveLength(3);
+		expect(state.nodes).toHaveLength(6);
+		expect(state.links).toHaveLength(5);
 		expect(state.settings).toEqual({
 			palette: "balanced",
 			linkColor: "target",
@@ -72,7 +72,7 @@ describe("nextNodeId", () => {
 
 	it("increments past the highest existing numeric suffix", () => {
 		const state = defaultState();
-		expect(nextNodeId(state)).toBe("n5");
+		expect(nextNodeId(state)).toBe("n7");
 	});
 
 	it("assigns ids via addNode using the same suffix logic", () => {
@@ -86,9 +86,9 @@ describe("nextNodeId", () => {
 describe("deleteNode", () => {
 	it("prunes links referencing the deleted node as source or target", () => {
 		const state = defaultState();
-		// n3 (Electricity) is both a target (from n1, n2) and a source (to n4).
+		// n3 (Budget) merges both income sources and splits into three categories.
 		deleteNode(state, "n3");
-		expect(state.nodes.map((n) => n.id)).toEqual(["n1", "n2", "n4"]);
+		expect(state.nodes.map((n) => n.id)).toEqual(["n1", "n2", "n4", "n5", "n6"]);
 		expect(state.links).toEqual([]);
 	});
 
@@ -96,8 +96,10 @@ describe("deleteNode", () => {
 		const state = defaultState();
 		deleteNode(state, "n4");
 		expect(state.links.map(withoutLinkId)).toEqual([
-			{ source: "n1", target: "n3", value: 10 },
-			{ source: "n2", target: "n3", value: 6 },
+			{ source: "n1", target: "n3", value: 1600 },
+			{ source: "n2", target: "n3", value: 400 },
+			{ source: "n3", target: "n5", value: 600 },
+			{ source: "n3", target: "n6", value: 400 },
 		]);
 	});
 
@@ -258,19 +260,18 @@ describe("moveNode", () => {
 describe("moveLink", () => {
 	it("reorders links, forward and backward", () => {
 		const state = defaultState();
-		// Default links: n1->n3 (10), n2->n3 (6), n3->n4 (14).
 		moveLink(state, 0, 2);
-		expect(state.links.map((l) => l.value)).toEqual([6, 14, 10]);
+		expect(state.links.map((l) => l.value)).toEqual([400, 1000, 1600, 600, 400]);
 		moveLink(state, 2, 0);
-		expect(state.links.map((l) => l.value)).toEqual([10, 6, 14]);
+		expect(state.links.map((l) => l.value)).toEqual([1600, 400, 1000, 600, 400]);
 	});
 
 	it("clamps out-of-range indices and no-ops on same index", () => {
 		const state = defaultState();
 		moveLink(state, 0, 99);
-		expect(state.links.map((l) => l.value)).toEqual([6, 14, 10]);
+		expect(state.links.map((l) => l.value)).toEqual([400, 1000, 600, 400, 1600]);
 		moveLink(state, 1, 1);
-		expect(state.links.map((l) => l.value)).toEqual([6, 14, 10]);
+		expect(state.links.map((l) => l.value)).toEqual([400, 1000, 600, 400, 1600]);
 	});
 });
 

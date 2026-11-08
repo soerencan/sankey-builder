@@ -21,13 +21,13 @@ describe("node & link editing", () => {
 		const addNodeButton = byRole<HTMLButtonElement>(document, "button", "Add node");
 		click(addNodeButton);
 
-		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(5);
-		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(5);
+		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(7);
+		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(7);
 
 		const stored = localStorage.getItem(STORAGE_KEY);
 		expect(stored).not.toBeNull();
 		const parsed = JSON.parse(stored ?? "{}");
-		expect(parsed.nodes.some((n: { id: string }) => n.id === "n5")).toBe(true);
+		expect(parsed.nodes.some((n: { id: string }) => n.id === "n7")).toBe(true);
 	});
 
 	it("leaves state untouched on empty/invalid value edits and restores the text on blur", async () => {
@@ -48,7 +48,7 @@ describe("node & link editing", () => {
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
 		expect(document.contains(valueInput)).toBe(true);
-		expect(getStoredState().links[0].value).toBe(10);
+		expect(getStoredState().links[0].value).toBe(1600);
 
 		valueInput.value = "abc";
 		fireInput(valueInput);
@@ -59,12 +59,12 @@ describe("node & link editing", () => {
 		expect(document.getElementById("error")?.textContent).toBe("");
 		expect(document.querySelector("#diagram svg")).toBe(svgBefore);
 		expect(document.querySelector("#diagram svg")?.outerHTML).toBe(svgHtmlBefore);
-		expect(getStoredState().links[0].value).toBe(10);
+		expect(getStoredState().links[0].value).toBe(1600);
 
 		// Blur restoration is draft state too, rendered on the next microtask.
 		fireChange(valueInput);
 		await tick();
-		expect(valueInput.value).toBe("10");
+		expect(valueInput.value).toBe("1600");
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 
 		// Blur must not rewrite a valid draft: "5." parses to 5 but the trailing
@@ -84,7 +84,7 @@ describe("node & link editing", () => {
 		const svgAfter = document.querySelector("#diagram svg");
 		expect(svgAfter).not.toBeNull();
 		expect(svgAfter?.outerHTML).not.toBe(svgHtmlBefore);
-		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(4);
+		expect(document.querySelectorAll("#diagram svg rect")).toHaveLength(6);
 		expect(getStoredState().links[0].value).toBe(20);
 	});
 
@@ -175,7 +175,7 @@ describe("node & link editing", () => {
 		await tick();
 		expect(valueInput.hasAttribute("aria-invalid")).toBe(false);
 		expect(errorEl.textContent).toBe("");
-		expect(getStoredState().links[0].value).toBe(10);
+		expect(getStoredState().links[0].value).toBe(1600);
 	});
 
 	it("intercepts the 4-decimal cap at beforeinput (block keystroke, truncate paste)", async () => {
@@ -331,8 +331,8 @@ describe("node & link editing", () => {
 		expect(errorEl.textContent).toBe("Enter a plain number greater than 0.");
 
 		// An unrelated rename's re-render must leave the row's draft intact.
-		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
-		nameInput.value = "Lignite";
+		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Salary");
+		nameInput.value = "Base salary";
 		fireInput(nameInput);
 
 		// Identity, not attribute equality: a rebuilt row would carry the same
@@ -346,7 +346,7 @@ describe("node & link editing", () => {
 		const n1Option = requireElement<HTMLOptionElement>(
 			'#link-editor option.node-option[value="n1"]',
 		);
-		expect(n1Option.textContent).toBe("Lignite");
+		expect(n1Option.textContent).toBe("Base salary");
 	});
 
 	it("invalid draft: no persist, no notice change, no redraw", async () => {
@@ -414,9 +414,9 @@ describe("node & link editing", () => {
 		expect(valueInput.getAttribute("aria-invalid")).toBe("true");
 
 		// Cascades to remove the n2->n3 link, so the edited link becomes row 1.
-		click(byRole<HTMLButtonElement>(document, "button", "Delete Gas"));
+		click(byRole<HTMLButtonElement>(document, "button", "Delete Freelance"));
 
-		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(2);
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(4);
 		const survivingValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 2");
 		expect(survivingValueInput).toBe(valueInput);
 		expect(survivingValueInput.value).toBe("abc");
@@ -427,22 +427,22 @@ describe("node & link editing", () => {
 
 		// The other surviving link (n1->n3, untouched, now row 0) is unaffected.
 		const otherValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
-		expect(otherValueInput.value).toBe("10");
+		expect(otherValueInput.value).toBe("1600");
 		expect(otherValueInput.hasAttribute("aria-invalid")).toBe(false);
 	});
 
 	it("Add link appends an unassigned row that stays inert until both endpoints are chosen", () => {
 		mountApp();
 
-		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(3);
-		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(5);
+		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(5);
 
 		const addLinkButton = byRole<HTMLButtonElement>(document, "button", "Add link");
 		click(addLinkButton);
 
-		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(4);
-		const source = () => byRole<HTMLSelectElement>(document, "combobox", "Source for link 4");
-		const target = () => byRole<HTMLSelectElement>(document, "combobox", "Target for link 4");
+		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(6);
+		const source = () => byRole<HTMLSelectElement>(document, "combobox", "Source for link 6");
+		const target = () => byRole<HTMLSelectElement>(document, "combobox", "Target for link 6");
 		expect(source()?.value).toBe("");
 		expect(target()?.value).toBe("");
 		expect(source()?.querySelector('option[value=""]')?.textContent).toBe("Select source");
@@ -451,9 +451,9 @@ describe("node & link editing", () => {
 			expect(select.querySelector<HTMLOptionElement>('option[value=""]')?.disabled).toBe(true);
 			expect(select.getAttribute("data-placeholder")).toBe("true");
 		}
-		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
+		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(5);
 
-		expect(getStoredState().links[3]).toEqual({
+		expect(getStoredState().links[5]).toEqual({
 			source: null,
 			target: null,
 			value: 1,
@@ -463,16 +463,16 @@ describe("node & link editing", () => {
 		if (!chosenSource) throw new Error("unreachable");
 		chosenSource.value = "n1";
 		fireChange(chosenSource);
-		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(3);
+		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(5);
 
 		const chosenTarget = target();
 		if (!chosenTarget) throw new Error("unreachable");
 		chosenTarget.value = "n2";
 		fireChange(chosenTarget);
-		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(4);
+		expect(document.querySelectorAll("#diagram svg path")).toHaveLength(6);
 
 		const parsed = getStoredState();
-		expect(parsed.links[3]).toEqual({ source: "n1", target: "n2", value: 1 });
+		expect(parsed.links[5]).toEqual({ source: "n1", target: "n2", value: 1 });
 
 		for (const select of [source(), target()]) {
 			expect(select.querySelector<HTMLOptionElement>('option[value=""]')?.disabled).toBe(true);
@@ -498,11 +498,11 @@ describe("node & link editing", () => {
 			disabled: option.getAttribute("disabled"),
 		}));
 
-		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Coal");
+		const nameInput = byRole<HTMLInputElement>(document, "textbox", "Name for Salary");
 		nameInput.focus();
 		expect(document.activeElement).toBe(nameInput);
 
-		nameInput.value = "Lignite";
+		nameInput.value = "Base salary";
 		fireInput(nameInput);
 
 		// Reassigning `.value` collapses the selection to the end in every
@@ -510,14 +510,14 @@ describe("node & link editing", () => {
 		// selectionStart is only a smoke check that the app never reprograms it.
 		expect(document.contains(nameInput)).toBe(true);
 		expect(document.activeElement).toBe(nameInput);
-		expect(nameInput.selectionStart).toBe("Lignite".length);
+		expect(nameInput.selectionStart).toBe("Base salary".length);
 
 		const n1Options = Array.from(
 			document.querySelectorAll<HTMLOptionElement>('#link-editor option.node-option[value="n1"]'),
 		);
 		expect(n1Options.length).toBeGreaterThan(0);
 		for (const option of n1Options) {
-			expect(option.textContent).toBe("Lignite");
+			expect(option.textContent).toBe("Base salary");
 		}
 
 		// Each link row keeps its DOM identity.
@@ -540,6 +540,8 @@ describe("node & link editing", () => {
 		expect(svgAfter).not.toBeNull();
 		expect(svgAfter?.outerHTML).not.toBe(svgHtmlBefore);
 
-		expect(getStoredState().nodes.find((n: { id: string }) => n.id === "n1")?.name).toBe("Lignite");
+		expect(getStoredState().nodes.find((n: { id: string }) => n.id === "n1")?.name).toBe(
+			"Base salary",
+		);
 	});
 });

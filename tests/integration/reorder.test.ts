@@ -23,25 +23,32 @@ describe("row reordering", () => {
 				document.getElementById("node-editor") as HTMLElement,
 				"textbox",
 			).map((i) => i.value);
-		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(nodeNames()).toEqual(["Salary", "Freelance", "Budget", "Needs", "Wants", "Savings"]);
 
-		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder Coal");
+		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder Salary");
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
-		expect(nodeNames()).toEqual(["Gas", "Coal", "Electricity", "Homes"]);
+		expect(nodeNames()).toEqual(["Freelance", "Salary", "Budget", "Needs", "Wants", "Savings"]);
 
 		const stored = getStoredState();
-		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n1", "n3", "n4"]);
+		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual([
+			"n2",
+			"n1",
+			"n3",
+			"n4",
+			"n5",
+			"n6",
+		]);
 
 		// Dropdown option order follows node order.
 		const firstSource = byRole<HTMLSelectElement>(document, "combobox", "Source for link 1");
 		const options = Array.from(firstSource.querySelectorAll("option.node-option")).map(
 			(o) => o.textContent,
 		);
-		expect(options).toEqual(["Gas", "Coal", "Electricity", "Homes"]);
+		expect(options).toEqual(["Freelance", "Salary", "Budget", "Needs", "Wants", "Savings"]);
 
-		const moved = byRole<HTMLButtonElement>(document, "button", "Reorder Coal");
+		const moved = byRole<HTMLButtonElement>(document, "button", "Reorder Salary");
 		expect(document.activeElement).toBe(moved);
 	});
 
@@ -53,16 +60,18 @@ describe("row reordering", () => {
 				document.getElementById("link-editor") as HTMLElement,
 				"textbox",
 			).map((i) => i.value);
-		expect(linkValues()).toEqual(["10", "6", "14"]);
+		expect(linkValues()).toEqual(["1600", "400", "1000", "600", "400"]);
 
 		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder link 1");
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 
-		expect(linkValues()).toEqual(["6", "10", "14"]);
+		expect(linkValues()).toEqual(["400", "1600", "1000", "600", "400"]);
 
 		const stored = getStoredState();
-		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([6, 10, 14]);
+		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([
+			400, 1600, 1000, 600, 400,
+		]);
 
 		const moved = byRole<HTMLButtonElement>(document, "button", "Reorder link 2");
 		expect(document.activeElement).toBe(moved);
@@ -117,7 +126,7 @@ describe("row reordering", () => {
 				document.getElementById("node-editor") as HTMLElement,
 				"textbox",
 			).map((i) => i.value);
-		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(nodeNames()).toEqual(["Salary", "Freelance", "Budget", "Needs", "Wants", "Savings"]);
 
 		const nodeRows = requireElement<HTMLElement>("#node-editor .node-rows");
 		const nodeSortable = Sortable.get(nodeRows);
@@ -126,14 +135,21 @@ describe("row reordering", () => {
 
 		// The handler acts on the indices; `item` is left in place here and the
 		// DOM-restore step is driven by the next test.
-		const item = byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Coal").closest(
+		const item = byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Salary").closest(
 			".node-row",
 		) as HTMLElement;
 		onEnd({ item, oldIndex: 0, newIndex: 2 } as unknown as Sortable.SortableEvent);
 
-		expect(nodeNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
+		expect(nodeNames()).toEqual(["Freelance", "Budget", "Salary", "Needs", "Wants", "Savings"]);
 		const stored = getStoredState();
-		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n3", "n1", "n4"]);
+		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual([
+			"n2",
+			"n3",
+			"n1",
+			"n4",
+			"n5",
+			"n6",
+		]);
 	});
 
 	it("onEnd restores the DOM to pre-drag order before dispatching the move, then ends in model order after Preact's re-render, with focus kept on the dragged row's handle", () => {
@@ -145,37 +161,44 @@ describe("row reordering", () => {
 		if (!onEnd) throw new Error("unreachable");
 
 		const rowNames = () => allByRole<HTMLInputElement>(nodeRows, "textbox").map((i) => i.value);
-		expect(rowNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(rowNames()).toEqual(["Salary", "Freelance", "Budget", "Needs", "Wants", "Savings"]);
 
-		const coalHandle = byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Coal");
-		const draggedRow = coalHandle.closest(".node-row") as HTMLElement;
+		const salaryHandle = byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Salary");
+		const draggedRow = salaryHandle.closest(".node-row") as HTMLElement;
 
-		// The DOM as Sortable leaves it by the time onEnd fires: Coal dragged
-		// down to just before Homes.
-		for (const name of ["Gas", "Electricity", "Coal", "Homes"]) {
+		// The DOM as Sortable leaves it by the time onEnd fires: Salary dragged
+		// down to just before Needs.
+		for (const name of ["Freelance", "Budget", "Salary", "Needs", "Wants", "Savings"]) {
 			const row = byRole<HTMLButtonElement>(nodeRows, "button", `Reorder ${name}`).closest(
 				".node-row",
 			);
 			if (row) nodeRows.appendChild(row);
 		}
-		expect(rowNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
+		expect(rowNames()).toEqual(["Freelance", "Budget", "Salary", "Needs", "Wants", "Savings"]);
 
 		// Focus as of the moment onEnd fires (e.g. from the mousedown that
 		// started the drag) is what onEnd must carry through.
-		coalHandle.focus();
+		salaryHandle.focus();
 
 		onEnd({ item: draggedRow, oldIndex: 0, newIndex: 2 } as unknown as Sortable.SortableEvent);
 
 		// By DOM identity: same row elements throughout, none duplicated or lost.
 		const rowsAfter = Array.from(nodeRows.querySelectorAll(".node-row"));
-		expect(rowsAfter).toHaveLength(4);
+		expect(rowsAfter).toHaveLength(6);
 		expect(new Set(rowsAfter).size).toBe(rowsAfter.length);
-		expect(rowNames()).toEqual(["Gas", "Electricity", "Coal", "Homes"]);
+		expect(rowNames()).toEqual(["Freelance", "Budget", "Salary", "Needs", "Wants", "Savings"]);
 		const stored = getStoredState();
-		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual(["n2", "n3", "n1", "n4"]);
+		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual([
+			"n2",
+			"n3",
+			"n1",
+			"n4",
+			"n5",
+			"n6",
+		]);
 
 		expect(document.activeElement).toBe(
-			byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Coal"),
+			byRole<HTMLButtonElement>(nodeRows, "button", "Reorder Salary"),
 		);
 	});
 
@@ -187,7 +210,7 @@ describe("row reordering", () => {
 				document.getElementById("link-editor") as HTMLElement,
 				"textbox",
 			).map((i) => i.value);
-		expect(linkValues()).toEqual(["10", "6", "14"]);
+		expect(linkValues()).toEqual(["1600", "400", "1000", "600", "400"]);
 
 		const linkRows = requireElement<HTMLElement>("#link-editor .link-rows");
 		const linkSortable = Sortable.get(linkRows);
@@ -200,9 +223,11 @@ describe("row reordering", () => {
 		) as HTMLElement;
 		onEnd({ item, oldIndex: 0, newIndex: 1 } as unknown as Sortable.SortableEvent);
 
-		expect(linkValues()).toEqual(["6", "10", "14"]);
+		expect(linkValues()).toEqual(["400", "1600", "1000", "600", "400"]);
 		const stored = getStoredState();
-		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([6, 10, 14]);
+		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([
+			400, 1600, 1000, 600, 400,
+		]);
 	});
 
 	it("an invalid link-value draft follows its link through a keyboard reorder, not its array position", async () => {
@@ -226,7 +251,7 @@ describe("row reordering", () => {
 
 		// The link now at row 0 (the one that was displaced) is unaffected.
 		const otherValueInput = byRole<HTMLInputElement>(document, "textbox", "Value for link 1");
-		expect(otherValueInput.value).toBe("6");
+		expect(otherValueInput.value).toBe("400");
 		expect(otherValueInput.hasAttribute("aria-invalid")).toBe(false);
 	});
 
@@ -279,8 +304,8 @@ describe("row reordering", () => {
 		);
 
 		const nodeClone = nodeRow.cloneNode(true) as HTMLElement;
-		expect(byRole<HTMLInputElement>(nodeClone, "textbox", "Name for Coal").value).toBe(
-			byRole<HTMLInputElement>(nodeRow, "textbox", "Name for Coal").value,
+		expect(byRole<HTMLInputElement>(nodeClone, "textbox", "Name for Salary").value).toBe(
+			byRole<HTMLInputElement>(nodeRow, "textbox", "Name for Salary").value,
 		);
 
 		// A valid edit commits and renders synchronously, so the attribute
@@ -311,7 +336,7 @@ describe("row reordering", () => {
 		onEnd(fakeSortableEvent({ oldIndex: 1 }));
 		onEnd(fakeSortableEvent({ newIndex: 1 }));
 
-		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(nodeNames()).toEqual(["Salary", "Freelance", "Budget", "Needs", "Wants", "Savings"]);
 		expect(Sortable.get(nodeRows)).toBe(instance);
 	});
 
@@ -369,14 +394,14 @@ describe("row reordering", () => {
 
 		// The controller's action objects are identity-stable, so this can't
 		// catch a stale-closure bug; use-row-sortable's unit test pins that.
-		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder Coal");
+		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder Salary");
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
 		const nodeNames = allByRole<HTMLInputElement>(
 			document.getElementById("node-editor") as HTMLElement,
 			"textbox",
 		).map((i) => i.value);
-		expect(nodeNames[1]).toBe("Coal");
+		expect(nodeNames[1]).toBe("Salary");
 
 		app.destroy();
 
@@ -394,13 +419,13 @@ describe("row reordering", () => {
 				document.getElementById("node-editor") as HTMLElement,
 				"textbox",
 			).map((i) => i.value);
-		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(nodeNames()).toEqual(["Salary", "Freelance", "Budget", "Needs", "Wants", "Savings"]);
 
-		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder Coal");
+		const handle = byRole<HTMLButtonElement>(document, "button", "Reorder Salary");
 		handle.focus();
 		handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
 
-		expect(nodeNames()).toEqual(["Coal", "Gas", "Electricity", "Homes"]);
+		expect(nodeNames()).toEqual(["Salary", "Freelance", "Budget", "Needs", "Wants", "Savings"]);
 		expect(document.activeElement).toBe(handle);
 	});
 });
