@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Sankey Builder</title>
+  <defs>
+    <path id="upper-edge" d="M144 136 C224 136 288 96 368 96" />
+    <path id="lower-edge" d="M144 256 C224 256 288 296 368 296" />
+  </defs>
+  <rect width="512" height="512" fill="#000" />
+  <g fill="none" stroke="#fff" stroke-width="16" stroke-linejoin="round">
+    <use href="#upper-edge" />
+    <use href="#upper-edge" transform="translate(0 120)" />
+    <use href="#lower-edge" />
+    <use href="#lower-edge" transform="translate(0 120)" />
+    <rect x="96" y="136" width="48" height="240" rx="4" />
+    <rect x="368" y="96" width="48" height="120" rx="4" />
+    <rect x="368" y="296" width="48" height="120" rx="4" />
+  </g>
+</svg>
