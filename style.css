@@ -736,7 +736,7 @@ dialog[open] {
 
 @media (min-width: 60rem) {
 	.data-sections {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
 	}
 
 	.data-section + .data-section {
