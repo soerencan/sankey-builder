@@ -92,7 +92,8 @@ body {
 	align-items: center;
 	justify-content: space-between;
 	gap: 0.75rem;
-	padding: 1rem;
+	min-height: 4rem;
+	padding: 0.5rem 1rem;
 	border-bottom: 1px solid var(--border);
 }
 
@@ -102,7 +103,9 @@ body {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font-size: 1.25rem;
+	font-size: 1.5rem;
+	line-height: 1.25;
+	font-weight: 600;
 }
 
 /* One in-flow region rather than floating toasts; only color varies by tone. */
@@ -162,21 +165,30 @@ body {
 	overflow: hidden;
 }
 
-.data-card-header {
+.data-card-header,
+.diagram-toolbar {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 0.75rem;
-	min-height: 3rem;
-	padding: 0.4rem 0.75rem 0.4rem 1rem;
+	min-height: calc(var(--icon-button-size) + 1rem + 1px);
+	padding: 0.5rem 1rem;
 	border-bottom: 1px solid var(--border);
 }
 
-.data-card-header h2,
+.data-card-header h2 {
+	margin: 0;
+	font-size: 1.125rem;
+	line-height: 1.5rem;
+	font-weight: 600;
+}
+
 .data-section h2,
 .data-section h3 {
 	margin: 0;
-	font-size: 0.95rem;
+	font-size: 1rem;
+	line-height: 1.5;
+	font-weight: 600;
 }
 
 .data-card-actions {
@@ -263,6 +275,8 @@ input[type="text"],
 input[type="number"],
 select,
 .palette-trigger {
+	font-size: 1rem;
+	line-height: 1.25;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
 	padding: 0.35rem 0.5rem;
@@ -453,20 +467,12 @@ select,
 	border-radius: var(--radius-md);
 	/* Clips .sankey-canvas's square corners to the card's own rounding. */
 	overflow: hidden;
-	/* Shared with the coarse-pointer override below. */
-	--toolbar-height: 3.5rem;
 	background: var(--surface);
 }
 
 .diagram-toolbar {
-	display: flex;
-	align-items: center;
 	flex-wrap: nowrap;
-	gap: 0.35rem;
 	min-width: 0;
-	height: var(--toolbar-height);
-	padding-inline: 0.75rem;
-	border-bottom: 1px solid var(--border);
 }
 
 /* display: contents so .sankey-canvas, the sole child, is the real flex item
@@ -504,6 +510,7 @@ select,
 	align-items: center;
 	justify-content: center;
 	min-height: var(--icon-button-size);
+	padding-block: 0.25rem;
 	border-top: 1px solid var(--border);
 }
 
@@ -586,13 +593,15 @@ dialog::backdrop {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 0.75rem;
+	padding: 0.5rem 0.75rem;
 	gap: 1rem;
 }
 
 .dialog-header h3 {
 	margin: 0;
-	font-size: 0.9rem;
+	font-size: 1rem;
+	line-height: 1.5;
+	font-weight: 600;
 }
 
 .dialog-content {
@@ -784,11 +793,6 @@ dialog[open] {
 	:root {
 		--icon-button-size: 2.75rem;
 		--editor-row-gap: 0.75rem;
-	}
-
-	/* Grows the toolbar row to the 44px buttons rather than clipping. */
-	.diagram-panel {
-		--toolbar-height: 3.75rem;
 	}
 
 	.app-footer a {

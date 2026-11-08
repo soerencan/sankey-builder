@@ -28,7 +28,7 @@ The two layout breakpoints are 35rem and 60rem (560px and 960px at the default f
 
 - [ ] The page order stays consistent visually, in the DOM, and for keyboard and screen-reader navigation: header and notices, diagram, Data actions, Nodes, Links, footer.
 - [ ] The diagram panel spans the available content width above the Data card. Nodes and Links sit side by side in wide layouts and stack in that order in medium and compact layouts. Check both transitions for overlap or unusably narrow controls.
-- [ ] The header title, theme button, Data heading, and file actions remain legible without collisions. There is no horizontal page scrollbar.
+- [ ] The 24px page title, 18px Data heading, and 16px subsection headings form a clear hierarchy alongside 16px input text. The diagram toolbar and Data header have matching vertical spacing, and the sizing controls have space above and below their buttons. Headings and actions remain legible without collisions, and there is no horizontal page scrollbar.
 - [ ] Compact link rows put source and target on separate rows, followed by value and Delete together, with the drag handle beside the source. Medium and wide link rows stay horizontal. Icon delete buttons keep their accessible names, and field errors remain readable.
 - [ ] Scrolling follows normal document flow. Keyboard focus brings controls into view without unexpected jumps.
 - [ ] With all links deleted, the empty preview retains the selected aspect ratio, and the toolbar and Data card remain usable.
