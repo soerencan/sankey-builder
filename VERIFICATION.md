@@ -24,7 +24,7 @@ Open [localhost:8000/sankey-builder/](http://localhost:8000/sankey-builder/). Th
 
 ## Layout and theme
 
-The two layout breakpoints are 35rem and 60rem (560px and 960px at the default font size). Compact layouts are below 35rem, medium layouts are from 35rem to below 60rem, and wide layouts are 60rem and above. Check 559px, 560px, 561px, 959px, 960px, and 961px around the transitions, plus 1440px, 1024px, 768px, 390px, 360px, 320px, and 280px. Use both light and dark themes.
+The two layout breakpoints are 41.25rem and 60rem (660px and 960px at the default font size). Compact layouts are below 41.25rem, medium layouts are from 41.25rem to below 60rem, and wide layouts are 60rem and above. Check 659px, 660px, 661px, 959px, 960px, and 961px around the transitions, plus 1440px, 1024px, 768px, 600px, 390px, 360px, 320px, and 280px. Use both light and dark themes.
 
 - [ ] The page order stays consistent visually, in the DOM, and for keyboard and screen-reader navigation: header and notices, diagram, Data actions, Nodes, Links, footer.
 - [ ] The diagram panel spans the available content width above the Data card. In wide layouts, Nodes takes one third and Links takes two thirds of the Data card width. They stack in that order in medium and compact layouts. Check both transitions for overlap or unusably narrow controls.

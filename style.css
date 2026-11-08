@@ -687,7 +687,7 @@ dialog[open] {
    Responsive layout. The page itself always follows normal document flow;
    compact, medium, and wide layouts share two viewport breakpoints.
    ========================================================================== */
-@media (min-width: 35rem) {
+@media (min-width: 41.25rem) {
 	button,
 	input[type="text"],
 	input[type="number"],
