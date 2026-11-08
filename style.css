@@ -93,7 +93,7 @@ body {
 	justify-content: space-between;
 	gap: 0.75rem;
 	min-height: 4rem;
-	padding: 0.5rem 1rem;
+	padding: 0.5rem 1.5rem;
 	border-bottom: 1px solid var(--border);
 }
 
@@ -113,7 +113,7 @@ body {
 	display: flex;
 	align-items: center;
 	gap: 1rem;
-	padding: 0.75rem 1rem;
+	padding: 0.75rem 1.5rem;
 	font-size: 0.85rem;
 	border-bottom: 1px solid var(--border);
 }
@@ -140,7 +140,7 @@ body {
 	gap: 1.5rem;
 	width: min(100%, 96rem);
 	margin-inline: auto;
-	padding: 1rem;
+	padding: 1.5rem;
 }
 
 .app-footer {
@@ -148,7 +148,7 @@ body {
 	flex-wrap: wrap;
 	justify-content: center;
 	column-gap: 1.5rem;
-	padding: 0 1rem 1rem;
+	padding: 0 1.5rem 1.5rem;
 	font-size: 0.85rem;
 	color: color-mix(in srgb, var(--ink) 70%, var(--surface));
 }
@@ -700,22 +700,6 @@ dialog[open] {
    compact, medium, and wide layouts share two viewport breakpoints.
    ========================================================================== */
 @media (min-width: 35rem) {
-	.app-header {
-		padding-inline: 1.5rem;
-	}
-
-	.notice-region > div {
-		padding-inline: 1.5rem;
-	}
-
-	.app-layout {
-		padding: 1.5rem;
-	}
-
-	.app-footer {
-		padding: 0 1.5rem 1.5rem;
-	}
-
 	button,
 	input[type="text"],
 	input[type="number"],
