@@ -226,26 +226,20 @@ select {
 }
 
 button {
+	-webkit-appearance: none;
+	appearance: none;
+	-webkit-tap-highlight-color: transparent;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
 	padding: 0.35rem 0.7rem;
 	background: transparent;
 	color: var(--ink);
 	cursor: pointer;
-	transition: background-color 150ms var(--ease-out);
-}
-
-button:hover {
-	background-color: var(--border);
 }
 
 button:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
-}
-
-button:disabled:hover {
-	background: transparent;
 }
 
 .icon-button {
@@ -261,10 +255,6 @@ button:disabled:hover {
 	border-radius: var(--radius-md);
 	background: transparent;
 	color: var(--ink);
-}
-
-.icon-button:hover {
-	background: var(--border);
 }
 
 .icon-button:focus-visible {
@@ -426,10 +416,6 @@ select,
 	-webkit-touch-callout: none;
 	-webkit-user-select: none;
 	user-select: none;
-}
-
-.drag-handle:hover {
-	background: transparent;
 }
 
 .drag-handle:active {
@@ -652,10 +638,6 @@ dialog[open] {
 	align-items: center;
 }
 
-.palette-trigger:hover {
-	background-color: var(--control);
-}
-
 .palette-option,
 .choice-option {
 	display: flex;
@@ -796,12 +778,32 @@ dialog[open] {
 	border-color: transparent;
 }
 
-.node-delete:hover,
-.link-delete:hover,
 .node-delete:focus-visible,
 .link-delete:focus-visible {
 	background: color-mix(in srgb, var(--danger) 12%, transparent);
 	border-color: var(--danger);
+}
+
+@media (hover: hover) {
+	button:hover,
+	.icon-button:hover {
+		background-color: var(--border);
+	}
+
+	button:disabled:hover,
+	.drag-handle:hover {
+		background: transparent;
+	}
+
+	.palette-trigger:hover {
+		background-color: var(--control);
+	}
+
+	.node-delete:hover,
+	.link-delete:hover {
+		background: color-mix(in srgb, var(--danger) 12%, transparent);
+		border-color: var(--danger);
+	}
 }
 
 #preview-splitter[aria-disabled="true"] {
