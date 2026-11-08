@@ -1,6 +1,7 @@
-import type { RefObject } from "preact";
+import { useRef } from "preact/hooks";
+import type { Diagram } from "../../model/graph";
 import type { DiagramSettingKey, Settings } from "../../model/settings";
-import { SETTING_DOMAINS } from "../../model/settings";
+import { aspectRatioOption, SETTING_DOMAINS } from "../../model/settings";
 import type { AccessibleName } from "../../shared/accessible-name";
 import { ChoiceDialog } from "../../shared/choice-dialog";
 import { Icon } from "../../shared/icon";
@@ -10,6 +11,8 @@ import { download } from "../files/download";
 import { SETTING_LABELS } from "../settings/options";
 import { PaletteSelect } from "../settings/palette-select";
 import { createPngBlob, createSvgBlob } from "./export";
+import { PreviewResizer } from "./preview-resizer";
+import { SankeySvg } from "./sankey-svg";
 
 const EXPORT_SVG_FILENAME = "sankey.svg";
 const EXPORT_PNG_FILENAME = "sankey.png";
@@ -19,8 +22,8 @@ export interface DiagramPanelActions extends IoNoticeActions {
 }
 
 export interface DiagramPanelProps {
-	/** A ref, not the element: #diagram is a sibling in App's tree, so it exists only after commit. Read it from event handlers, never during render. */
-	diagramRef: RefObject<HTMLElement>;
+	/** Last valid snapshot; settings may already reflect edits to an invalid graph. */
+	diagram: Diagram | null;
 	settings: Readonly<Settings>;
 	actions: DiagramPanelActions;
 	signal: AbortSignal;
@@ -46,7 +49,19 @@ function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOp
 	);
 }
 
-export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramPanelProps) {
+export function DiagramPanel({ diagram, settings, actions, signal }: DiagramPanelProps) {
+	const diagramRef = useRef<HTMLDivElement>(null);
+
+	// These size only the preview box; the svg's own viewBox comes from
+	// SankeySvg. Safe as a style prop even though PreviewResizer writes
+	// --diagram-preview-height to the same element imperatively: Preact's
+	// style diff touches only the keys present in the vnode's style object.
+	const aspectRatio = aspectRatioOption(settings.aspectRatio);
+	const diagramStyle = {
+		"--diagram-aspect-ratio": `${aspectRatio.width} / ${aspectRatio.height}`,
+		"--diagram-aspect-number": String(aspectRatio.width / aspectRatio.height),
+	};
+
 	const diagramExportDialog = useDialog();
 	const displayDialog = useDialog();
 
@@ -87,7 +102,7 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 	}
 
 	return (
-		<>
+		<section class="diagram-panel" aria-labelledby="diagram-heading">
 			<header class="diagram-toolbar">
 				<h2 id="diagram-heading" class="visually-hidden">
 					Diagram
@@ -168,6 +183,24 @@ export function DiagramPanel({ diagramRef, settings, actions, signal }: DiagramP
 					</label>
 				))}
 			</ChoiceDialog>
-		</>
+
+			<div id="diagram" ref={diagramRef} style={diagramStyle}>
+				<div class="sankey-canvas">
+					<SankeySvg diagram={diagram} />
+				</div>
+			</div>
+			{/* biome-ignore lint/a11y/useSemanticElements: These controls resize the viewport, not a form field. */}
+			<div
+				id="preview-resizer"
+				class="preview-resizer"
+				role="group"
+				aria-label="Diagram preview size controls"
+			>
+				<PreviewResizer
+					diagramRef={diagramRef}
+					aspectRatio={aspectRatio.width / aspectRatio.height}
+				/>
+			</div>
+		</section>
 	);
 }

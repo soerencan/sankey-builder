@@ -163,6 +163,26 @@ describe("toolbar & settings", () => {
 		expect(diagram?.style.getPropertyValue("--diagram-aspect-number")).toBe("3");
 	});
 
+	it("uses the current aspect ratio for the preview while an invalid graph retains the last valid SVG", () => {
+		mountApp();
+		const diagram = document.getElementById("diagram");
+		const svg = diagram?.querySelector("svg");
+		const svgBefore = svg?.outerHTML;
+		expect(svg).not.toBeNull();
+
+		const target = byRole<HTMLSelectElement>(document, "combobox", "Target for link 3");
+		target.value = "n1";
+		fireChange(target);
+		chooseSetting("Aspect ratio", "3:1");
+
+		expect(document.getElementById("error")?.textContent).toContain("cycle");
+		expect(document.getElementById("diagram")).toBe(diagram);
+		expect(diagram?.style.getPropertyValue("--diagram-aspect-ratio")).toBe("1440 / 480");
+		expect(diagram?.style.getPropertyValue("--diagram-aspect-number")).toBe("3");
+		expect(diagram?.querySelector("svg")).toBe(svg);
+		expect(svg?.outerHTML).toBe(svgBefore);
+	});
+
 	it("boots with exactly one theme option pressed, matching the default (System)", () => {
 		mountApp();
 

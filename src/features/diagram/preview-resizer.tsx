@@ -33,7 +33,7 @@ function persistPreviewHeight(storage: Storage, value: number): void {
 }
 
 export interface PreviewResizerProps {
-	/** A sibling in App's tree, so it exists only after commit: read it from effects and handlers, never during render. */
+	/** The preview element exists only after commit: read it from effects and handlers, never during render. */
 	diagramRef: RefObject<HTMLElement>;
 	aspectRatio: number;
 }
