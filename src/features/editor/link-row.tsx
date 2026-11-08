@@ -149,7 +149,12 @@ export function LinkRow({ link, index, nodes, actions, sourceRef }: LinkRowProps
 
 	return (
 		<div class="link-row">
-			<button type="button" class="drag-handle" aria-label={`Reorder link ${index + 1}`}>
+			<button
+				type="button"
+				class="drag-handle"
+				aria-label={`Reorder link ${index + 1}`}
+				aria-describedby="link-reorder-help"
+			>
 				<Icon id="icon-grip-vertical" />
 			</button>
 			<select

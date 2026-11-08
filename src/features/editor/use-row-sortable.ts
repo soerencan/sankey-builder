@@ -1,5 +1,5 @@
 import type { RefObject } from "preact";
-import { useLayoutEffect, useRef } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import Sortable from "sortablejs";
 import { destroySortable } from "./row-reorder";
 
@@ -7,6 +7,7 @@ export interface UseRowSortableOptions {
 	/** Also the Sortable `group` name. */
 	rowClass: string;
 	onMove(from: number, to: number): void;
+	rowName(index: number): string;
 }
 
 // Hold-to-lift on touch, so a scroll gesture that starts on a row still
@@ -24,10 +25,17 @@ const TOUCH_START_THRESHOLD_PX = 4;
  */
 export function useRowSortable(
 	containerRef: RefObject<HTMLElement>,
-	{ rowClass, onMove }: UseRowSortableOptions,
-): void {
+	{ rowClass, onMove, rowName }: UseRowSortableOptions,
+) {
 	const onMoveRef = useRef(onMove);
 	onMoveRef.current = onMove;
+	const rowNameRef = useRef(rowName);
+	rowNameRef.current = rowName;
+	const [feedback, setFeedback] = useState({ message: "", sequence: 0 });
+
+	function announce(message: string): void {
+		setFeedback((previous) => ({ message, sequence: previous.sequence + 1 }));
+	}
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: containerRef.current is null during the first render pass and set afterwards; depending on it would recreate the Sortable instance on the very next render.
 	useLayoutEffect(() => {
@@ -62,6 +70,9 @@ export function useRowSortable(
 				// re-render reconciles against the order it produced, not Sortable's.
 				const siblings = Array.from(container.children).filter((child) => child !== item);
 				container.insertBefore(item, siblings[oldIndex] ?? null);
+				announce(
+					`${rowNameRef.current(oldIndex)} moved to position ${newIndex + 1} of ${siblings.length + 1}.`,
+				);
 				onMoveRef.current(oldIndex, newIndex);
 				focusedHandle?.focus();
 			},
@@ -77,7 +88,13 @@ export function useRowSortable(
 			const rows = Array.from(container.querySelectorAll<HTMLElement>(rowSelector));
 			const from = rows.indexOf(row);
 			const to = event.key === "ArrowUp" ? from - 1 : from + 1;
-			if (from < 0 || to < 0 || to >= rows.length) return;
+			if (from < 0) return;
+			const name = rowNameRef.current(from);
+			if (to < 0 || to >= rows.length) {
+				announce(`${name} is already ${to < 0 ? "first" : "last"}.`);
+				return;
+			}
+			announce(`${name} moved to position ${to + 1} of ${rows.length}.`);
 			onMoveRef.current(from, to);
 			// The re-render is synchronous and keyed, so this is still the same
 			// handle element.
@@ -90,4 +107,6 @@ export function useRowSortable(
 			destroySortable(instance);
 		};
 	}, [rowClass]);
+
+	return feedback;
 }

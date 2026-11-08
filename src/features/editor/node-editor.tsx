@@ -1,5 +1,6 @@
 import { useRef } from "preact/hooks";
 import { Icon } from "../../shared/icon";
+import { ReorderFeedback } from "./reorder-feedback";
 import { useRowFocus } from "./use-row-focus";
 import { useRowSortable } from "./use-row-sortable";
 
@@ -24,15 +25,25 @@ export interface NodeEditorProps {
 export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 	const rowsRef = useRef<HTMLDivElement>(null);
 	const focus = useRowFocus(nodes, true);
-	useRowSortable(rowsRef, { rowClass: "node-row", onMove: actions.moveNode });
+	const reorder = useRowSortable(rowsRef, {
+		rowClass: "node-row",
+		onMove: actions.moveNode,
+		rowName: (index) => nodes[index].name || "Unnamed node",
+	});
 
 	return (
 		<>
 			<h3 id="node-editor-heading">Nodes</h3>
+			<ReorderFeedback id="node-reorder" {...reorder} />
 			<div class="node-rows" ref={rowsRef}>
 				{nodes.map((node) => (
 					<div class="node-row" key={node.id}>
-						<button type="button" class="drag-handle" aria-label={`Reorder ${node.name}`}>
+						<button
+							type="button"
+							class="drag-handle"
+							aria-label={`Reorder ${node.name}`}
+							aria-describedby="node-reorder-help"
+						>
 							<Icon id="icon-grip-vertical" />
 						</button>
 						<span class="node-swatch" style={{ backgroundColor: node.swatchColor }} />

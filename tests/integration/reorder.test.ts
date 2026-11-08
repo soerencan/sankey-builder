@@ -141,6 +141,9 @@ describe("row reordering", () => {
 		onEnd({ item, oldIndex: 0, newIndex: 2 } as unknown as Sortable.SortableEvent);
 
 		expect(nodeNames()).toEqual(["Freelance", "Budget", "Salary", "Needs", "Wants", "Savings"]);
+		expect(requireElement("#node-reorder-status").textContent).toBe(
+			"Salary moved to position 3 of 6.",
+		);
 		const stored = getStoredState();
 		expect(stored.nodes.map((n: { id: string }) => n.id)).toEqual([
 			"n2",
@@ -225,6 +228,9 @@ describe("row reordering", () => {
 
 		expect(linkValues()).toEqual(["400", "1600", "1000", "600", "400"]);
 		const stored = getStoredState();
+		expect(requireElement("#link-reorder-status").textContent).toBe(
+			"Link from Salary to Budget moved to position 2 of 5.",
+		);
 		expect(stored.links.map((l: { value: number }) => l.value)).toEqual([
 			400, 1600, 1000, 600, 400,
 		]);

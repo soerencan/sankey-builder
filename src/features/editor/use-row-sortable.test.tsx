@@ -9,7 +9,7 @@ import { useRowSortable } from "./use-row-sortable";
 
 function Rows({ ids, onMove }: { ids: string[]; onMove: (from: number, to: number) => void }) {
 	const ref = useRef<HTMLDivElement>(null);
-	useRowSortable(ref, { rowClass: "row", onMove });
+	useRowSortable(ref, { rowClass: "row", onMove, rowName: (index) => ids[index] });
 	return (
 		<div class="rows" ref={ref}>
 			{ids.map((id) => (

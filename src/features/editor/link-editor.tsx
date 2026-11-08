@@ -3,6 +3,7 @@ import type { Link } from "../../model/graph";
 import { Icon } from "../../shared/icon";
 import { LinkRow } from "./link-row";
 import type { NodeView } from "./node-editor";
+import { ReorderFeedback } from "./reorder-feedback";
 import { useRowFocus } from "./use-row-focus";
 import { useRowSortable } from "./use-row-sortable";
 
@@ -22,7 +23,16 @@ export interface LinkEditorProps {
 export function LinkEditor({ links, nodes, actions }: LinkEditorProps) {
 	const rowsRef = useRef<HTMLDivElement>(null);
 	const focus = useRowFocus(links);
-	useRowSortable(rowsRef, { rowClass: "link-row", onMove: actions.moveLink });
+	const reorder = useRowSortable(rowsRef, {
+		rowClass: "link-row",
+		onMove: actions.moveLink,
+		rowName: (index) => {
+			const link = links[index];
+			const source = nodes.find((node) => node.id === link.source)?.name || "unassigned source";
+			const target = nodes.find((node) => node.id === link.target)?.name || "unassigned target";
+			return `Link from ${source} to ${target}`;
+		},
+	});
 	const rowActions: LinkEditorActions = {
 		...actions,
 		deleteLink: (id) => focus.deleteRow(id, () => actions.deleteLink(id)),
@@ -31,6 +41,7 @@ export function LinkEditor({ links, nodes, actions }: LinkEditorProps) {
 	return (
 		<>
 			<h3 id="link-editor-heading">Links</h3>
+			<ReorderFeedback id="link-reorder" {...reorder} />
 			<div class="link-rows" ref={rowsRef}>
 				{links.map((link, index) => (
 					<LinkRow

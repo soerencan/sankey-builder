@@ -428,6 +428,18 @@ select,
 	cursor: grabbing;
 }
 
+.reorder-instructions {
+	margin: -0.25rem 0 0.75rem;
+	font-size: 0.8rem;
+	color: var(--ink);
+	/* Reserve the line so showing help never moves the focused row. */
+	opacity: 0;
+}
+
+.data-section:has(.drag-handle:focus-visible) .reorder-instructions {
+	opacity: 1;
+}
+
 /* The in-list placeholder at the drop target. */
 .node-row.row-ghost,
 .link-row.row-ghost {
