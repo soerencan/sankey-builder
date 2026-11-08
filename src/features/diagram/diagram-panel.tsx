@@ -1,8 +1,8 @@
 import type { RefObject } from "preact";
 import type { DiagramSettingKey, Settings } from "../../model/settings";
 import { SETTING_DOMAINS } from "../../model/settings";
+import type { AccessibleName } from "../../shared/accessible-name";
 import { ChoiceDialog } from "../../shared/choice-dialog";
-import type { AccessibleName } from "../../shared/choice-group";
 import { Icon } from "../../shared/icon";
 import type { IoNoticeActions } from "../../shared/notice";
 import { useDialog } from "../../shared/use-dialog";

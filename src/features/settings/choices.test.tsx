@@ -20,6 +20,7 @@ describe("ThemeChoices", () => {
 	it("renders one button per theme in SETTING_DOMAINS order, tracking aria-pressed and reporting the clicked value", () => {
 		const onSelect = vi.fn();
 		const container = mount(<ThemeChoices value="dark" label="Theme" onSelect={onSelect} />);
+		expect(byRole(container, "group").getAttribute("aria-label")).toBe("Theme");
 
 		const buttons = allByRole<HTMLButtonElement>(container, "button");
 		expect(buttons.map((button) => accessibleName(button))).toEqual(
@@ -31,6 +32,30 @@ describe("ThemeChoices", () => {
 
 		byRole<HTMLButtonElement>(container, "button", SETTING_LABELS.theme.light).click();
 		expect(onSelect).toHaveBeenCalledWith("light");
+	});
+
+	it("preserves the buttons and keyboard focus when the selected theme changes", () => {
+		const onSelect = vi.fn();
+		const container = mount(<ThemeChoices value="auto" label="Theme" onSelect={onSelect} />);
+		const before = allByRole<HTMLButtonElement>(container, "button");
+		byRole<HTMLButtonElement>(container, "button", "Dark").focus();
+
+		render(<ThemeChoices value="dark" label="Theme" onSelect={onSelect} />, container);
+
+		const after = allByRole<HTMLButtonElement>(container, "button");
+		expect(after).toHaveLength(before.length);
+		after.forEach((button, index) => {
+			expect(button).toBe(before[index]);
+		});
+		expect(document.activeElement).toBe(byRole(container, "button", "Dark"));
+		expect(after.map((button) => button.getAttribute("aria-pressed"))).toEqual([
+			"false",
+			"false",
+			"true",
+		]);
+		expect(
+			after.map((button) => button.querySelector(".selection-indicator")?.textContent),
+		).toEqual(["", "", "✓"]);
 	});
 });
 
