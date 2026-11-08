@@ -37,6 +37,8 @@ The two layout breakpoints are 35rem and 60rem (560px and 960px at the default f
 - [ ] System theme follows OS light/dark changes without a reload. Explicit Light and Dark choices override the OS preference.
 - [ ] Error text, delete buttons, focus rings, and native selects are legible in both themes. Diagram and Data surfaces have no unintended light seams.
 - [ ] Icon action buttons use 22px icons in 36px square targets for a fine pointer and 44px square targets for a coarse pointer, with matching rounded hover and focus styling. The preview resize handle stays wider, and Delete stays red. On a coarse pointer, buttons, handles, selects, and inputs have comfortable touch targets of at least 44px height.
+- [ ] With a mouse or trackpad, enabled buttons show their hover background as the pointer enters and clear it when the pointer leaves. Hold and release a click: there is no additional native press flash or background fade. Check Add node, Add link, the JSON actions, preview sizing controls, and panel triggers in both themes.
+- [ ] With Chrome DevTools touch emulation enabled, tap Add node, Add link, and Export JSON. Each action works without leaving a gray hover background after release, including when adding a row moves the button. Repeat at narrow and wide widths to distinguish input mode from layout. Keyboard navigation still shows a focus outline independently of hover; removing touch hover feedback must not remove keyboard focus styling.
 
 ## Panels and diagram controls
 
@@ -47,6 +49,7 @@ The three panels are Theme, Appearance, and Export diagram. Appearance contains 
 - [ ] In compact layouts, panels become full-width bottom sheets with rounded top corners, a transparent backdrop, and scrollable content. Close remains reachable, and the page behind the panel cannot be used until dismissal.
 - [ ] Opening Theme focuses the selected choice. Appearance focuses Color saturation; Export diagram focuses its first control. Selected choices have a tint and checkmark distinct from the keyboard focus ring.
 - [ ] Tab and Shift+Tab stay usable within each panel. Interior padding does not dismiss it; outside clicks, Escape, and Close dismiss it and visibly return focus to its trigger.
+- [ ] Theme, Appearance, and Export diagram triggers keep the same gray background as their hover state while their panel is open, even after moving the pointer away or opening by keyboard or touch. The highlight follows the open panel rather than focus: edits in Appearance retain it, while Close, Escape, outside clicks, and selections that close a panel clear it. After dismissal, a hover-capable pointer still over the trigger may retain the ordinary hover background; move it away to confirm the open-state highlight has cleared. Add and JSON action buttons do not acquire a persistent selected highlight.
 - [ ] Theme choices close their panel. Appearance stays open while its dropdowns update the diagram; the selections survive a reload. Node alignment changes horizontal placement where the graph permits, while preserving node order within each column.
 - [ ] Color saturation shows eight segments per bar, with no visible option names. Arrow keys and Home/End navigate its options; Enter or Space selects, Tab selects and advances focus, and Escape closes only the dropdown. All levels remain reachable by scrolling in short viewports.
 - [ ] Preview all five saturation choices in both themes using a diagram that shows all eight color slots. Each node retains its hue and similar perceived brightness across the four colored levels. Grayscale progresses evenly from light to dark and remains visible against both backgrounds. Node colors, editor swatches, dropdown previews, and exported colors agree, including translucent links.
@@ -58,6 +61,7 @@ The three panels are Theme, Appearance, and Export diagram. Appearance contains 
 - [ ] In Safari, open and close each sheet in portrait and landscape, with the browser controls expanded and collapsed. Page, sheet, and bottom edge share a continuous background, without a dimming flash or border seam.
 - [ ] Sheet content clears the home indicator; long content scrolls and Close remains reachable. Tapping outside dismisses the sheet without activating controls behind it.
 - [ ] Native selects remain usable and focusing them does not trigger unwanted page zoom.
+- [ ] Tapping buttons produces no native press flash or lingering hover background. Panel triggers stay gray only while their panel is open; Add and JSON actions return to their resting appearance after release. Check both themes.
 
 ## Row dragging
 
