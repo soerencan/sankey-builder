@@ -8,7 +8,7 @@ export type ImportResult =
 	| { ok: false; error: string };
 
 /** Incomplete links are local working state and never travel. Pretty-printed for hand-editability. */
-export function serializeState(state: State): string {
+export function serializeDiagramExport(state: State): string {
 	const exported = {
 		nodes: state.nodes,
 		links: state.links.filter(isComplete).map(withoutLinkId),

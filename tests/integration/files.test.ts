@@ -3,7 +3,7 @@
 import { render } from "preact";
 import { describe, expect, it, vi } from "vitest";
 import { startApp } from "../../src/app/start-app";
-import { serializeState } from "../../src/features/files/diagram-file";
+import { serializeDiagramExport } from "../../src/features/files/diagram-file";
 import { defaultState } from "../../src/model/graph";
 import { STORAGE_KEY } from "../../src/platform/storage";
 import {
@@ -313,7 +313,7 @@ describe("import & export", () => {
 		expect(createUrlCalls).toBe(1);
 		expect(blob?.type).toBe("application/json");
 		expect(JSON.parse(await (blob as Blob).text())).toEqual(
-			JSON.parse(serializeState(defaultState())),
+			JSON.parse(serializeDiagramExport(defaultState())),
 		);
 		expect(downloadName).toBe("sankey.json");
 		expect(revokedUrl).toBe("blob:fake");

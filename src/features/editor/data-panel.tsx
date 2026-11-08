@@ -3,7 +3,7 @@ import { useRef } from "preact/hooks";
 import type { Diagram, State } from "../../model/graph";
 import { Icon } from "../../shared/icon";
 import type { IoNoticeActions } from "../../shared/notice";
-import { parseImport, serializeState } from "../files/diagram-file";
+import { parseImport, serializeDiagramExport } from "../files/diagram-file";
 import { download } from "../files/download";
 import type { LinkEditorActions } from "./link-editor";
 import { LinkEditor } from "./link-editor";
@@ -17,7 +17,7 @@ export interface DataPanelActions extends IoNoticeActions {
 }
 
 export interface DataPanelProps {
-	/** The live state, not a projected view: JSON export must serialize exactly what serializeState defines. */
+	/** The live state, not a projected view: JSON export must serialize exactly what serializeDiagramExport defines. */
 	state: State;
 	nodes: readonly NodeView[];
 	nodeActions: NodeEditorActions;
@@ -38,7 +38,7 @@ export function DataPanel({
 
 	function handleExport(event: JSX.TargetedMouseEvent<HTMLButtonElement>): void {
 		actions.clearIoNotice();
-		const blob = new Blob([serializeState(state)], { type: "application/json" });
+		const blob = new Blob([serializeDiagramExport(state)], { type: "application/json" });
 		download(event.currentTarget.ownerDocument, blob, EXPORT_JSON_FILENAME);
 	}
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { normalizeState } from "../../model/codec";
 import { defaultState, moveLink, moveNode, type State, withoutLinkId } from "../../model/graph";
 import { DEFAULT_SETTINGS, pickDiagramSettings } from "../../model/settings";
-import { parseImport, serializeState } from "./diagram-file";
+import { parseImport, serializeDiagramExport } from "./diagram-file";
 
 function sampleState(): State {
 	return {
@@ -22,25 +22,25 @@ function sampleState(): State {
 	};
 }
 
-describe("serializeState", () => {
+describe("serializeDiagramExport", () => {
 	it("omits theme from the exported settings", () => {
-		const parsed = JSON.parse(serializeState(sampleState()));
+		const parsed = JSON.parse(serializeDiagramExport(sampleState()));
 		expect(parsed.settings).toEqual(pickDiagramSettings(sampleState().settings));
 		expect("theme" in parsed.settings).toBe(false);
 	});
 
 	it("includes the output aspect ratio in diagram JSON", () => {
-		const parsed = JSON.parse(serializeState(sampleState()));
+		const parsed = JSON.parse(serializeDiagramExport(sampleState()));
 		expect(parsed.settings.aspectRatio).toBe("16:9");
 	});
 
 	it("omits colorMode from the exported settings", () => {
-		const parsed = JSON.parse(serializeState(sampleState()));
+		const parsed = JSON.parse(serializeDiagramExport(sampleState()));
 		expect("colorMode" in parsed.settings).toBe(false);
 	});
 
 	it("omits link ids — in-memory identity, not data", () => {
-		const parsed = JSON.parse(serializeState(sampleState()));
+		const parsed = JSON.parse(serializeDiagramExport(sampleState()));
 		expect(parsed.links).toEqual([{ source: "n1", target: "n2", value: 5 }]);
 		expect(parsed.links.some((l: Record<string, unknown>) => "id" in l)).toBe(false);
 	});
@@ -49,12 +49,12 @@ describe("serializeState", () => {
 		const state = sampleState();
 		state.links.push({ id: "l2", source: "n1", target: null, value: 1 });
 		state.links.push({ id: "l3", source: null, target: null, value: 2 });
-		const parsed = JSON.parse(serializeState(state));
+		const parsed = JSON.parse(serializeDiagramExport(state));
 		expect(parsed.links).toEqual([{ source: "n1", target: "n2", value: 5 }]);
 	});
 
 	it("pretty-prints with a 2-space indent", () => {
-		const json = serializeState(sampleState());
+		const json = serializeDiagramExport(sampleState());
 		expect(json).toContain('\n  "nodes"');
 		expect(json).toContain('\n  "links"');
 		// Idempotent under a re-pretty-print at the same indent.
@@ -65,7 +65,7 @@ describe("serializeState", () => {
 		const state = defaultState();
 		moveNode(state, 0, 3);
 		moveLink(state, 0, 2);
-		const parsed = JSON.parse(serializeState(state));
+		const parsed = JSON.parse(serializeDiagramExport(state));
 		expect(parsed.nodes.map((n: { id: string }) => n.id)).toEqual(state.nodes.map((n) => n.id));
 		expect(parsed.links.map((l: { value: number }) => l.value)).toEqual(
 			state.links.map((l) => l.value),
@@ -92,7 +92,7 @@ describe("parseImport round-trip", () => {
 				...pickDiagramSettings(state.settings),
 				linkColor: DEFAULT_SETTINGS.linkColor,
 			});
-			const exported = serializeState({
+			const exported = serializeDiagramExport({
 				...result.diagram,
 				settings: { ...result.diagram.settings, theme: state.settings.theme },
 			});
@@ -102,7 +102,7 @@ describe("parseImport round-trip", () => {
 
 	it("round-trips a valid state losslessly (sans theme and link ids)", () => {
 		const state = sampleState();
-		const result = parseImport(serializeState(state));
+		const result = parseImport(serializeDiagramExport(state));
 		expect(result.ok).toBe(true);
 		if (!result.ok) throw new Error("unreachable");
 		expect(result.repairs).toEqual([]);
@@ -279,7 +279,7 @@ describe("parseImport repairs", () => {
 	});
 
 	it("normalizes a default state cleanly with no repairs", () => {
-		const result = parseImport(serializeState(defaultState()));
+		const result = parseImport(serializeDiagramExport(defaultState()));
 		expect(result.ok).toBe(true);
 		if (!result.ok) throw new Error("unreachable");
 		expect(result.repairs).toEqual([]);
