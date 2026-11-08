@@ -261,6 +261,12 @@ button:disabled {
 	outline-offset: -2px;
 }
 
+.app-header:has(#theme-dialog[open]) #theme-button,
+.diagram-panel:has(#display-dialog[open]) #display-button,
+.diagram-panel:has(#diagram-export-dialog[open]) #diagram-export-button {
+	background-color: var(--border);
+}
+
 input[type="text"],
 input[type="number"],
 select,
