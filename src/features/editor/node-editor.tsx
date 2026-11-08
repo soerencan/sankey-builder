@@ -1,5 +1,6 @@
 import { useRef } from "preact/hooks";
 import { Icon } from "../../shared/icon";
+import { useRowFocus } from "./use-row-focus";
 import { useRowSortable } from "./use-row-sortable";
 
 export interface NodeView {
@@ -22,6 +23,7 @@ export interface NodeEditorProps {
 
 export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 	const rowsRef = useRef<HTMLDivElement>(null);
+	const focus = useRowFocus(nodes, true);
 	useRowSortable(rowsRef, { rowClass: "node-row", onMove: actions.moveNode });
 
 	return (
@@ -41,7 +43,10 @@ export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 							value={node.name}
 							// Mirrored as an attribute so Sortable's cloneNode drag ghost is
 							// not a blank field.
-							ref={(el) => el?.setAttribute("value", node.name)}
+							ref={(el) => {
+								focus.fieldRef(node.id)(el);
+								el?.setAttribute("value", node.name);
+							}}
 							onInput={(event) => actions.renameNode(node.id, event.currentTarget.value)}
 						/>
 						<button
@@ -56,7 +61,7 @@ export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 					</div>
 				))}
 			</div>
-			<button type="button" class="add-node" onClick={() => actions.addNode()}>
+			<button type="button" class="add-node" onClick={() => focus.addRow(actions.addNode)}>
 				<Icon id="icon-plus" />
 				Add node
 			</button>

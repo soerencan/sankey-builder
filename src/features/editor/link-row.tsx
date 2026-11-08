@@ -1,4 +1,4 @@
-import type { JSX } from "preact";
+import type { JSX, Ref } from "preact";
 import { useState } from "preact/hooks";
 import type { Link } from "../../model/graph";
 import { MAX_LINK_VALUE } from "../../model/validation";
@@ -78,6 +78,7 @@ interface LinkValueDraft {
 }
 
 export interface LinkRowProps {
+	sourceRef?: Ref<HTMLSelectElement>;
 	link: Readonly<Link>;
 	/** Display numbering only; actions take the link's id. */
 	index: number;
@@ -90,7 +91,7 @@ export interface LinkRowProps {
  * re-render triggered by an unrelated action never clobbers text the user is
  * still typing.
  */
-export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
+export function LinkRow({ link, index, nodes, actions, sourceRef }: LinkRowProps) {
 	const [draft, setDraft] = useState<LinkValueDraft>(() => ({
 		text: String(link.value),
 		invalid: false,
@@ -152,6 +153,7 @@ export function LinkRow({ link, index, nodes, actions }: LinkRowProps) {
 				<Icon id="icon-grip-vertical" />
 			</button>
 			<select
+				ref={sourceRef}
 				class="link-source"
 				data-placeholder={link.source === null ? "true" : undefined}
 				aria-label={`Source for link ${index + 1}`}
