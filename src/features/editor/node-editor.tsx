@@ -57,6 +57,7 @@ export function NodeEditor({ nodes, actions }: NodeEditorProps) {
 				))}
 			</div>
 			<button type="button" class="add-node" onClick={() => actions.addNode()}>
+				<Icon id="icon-plus" />
 				Add node
 			</button>
 		</>

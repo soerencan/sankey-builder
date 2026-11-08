@@ -1,5 +1,6 @@
 import { useRef } from "preact/hooks";
 import type { Link } from "../../model/graph";
+import { Icon } from "../../shared/icon";
 import { LinkRow } from "./link-row";
 import type { NodeView } from "./node-editor";
 import { useRowSortable } from "./use-row-sortable";
@@ -30,6 +31,7 @@ export function LinkEditor({ links, nodes, actions }: LinkEditorProps) {
 				))}
 			</div>
 			<button type="button" class="add-link" onClick={() => actions.addLink()}>
+				<Icon id="icon-plus" />
 				Add link
 			</button>
 		</>

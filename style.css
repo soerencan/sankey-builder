@@ -789,9 +789,11 @@ dialog[open] {
 
 .add-node,
 .add-link {
-	color: var(--accent);
-	border-color: color-mix(in srgb, var(--accent) 25%, transparent);
-	background: color-mix(in srgb, var(--accent) 7%, transparent);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	border-color: transparent;
 }
 
 .node-delete:hover,
