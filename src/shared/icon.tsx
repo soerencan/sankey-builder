@@ -36,7 +36,7 @@ export function Icon({ id }: { id: IconId }) {
 	return (
 		<IconComponent
 			class={`icon ${id}`}
-			size={22}
+			size={20}
 			strokeWidth={2}
 			aria-hidden="true"
 			focusable="false"
