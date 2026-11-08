@@ -711,7 +711,7 @@ dialog[open] {
 	}
 
 	.link-value {
-		width: 4.5rem;
+		width: calc(11ch + 1rem + 2px);
 	}
 
 	.sankey-canvas {
