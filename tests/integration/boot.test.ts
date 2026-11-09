@@ -3,7 +3,16 @@
 import { describe, expect, it } from "vitest";
 import { startApp } from "../../src/app/start-app";
 import { PREVIEW_HEIGHT_STORAGE_KEY } from "../../src/features/diagram/preview-resizer";
-import { byRole, click, getStoredState, installMarkup, mountApp, tick } from "../helpers/mount-app";
+import {
+	accessibleName,
+	byRole,
+	click,
+	getStoredState,
+	installMarkup,
+	mountApp,
+	requireElement,
+	tick,
+} from "../helpers/mount-app";
 
 describe("application boot", () => {
 	it("static markup leaves #app empty — production markup comes from startApp() itself", () => {
@@ -16,18 +25,68 @@ describe("application boot", () => {
 		expect(document.querySelector(".data-card")).toBeNull();
 	});
 
-	it("places the diagram before the data editor", () => {
+	it("orders the header, notices, diagram, data actions, editors, and footer in the document", () => {
 		mountApp();
 
-		const diagramPanel = document.querySelector(".diagram-panel");
-		const dataCard = document.querySelector(".data-card");
-		expect(diagramPanel).not.toBeNull();
-		expect(dataCard).not.toBeNull();
-		expect(
-			diagramPanel && dataCard
-				? diagramPanel.compareDocumentPosition(dataCard) & Node.DOCUMENT_POSITION_FOLLOWING
-				: 0,
-		).toBeTruthy();
+		const sections = [
+			".app-header",
+			".notice-region",
+			".diagram-panel",
+			".data-card-actions",
+			"#node-editor",
+			"#link-editor",
+			".app-footer",
+		].map((selector) => requireElement<HTMLElement>(selector));
+		for (let index = 1; index < sections.length; index++) {
+			expect(
+				sections[index - 1].compareDocumentPosition(sections[index]) &
+					Node.DOCUMENT_POSITION_FOLLOWING,
+			).toBeTruthy();
+		}
+	});
+
+	it("gives page sections an ordered heading hierarchy and matching accessible names", () => {
+		mountApp();
+		const headings = Array.from(document.querySelectorAll("h1, h2, h3"))
+			.filter((heading) => !heading.closest("dialog"))
+			.map((heading) => [heading.tagName, heading.textContent]);
+		expect(headings).toEqual([
+			["H1", "Sankey Builder"],
+			["H2", "Diagram"],
+			["H2", "Data"],
+			["H3", "Nodes"],
+			["H3", "Links"],
+		]);
+		for (const [selector, name] of [
+			[".diagram-panel", "Diagram"],
+			["#data-panel", "Data"],
+			["#node-editor", "Nodes"],
+			["#link-editor", "Links"],
+		]) {
+			const section = requireElement<HTMLElement>(selector);
+			expect(section.tagName).toBe("SECTION");
+			const headingId = section.getAttribute("aria-labelledby");
+			expect(headingId).not.toBeNull();
+			const heading = document.getElementById(headingId ?? "");
+			expect(heading).not.toBeNull();
+			expect(section.contains(heading)).toBe(true);
+			expect(accessibleName(section)).toBe(name);
+		}
+	});
+
+	it.each([
+		["Theme: System", "Theme"],
+		["Appearance", "Appearance"],
+		["Export diagram", "Export diagram"],
+	])("opening %s preserves the page banner and labels the dialog", (trigger, heading) => {
+		mountApp();
+		click(byRole(document, "button", trigger));
+		const dialog = requireElement<HTMLDialogElement>("dialog[open]");
+		expect(accessibleName(dialog)).toBe(heading);
+		expect(dialog.querySelector("h3")?.textContent).toBe(heading);
+		// Safari's audit treats a header inside a dialog as another page banner.
+		expect(dialog.querySelector('header, [role="banner"]')).toBeNull();
+		expect(document.querySelectorAll(".app-header")).toHaveLength(1);
 	});
 
 	it("resizes only the preview through the splitter controls", async () => {

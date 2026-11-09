@@ -16,6 +16,7 @@ import {
 	getStoredState,
 	installMarkup,
 	mountApp,
+	requireElement,
 	settle,
 	tick,
 } from "../helpers/mount-app";
@@ -60,6 +61,13 @@ function selectFile(input: HTMLInputElement, file: File): void {
 }
 
 describe("import & export", () => {
+	it("gives the hidden JSON file input an accessible name", () => {
+		mountApp();
+		const input = requireElement<HTMLInputElement>('input[type="file"]');
+		expect(input.hidden).toBe(true);
+		expect(accessibleName(input)).toBe("Import JSON");
+	});
+
 	it("imports a constructed file: replaces state, rebuilds editors and diagram, preserves theme", async () => {
 		mountApp();
 

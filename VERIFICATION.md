@@ -26,12 +26,12 @@ Open [localhost:8000/sankey-builder/](http://localhost:8000/sankey-builder/). Th
 
 The two layout breakpoints are 41.25rem and 60rem (660px and 960px at the default font size). Compact layouts are below 41.25rem, medium layouts are from 41.25rem to below 60rem, and wide layouts are 60rem and above. Check 659px, 660px, 661px, 959px, 960px, and 961px around the transitions, plus 1440px, 1024px, 768px, 600px, 390px, 360px, 320px, and 280px. Use both light and dark themes.
 
-- [ ] The page order stays consistent visually, in the DOM, and for keyboard and screen-reader navigation: header and notices, diagram, Data actions, Nodes, Links, footer.
+- [ ] Visual order and keyboard and screen-reader navigation follow the document order: header and notices, diagram, Data actions, Nodes, Links, footer.
 - [ ] The diagram panel spans the available content width above the Data card. In wide layouts, Nodes takes one third and Links takes two thirds of the Data card width. They stack in that order in medium and compact layouts. Check both transitions for overlap or unusably narrow controls.
 - [ ] The 24px page title, 18px Data heading, and 16px subsection headings form a clear hierarchy alongside 16px input text. The diagram toolbar and Data header have matching vertical spacing, and the sizing controls have space above and below their buttons. Headings and actions remain legible without collisions, and there is no horizontal page scrollbar.
-- [ ] Compact link rows put source and target on separate rows, followed by value and Delete together, with the drag handle beside the source. Medium and wide link rows stay horizontal. Icon delete buttons keep their accessible names, and field errors remain readable.
+- [ ] Compact link rows put source and target on separate rows, followed by value and Delete together, with the drag handle beside the source. Medium and wide link rows stay horizontal. Field errors remain readable.
 - [ ] In medium and wide link rows, `888888.8888` fits fully in the value input, and Source and Target share the remaining width equally after the handle, value, Delete, and gaps. Compact value inputs retain their alignment with Source and Target; at 280px, horizontal scrolling within the input for this value is an accepted limitation.
-- [ ] Add node and Add link sit below their lists as foreground-colored plus icons and text, with no persistent background or visible border. Their rounded hover backgrounds and keyboard focus outlines remain visible, and each adds a row using either pointer or keyboard input, including when its list is empty.
+- [ ] Add node and Add link sit below their lists as foreground-colored plus icons and text, with no persistent background or visible border. Their rounded hover backgrounds and keyboard focus outlines remain visible.
 - [ ] Scrolling follows normal document flow. Keyboard focus brings controls into view without unexpected jumps.
 - [ ] With all links deleted, the empty preview retains the selected aspect ratio, and the toolbar and Data card remain usable.
 - [ ] The footer stays below the Data card, wraps at narrow widths, and has legible links with comfortable touch targets.
@@ -43,19 +43,18 @@ The two layout breakpoints are 41.25rem and 60rem (660px and 960px at the defaul
 
 ## Panels and diagram controls
 
-The three panels are Theme, Appearance, and Export diagram. Appearance contains Color saturation, Link colors, Node alignment, and Aspect ratio in that order. Color saturation is a swatch-only dropdown with Grayscale, Muted, Balanced (the default), Vivid, and Intense in that order. The four colored levels share eight color slots based on Open Color, with fixed hue and perceived lightness and increasing chroma. Grayscale is an independent ramp of eight opaque neutral tones ordered from light to dark. The other settings use native selects.
+The three panels are Theme, Appearance, and Export diagram. Color saturation uses a swatch-only dropdown; the other Appearance settings use native selects.
 
 - [ ] Appearance and Export remain visible on one toolbar row without clipped icons, including below 320px.
 - [ ] In wide and medium layouts, panels anchor near their trigger and stay within the viewport. Open one, then scroll or resize to check repositioning.
 - [ ] In compact layouts, panels become full-width bottom sheets with rounded top corners, a transparent backdrop, and scrollable content. Close remains reachable, and the page behind the panel cannot be used until dismissal.
-- [ ] Opening Theme focuses the selected choice. Appearance focuses Color saturation; Export diagram focuses its first control. Selected choices have a tint and checkmark distinct from the keyboard focus ring.
-- [ ] Tab and Shift+Tab stay usable within each panel. Interior padding does not dismiss it; outside clicks, Escape, and Close dismiss it and visibly return focus to its trigger.
+- [ ] Selected choices have a tint and checkmark distinct from the keyboard focus ring.
+- [ ] Tab and Shift+Tab stay within each panel. Escape dismisses it and visibly returns focus to its trigger. Outside clicks dismiss it without activating controls behind it.
 - [ ] Theme, Appearance, and Export diagram triggers keep the same gray background as their hover state while their panel is open, even after moving the pointer away or opening by keyboard or touch. The highlight follows the open panel rather than focus: edits in Appearance retain it, while Close, Escape, outside clicks, and selections that close a panel clear it. After dismissal, a hover-capable pointer still over the trigger may retain the ordinary hover background; move it away to confirm the open-state highlight has cleared. Add and JSON action buttons do not acquire a persistent selected highlight.
-- [ ] Theme choices close their panel. Appearance stays open while its dropdowns update the diagram; the selections survive a reload. Node alignment changes horizontal placement where the graph permits, while preserving node order within each column.
-- [ ] Color saturation shows eight segments per bar, with no visible option names. Arrow keys and Home/End navigate its options; Enter or Space selects, Tab selects and advances focus, and Escape closes only the dropdown. All levels remain reachable by scrolling in short viewports.
-- [ ] Preview all five saturation choices in both themes using a diagram that shows all eight color slots. Each node retains its hue and similar perceived brightness across the four colored levels. Grayscale progresses evenly from light to dark and remains visible against both backgrounds. Node colors, editor swatches, dropdown previews, and exported colors agree, including translucent links.
-- [ ] Export diagram presents SVG and PNG at every screen size. Choosing a format closes the panel and restores focus, including with an empty diagram.
-- [ ] In wide and medium layouts, use the preview's smaller/larger buttons, drag its horizontal handle, and try Arrow Up, Arrow Down, Home, and End with that handle focused. Every enabled control visibly changes the preview, and buttons disable at the limits imposed by the available width and selected aspect ratio. Check resizing the window and changing aspect ratios, including when the width leaves no adjustment range. The controls expose the displayed height and current limits to assistive technology. Resizing preserves the exported dimensions. In compact layouts, the controls hide and the preview fits the available width; returning to a larger window restores the saved height within its current limits.
+- [ ] Color saturation shows eight segments per bar, with no visible option names. Tab and Shift+Tab move focus out of the dropdown. All levels remain reachable by scrolling in short viewports.
+- [ ] Preview all five saturation choices in both themes using a diagram that shows all eight color slots. Node colors, editor swatches, dropdown previews, and exported colors agree, including translucent links. Grayscale remains visible against both backgrounds.
+- [ ] Export diagram presents SVG and PNG without clipping at every screen size.
+- [ ] In wide and medium layouts, use the preview's smaller/larger buttons, drag its horizontal handle, and try Arrow Up, Arrow Down, Home, and End with that handle focused. Confirm the preview visibly resizes and stays within the panel when resizing the window or changing aspect ratios, including when the width leaves no adjustment range. With a screen reader, check the displayed height and current limits. In compact layouts, the controls hide and the preview fits the available width; returning to a larger window restores the saved height within its current limits.
 
 ### Physical iPhone checks
 
@@ -68,10 +67,9 @@ The three panels are Theme, Appearance, and Export diagram. Appearance contains 
 
 SortableJS uses a floating clone on all platforms (`forceFallback`). Tests cover keyboard reordering and drag callbacks; check the actual gesture and visual feedback here.
 
-- [ ] Using the keyboard, add a node and a link. Focus moves to the new node's selected name or the new link's Source control. Delete a row and confirm focus moves to the next row, the previous row if it was last, or Add if the list is empty.
-- [ ] Focus a reorder handle. Its keyboard instructions appear without moving the row. Use Arrow Up and Arrow Down to reorder; focus stays on the same handle. With a screen reader, check move and boundary announcements, including repeated attempts at a boundary.
+- [ ] Focus a reorder handle. Its keyboard instructions appear without moving the row. With a screen reader, check move and boundary announcements, including repeated attempts at a boundary.
 - [ ] Drag a node and a link by their vertical grip handles. The floating row follows the pointer, its original slot becomes a dimmed placeholder, and neighboring rows animate into position.
-- [ ] Drop each row in a new position. Row order, diagram order, and endpoint choices update without a jump or a leftover clone. The clone shows the current input values and selected endpoints.
+- [ ] Drop each row in a new position without a jump or a leftover clone. The floating clone shows the current input values and selected endpoints.
 - [ ] Drag between the Nodes and Links lists. No row crosses into the other list, and no placeholder or clone remains afterward.
 - [ ] Starting from a name field, value field, or select allows normal editing without initiating a drag.
 - [ ] Mouse dragging starts immediately. On touch, a brief hold of about 150ms lifts the row; a quick tap does not. Movement during the hold cancels the pending lift so a scroll gesture starting on a row can scroll.
@@ -90,7 +88,7 @@ The editor allows four decimal places. It intercepts `beforeinput` to block extr
 
 Use the built site for native file-picker, download, and canvas checks. Run exports on wide and narrow layouts, in light and dark themes.
 
-- [ ] Use Export JSON in the Data header. `sankey.json` downloads without console errors about blob URLs. Import it through Import JSON and confirm the diagram, editors, and settings return correctly.
+- [ ] Use Export JSON in the Data header. `sankey.json` downloads without console errors about blob URLs. Import JSON opens the native file picker and accepts the downloaded file.
 - [ ] Use Export diagram, then SVG. `sankey.svg` opens standalone with a transparent background and labels matching the current theme: dark labels in Light, light labels in Dark.
 - [ ] Export PNG. `sankey.png` has a transparent background and matching label colors. With the default 16:9 aspect ratio, its size is 1706 by 960 pixels. Change the aspect ratio and confirm PNG dimensions are twice the SVG's logical dimensions. Resizing only the preview does not change them.
 - [ ] Check PNG output with single-color links and source-to-target gradients. Gradients rasterize as gradients, with no canvas or blob-URL errors. Repeat in Safari, where image loading and rasterization can differ.
