@@ -23,7 +23,7 @@ Open [localhost:8000/sankey-builder/](http://localhost:8000/sankey-builder/). Th
 
 ## Layout and theme
 
-The two layout breakpoints are 41.25rem and 60rem (660px and 960px at the default font size). Compact layouts are below 41.25rem, medium layouts are from 41.25rem to below 60rem, and wide layouts are 60rem and above. Default layouts at 390px, 768px, and 1280px are screenshot-tested in both themes. Check 659px, 660px, 661px, 959px, 960px, and 961px around the transitions, plus 1440px, 1024px, 600px, 360px, 320px, and 280px. Use both light and dark themes.
+The two layout breakpoints are 41.25rem and 60rem (660px and 960px at the default font size). Compact layouts are below 41.25rem, medium layouts are from 41.25rem to below 60rem, and wide layouts are 60rem and above. Screenshot tests cover default layouts at 390px, 768px, and 1280px, plus long names, field errors, and import notices at 390px and 1280px, in both themes. Check 659px, 660px, 661px, 959px, 960px, and 961px around the transitions, plus 1440px, 1024px, 600px, 360px, 320px, and 280px. Use both light and dark themes.
 
 - [ ] Keyboard and screen-reader navigation follow the document order: header and notices, diagram, Data actions, Nodes, Links, footer.
 - [ ] The diagram panel spans the available content width above the Data card. In wide layouts, Nodes takes one third and Links takes two thirds of the Data card width. They stack in that order in medium and compact layouts. Check both transitions for overlap or unusably narrow controls.
@@ -88,5 +88,5 @@ Playwright covers the JSON download/upload round trip and default-size SVG/PNG e
 
 - [ ] Change the aspect ratio and confirm PNG dimensions are twice the SVG's logical dimensions. Resizing only the preview does not change them.
 - [ ] Check PNG output with single-color links. In installed Safari, also repeat gradient exports, where image loading and rasterization can differ from Playwright's WebKit build.
-- [ ] At 360px and 390px, notices and their Dismiss button remain readable without overlap or horizontal overflow.
+- [ ] At 360px, notices and their Dismiss button remain readable without overlap or horizontal overflow. At 390px, check other notice messages and stacked notices.
 - [ ] With a screen reader, check polite notice announcements. Repeated invalid value drafts produce inline errors without repeated page-level announcements. An unrelated action does not reannounce unchanged notices.

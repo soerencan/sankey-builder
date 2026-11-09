@@ -14,19 +14,24 @@ test("loads the built app and restores edits after a reload", async ({ page }) =
 	await expect(page).toHaveURL(/\/sankey-builder\/$/);
 });
 
-test("native Tab navigation leaves the background inert and Escape restores each trigger", async ({
+test("dialogs set initial focus, leave the background inert during Tab, and restore focus on Escape", async ({
 	page,
 	browserName,
 }) => {
 	// macOS WebKit uses Option+Tab to include buttons without changing system preferences.
 	const tab = process.platform === "darwin" && browserName === "webkit" ? "Alt+Tab" : "Tab";
 	await page.goto("./");
-	for (const name of ["Theme: System", "Appearance", "Export diagram"]) {
-		const trigger = page.getByRole("button", { name, exact: true });
+	for (const [triggerName, initialRole, initialName] of [
+		["Theme: System", "button", "System"],
+		["Appearance", "combobox", "Color saturation"],
+		["Export diagram", "button", "SVG"],
+	] as const) {
+		const trigger = page.getByRole("button", { name: triggerName, exact: true });
 		await trigger.focus();
 		await page.keyboard.press("Enter");
 		const dialog = page.getByRole("dialog");
 		await expect(dialog).toBeVisible();
+		await expect(dialog.getByRole(initialRole, { name: initialName, exact: true })).toBeFocused();
 		const close = dialog.getByRole("button", { name: "Close", exact: true });
 		const controls = dialog.locator("button:visible, select:visible");
 		await close.focus();

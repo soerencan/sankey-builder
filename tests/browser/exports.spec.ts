@@ -50,8 +50,9 @@ for (const theme of ["Light", "Dark"]) {
 		const pngDownload = await exportDiagram(page, "PNG");
 		expect(pngDownload.suggestedFilename()).toBe("sankey.png");
 		const png = (await downloadBytes(pngDownload)).toString("base64");
+		const expectedLabelColor = theme === "Light" ? [13, 15, 18] : [248, 249, 250];
 		const rendered = await page.evaluate(
-			async ({ xml, png }) => {
+			async ({ xml, png, expectedLabelColor }) => {
 				const svgDocument = new DOMParser().parseFromString(xml, "image/svg+xml");
 				if (svgDocument.querySelector("parsererror"))
 					throw new Error("Exported SVG is invalid XML");
@@ -74,6 +75,7 @@ for (const theme of ["Light", "Dark"]) {
 					let painted = 0;
 					let translucent = 0;
 					let labelPixels = 0;
+					let themedLabelPixels = 0;
 					for (let index = 0; index < data.length; index += 4) {
 						const alpha = data[index + 3];
 						if (alpha > 0) painted++;
@@ -86,6 +88,14 @@ for (const theme of ["Light", "Dark"]) {
 						) {
 							labelPixels++;
 						}
+						if (
+							alpha > 240 &&
+							expectedLabelColor.every(
+								(channel, offset) => Math.abs(data[index + offset] - channel) <= 5,
+							)
+						) {
+							themedLabelPixels++;
+						}
 					}
 					return {
 						width: canvas.width,
@@ -94,6 +104,7 @@ for (const theme of ["Light", "Dark"]) {
 						painted,
 						translucent,
 						labelPixels,
+						themedLabelPixels,
 						gradientSamples: samples.map(({ x, y }) =>
 							Array.from(
 								context.getImageData(
@@ -113,10 +124,12 @@ for (const theme of ["Light", "Dark"]) {
 					gradients: svgDocument.querySelectorAll("linearGradient").length,
 				};
 			},
-			{ xml, png },
+			{ xml, png, expectedLabelColor },
 		);
 		expect(rendered.svg).toMatchObject({ width: 853, height: 480, cornerAlpha: 0 });
 		expect(rendered.png).toMatchObject({ width: 1706, height: 960, cornerAlpha: 0 });
+		// Native-size SVG glyphs may be fully antialiased; the 2× PNG has solid label interiors.
+		expect(rendered.png.themedLabelPixels).toBeGreaterThan(50);
 		for (const output of [rendered.svg, rendered.png]) {
 			expect(output.painted).toBeGreaterThan(1000);
 			expect(output.translucent).toBeGreaterThan(1000);
@@ -131,6 +144,6 @@ for (const theme of ["Light", "Dark"]) {
 			).toBeGreaterThan(20);
 		}
 		expect(rendered.gradients).toBe(5);
-		expect(rendered.labelColor).toBe(theme === "Light" ? "rgb(13, 15, 18)" : "rgb(248, 249, 250)");
+		expect(rendered.labelColor).toBe(`rgb(${expectedLabelColor.join(", ")})`);
 	});
 }
