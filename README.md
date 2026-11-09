@@ -1,6 +1,8 @@
 # Sankey Builder
 
-Build Sankey diagrams in the browser. Edit nodes and links, choose colors and alignment, and see the diagram update as you work. The app saves your work in the current browser and supports System, Light, and Dark themes.
+Build Sankey diagrams in the browser. Edit nodes and links, choose colors and alignment, and see the diagram update as you work.
+
+The app saves your work in the current browser and supports System, Light, and Dark themes.
 
 [Open Sankey Builder](https://soerencan.github.io/sankey-builder/)
 
