@@ -66,6 +66,12 @@ export function App({
 					/>
 				</section>
 			</main>
+
+			<footer class="app-footer">
+				<a href="https://github.com/soerencan/sankey-builder">Source on GitHub</a>
+				<a href="https://github.com/soerencan/sankey-builder/blob/main/LICENSE">MIT License</a>
+				<a href="./third-party-licenses.html">Third-party licenses</a>
+			</footer>
 		</>
 	);
 }

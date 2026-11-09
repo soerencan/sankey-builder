@@ -54,10 +54,8 @@ describe("production build (dist/)", () => {
 		}
 	});
 
-	it("includes the generated third-party licenses page the footer links to", () => {
-		const footerLink = /<a href="([^"]+)">Third-party licenses<\/a>/.exec(distHtml)?.[1];
-		expect(footerLink).toBeDefined();
-		const notices = readFileSync(join(DIST_DIR, footerLink as string), "utf8");
+	it("includes the generated third-party license notices", () => {
+		const notices = readFileSync(join(DIST_DIR, "third-party-licenses.html"), "utf8");
 		for (const name of ["culori", "d3-sankey", "open-color", "preact", "sortablejs"]) {
 			expect(notices).toContain(`<h2>${name} `);
 		}
@@ -96,5 +94,10 @@ describe("production build (dist/)", () => {
 		expect(diagram?.querySelectorAll("svg path")).toHaveLength(5);
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(6);
 		expect(document.querySelectorAll("#link-editor .link-row")).toHaveLength(5);
+
+		const footer = document.querySelector("#app main + footer.app-footer");
+		expect(footer).not.toBeNull();
+		const footerLink = footer?.querySelector('a[href="./third-party-licenses.html"]');
+		expect(footerLink?.textContent).toBe("Third-party licenses");
 	});
 });
