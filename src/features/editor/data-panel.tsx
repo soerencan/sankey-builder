@@ -96,6 +96,7 @@ export function DataPanel({
 					<input
 						type="file"
 						id="import-file"
+						aria-label="Import JSON"
 						accept=".json,application/json"
 						hidden
 						ref={fileInputRef}

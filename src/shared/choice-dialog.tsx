@@ -13,7 +13,7 @@ export function ChoiceDialog({ id, heading, handle, children }: ChoiceDialogProp
 	const headingId = `${id}-heading`;
 	return (
 		<dialog id={id} ref={handle.ref} aria-labelledby={headingId}>
-			<header class="dialog-header">
+			<div class="dialog-header">
 				<h3 id={headingId}>{heading}</h3>
 				<button
 					type="button"
@@ -23,7 +23,7 @@ export function ChoiceDialog({ id, heading, handle, children }: ChoiceDialogProp
 				>
 					<Icon id="icon-close" />
 				</button>
-			</header>
+			</div>
 			<div class="dialog-content">{children}</div>
 		</dialog>
 	);
