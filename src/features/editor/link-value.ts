@@ -14,9 +14,9 @@ const MAX_FRACTION_DIGITS = 4;
 
 /**
  * The fractional-digit cap is an input-format rule, counted on the raw
- * string, so "0.00001" is rejected before it rounds away. Reasons are checked
- * in a fixed precedence (format, precision, non-positive, above-maximum) so
- * an input that violates several rules always gets the same one.
+ * string, so excess precision cannot disappear through numeric conversion.
+ * Check precision before positivity and magnitude so an input that violates
+ * several rules gets a consistent error.
  */
 export function parseLinkValue(raw: string): LinkValueParse {
 	const trimmed = raw.trim();
@@ -41,7 +41,6 @@ export function exceedsFractionDigits(raw: string): boolean {
 	return dot !== -1 && raw.length - dot - 1 > MAX_FRACTION_DIGITS;
 }
 
-/** Truncates (never rounds) a decimal's fractional part to the 4-digit cap. */
 export function truncateFractionDigits(raw: string): string {
 	const dot = raw.indexOf(".");
 	return dot === -1 ? raw : raw.slice(0, dot + 1 + MAX_FRACTION_DIGITS);

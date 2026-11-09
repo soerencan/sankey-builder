@@ -5,7 +5,6 @@ export interface DialogHandle {
 	ref: RefObject<HTMLDialogElement>;
 	/** `trigger` is refocused on close. */
 	open(trigger: HTMLElement): void;
-	/** No-op if the dialog isn't currently open. */
 	close(): void;
 }
 
@@ -58,8 +57,6 @@ export function useDialog(): DialogHandle {
 		position();
 		window.addEventListener("resize", position);
 		window.addEventListener("scroll", position, true);
-		// Focus lands on the active setting, or the first control in dialogs
-		// without one (export).
 		const pressed = dialog.querySelector<HTMLElement>('[aria-pressed="true"]');
 		const initial =
 			pressed ??

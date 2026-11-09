@@ -30,7 +30,6 @@ function svgViewBoxSize(svg: SVGSVGElement): { width: number; height: number } {
  * falls back to black outside the page). The background stays transparent.
  */
 function snapshotDiagramSvg(svg: SVGSVGElement): { xml: string; width: number; height: number } {
-	// Resolve currentColor before detaching the SVG from the themed page.
 	const labelColor = getComputedStyle(svg).color;
 	const { width, height } = svgViewBoxSize(svg);
 	const clone = svg.cloneNode(true) as SVGSVGElement;

@@ -25,7 +25,6 @@
 	--surface: #ffffff;
 	--control: #f8f9fa;
 	--ink: #0d0f12;
-	/* Derived from --ink rather than given its own value so it tracks the theme. */
 	--border: color-mix(in srgb, var(--ink) 10%, transparent);
 	--accent: #4263eb;
 	--danger: #c92a2a;
@@ -34,7 +33,7 @@
 /* :not([data-theme="light"]) lets an explicit light choice win even when
    the OS prefers dark. Accent/danger are lighter than their light-mode
    values, which fall short of the 4.5:1 AA text contrast against the dark
-   --surface that --danger needs as text (#error, delete buttons). */
+   --surface used behind error text and delete buttons. */
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme="light"]) {
 		color-scheme: dark;
@@ -63,7 +62,6 @@
 	box-sizing: border-box;
 }
 
-/* For headings that name a region without duplicating one already shown. */
 .visually-hidden {
 	position: absolute;
 	width: 1px;
@@ -108,7 +106,6 @@ body {
 	font-weight: 600;
 }
 
-/* One in-flow region rather than floating toasts; only color varies by tone. */
 .notice-region > div {
 	display: flex;
 	align-items: center;
@@ -399,8 +396,6 @@ select,
 	color: var(--danger);
 }
 
-/* .row-ghost/.row-chosen/.row-fallback are the classes SortableJS toggles
-   via its ghostClass/chosenClass/fallbackClass options. */
 .drag-handle {
 	position: relative;
 	display: grid;
@@ -480,7 +475,7 @@ select,
 }
 
 /* display: contents so .sankey-canvas, the sole child, is the real flex item
-   without a nested box. The custom properties app.tsx and preview-resizer.tsx
+   without a nested box. The custom properties DiagramPanel and PreviewResizer
    set on #diagram still inherit into it. */
 #diagram {
 	display: contents;
@@ -492,8 +487,6 @@ select,
 	width: 100%;
 	aspect-ratio: var(--diagram-aspect-ratio, 2 / 1);
 	align-self: center;
-	/* Read via getComputedStyle as the SVG/PNG export background, so it must
-     stay opaque. */
 	background: var(--surface);
 }
 
@@ -757,7 +750,6 @@ dialog[open] {
 	}
 }
 
-/* Coarse pointers (touch) get larger tap targets. */
 @media (pointer: coarse) {
 	button,
 	select,

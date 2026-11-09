@@ -16,8 +16,6 @@ function linkValueErrorId(id: string): string {
 	return `link-value-error-${id}`;
 }
 
-// "format" and "non-positive" share a message: to the user both mean "not an
-// accepted positive number".
 function linkValueErrorMessage(reason: LinkValueInvalidReason): string {
 	switch (reason) {
 		case "precision":
@@ -31,10 +29,8 @@ function linkValueErrorMessage(reason: LinkValueInvalidReason): string {
 }
 
 /**
- * The disabled placeholder identifies the endpoint until a node is chosen,
- * and the other endpoint's node is disabled so a self-link can't be chosen
- * in the first place. The enclosing <select>'s `value` prop drives the live
- * selection; `selected`/`disabled` are mirrored as attributes because
+ * The enclosing <select>'s `value` prop drives the live selection;
+ * `selected`/`disabled` are also mirrored as attributes because
  * Sortable's cloneNode drag ghost copies attributes, not properties.
  */
 function renderLinkOptions(

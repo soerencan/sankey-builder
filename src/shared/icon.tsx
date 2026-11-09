@@ -13,7 +13,6 @@ import {
 	X,
 } from "lucide-preact";
 
-// Explicit imports keep the rest of Lucide's catalog out of the bundle.
 const ICONS = {
 	"icon-theme-system": Contrast,
 	"icon-theme-light": Sun,

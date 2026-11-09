@@ -25,7 +25,7 @@ export type Theme = Settings["theme"];
 export type DiagramSettingKey = Exclude<keyof Settings, "theme">;
 export type DiagramSettings = Pick<Settings, DiagramSettingKey>;
 
-/** The only place that knows theme is a per-browser preference and not diagram data. */
+/** Theme is a per-browser preference, so diagram imports and exports exclude it. */
 function isDiagramSettingKey(key: keyof Settings): key is DiagramSettingKey {
 	return key !== "theme";
 }
@@ -63,8 +63,6 @@ export function assignSetting<K extends DiagramSettingKey>(
 	target[key] = value;
 }
 
-// --- Aspect ratio ---
-
 export interface AspectRatioOption {
 	value: AspectRatio;
 	width: number;
@@ -89,8 +87,6 @@ const ASPECT_RATIO_OPTIONS_BY_VALUE = new Map(
 export function aspectRatioOption(value: AspectRatio): AspectRatioOption {
 	return ASPECT_RATIO_OPTIONS_BY_VALUE.get(value) as AspectRatioOption;
 }
-
-// --- Defaults ---
 
 export const DEFAULT_SETTINGS: Settings = {
 	palette: "balanced",

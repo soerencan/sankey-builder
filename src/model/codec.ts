@@ -84,8 +84,8 @@ function normalizeNodes(rawNodes: unknown[], repairs?: string[]): Node[] {
 }
 
 /**
- * A bad endpoint or value is coerced (to null, i.e. an incomplete row, or to
- * 1) rather than dropping the link, so hand-edited storage loses no data.
+ * Repair invalid fields rather than dropping the link so recoverable parts
+ * of a hand-edited row survive.
  */
 function normalizeLinks(rawLinks: unknown[], nodeIds: Set<string>, repairs?: string[]): Link[] {
 	const links: Link[] = [];

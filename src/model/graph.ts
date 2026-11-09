@@ -9,8 +9,8 @@ export interface Node {
 }
 
 /**
- * `id` is in-memory identity, not data: nothing references it, the codec
- * assigns a fresh one to every link it normalizes, and export/storage omit it.
+ * Link ids identify editor rows only. Normalization assigns fresh ids so
+ * imported links cannot reuse a mounted row's draft; export/storage omit them.
  */
 export interface Link {
 	id: string;

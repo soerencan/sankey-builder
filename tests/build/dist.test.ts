@@ -88,7 +88,6 @@ describe("production build (dist/)", () => {
 		await import(pathToFileURL(join(DIST_DIR, entryRef)).href);
 
 		const diagram = document.getElementById("diagram");
-		// defaultState has 6 nodes / 5 links.
 		expect(diagram?.querySelector("svg")).not.toBeNull();
 		expect(diagram?.querySelectorAll("svg rect")).toHaveLength(6);
 		expect(diagram?.querySelectorAll("svg path")).toHaveLength(5);

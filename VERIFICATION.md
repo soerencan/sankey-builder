@@ -64,10 +64,12 @@ The three panels are Theme, Appearance, and Export diagram. Appearance contains 
 - [ ] Native selects remain usable and focusing them does not trigger unwanted page zoom.
 - [ ] Tapping buttons produces no native press flash or lingering hover background. Panel triggers stay gray only while their panel is open; Add and JSON actions return to their resting appearance after release. Check both themes.
 
-## Row dragging
+## Row reordering
 
 SortableJS uses a floating clone on all platforms (`forceFallback`). Tests cover keyboard reordering and drag callbacks; check the actual gesture and visual feedback here.
 
+- [ ] Using the keyboard, add a node and a link. Focus moves to the new node's selected name or the new link's Source control. Delete a row and confirm focus moves to the next row, the previous row if it was last, or Add if the list is empty.
+- [ ] Focus a reorder handle. Its keyboard instructions appear without moving the row. Use Arrow Up and Arrow Down to reorder; focus stays on the same handle. With a screen reader, check move and boundary announcements, including repeated attempts at a boundary.
 - [ ] Drag a node and a link by their vertical grip handles. The floating row follows the pointer, its original slot becomes a dimmed placeholder, and neighboring rows animate into position.
 - [ ] Drop each row in a new position. Row order, diagram order, and endpoint choices update without a jump or a leftover clone. The clone shows the current input values and selected endpoints.
 - [ ] Drag between the Nodes and Links lists. No row crosses into the other list, and no placeholder or clone remains afterward.

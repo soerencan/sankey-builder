@@ -29,9 +29,7 @@ function resolvePackageDir(name: string, fromDir: string): string | undefined {
 		try {
 			readFileSync(join(candidate, "package.json"));
 			return candidate;
-		} catch {
-			// Not here; keep walking up.
-		}
+		} catch {}
 		const parent = dirname(dir);
 		if (parent === dir) return undefined;
 		dir = parent;
@@ -44,9 +42,6 @@ function readLicenseText(dir: string): string | undefined {
 }
 
 /**
- * Walks the production dependency closure from rootDir's package.json and
- * returns one notice per installed package, sorted by name.
- *
  * Attributes every installed module, not just what tree-shaking keeps in the
  * bundle: over-attribution is harmless, under-attribution is not. Throws
  * rather than skipping when a package has no license file or field, for the

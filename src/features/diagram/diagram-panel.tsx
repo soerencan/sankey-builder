@@ -34,7 +34,6 @@ type ExportOptionsProps = {
 	onExportPng(): void;
 } & AccessibleName;
 
-/** Not a choice component: these are one-shot actions with no current value to mark. */
 function ExportOptions({ onExportSvg, onExportPng, label, labelledBy }: ExportOptionsProps) {
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: These are export actions, not form controls requiring a fieldset.
@@ -65,7 +64,6 @@ export function DiagramPanel({ diagram, settings, actions, signal }: DiagramPane
 	const diagramExportDialog = useDialog();
 	const displayDialog = useDialog();
 
-	/** Exports the visible last-valid diagram; the dialog closes even when empty. */
 	function withVisibleDiagram(fn: (svg: SVGSVGElement) => void): void {
 		actions.clearIoNotice();
 		const diagramEl = diagramRef.current;
@@ -94,7 +92,6 @@ export function DiagramPanel({ diagram, settings, actions, signal }: DiagramPane
 				})
 				.catch((err) => {
 					if (signal.aborted) return;
-					// The notice stays generic; the console carries the cause.
 					console.error(err);
 					actions.reportIoError("PNG export failed. Try the SVG export instead.");
 				});
@@ -169,7 +166,6 @@ export function DiagramPanel({ diagram, settings, actions, signal }: DiagramPane
 							value={settings[key]}
 							onChange={(event) => {
 								const value = event.currentTarget.value;
-								// Validate the native control's string against its setting domain.
 								const option = SETTING_DOMAINS[key].find((option) => option === value);
 								if (option) actions.setDiagramSetting(key, option);
 							}}

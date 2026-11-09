@@ -53,7 +53,6 @@ describe("application boot", () => {
 		const diagram = document.getElementById("diagram");
 		expect(diagram?.querySelector("svg")).not.toBeNull();
 
-		// defaultState has 6 nodes / 5 links.
 		expect(diagram?.querySelectorAll("svg rect")).toHaveLength(6);
 		expect(diagram?.querySelectorAll("svg path")).toHaveLength(5);
 		expect(document.querySelectorAll("#node-editor .node-row")).toHaveLength(6);
