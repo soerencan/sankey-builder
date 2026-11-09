@@ -33,7 +33,7 @@
 		"d3-sankey": "0.12.3",
 		"lucide-preact": "1.61.0",
 		"open-color": "1.9.1",
-		"preact": "10.29.8",
+		"preact": "11.0.2",
 		"sortablejs": "1.15.7"
 	}
 }

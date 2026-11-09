@@ -1,4 +1,4 @@
-import type { JSX } from "preact";
+import type { TargetedMouseEvent } from "preact";
 import { useRef } from "preact/hooks";
 import type { Diagram, State } from "../../model/graph";
 import { Icon } from "../../shared/icon";
@@ -36,7 +36,7 @@ export function DataPanel({
 }: DataPanelProps) {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	function handleExport(event: JSX.TargetedMouseEvent<HTMLButtonElement>): void {
+	function handleExport(event: TargetedMouseEvent<HTMLButtonElement>): void {
 		actions.clearIoNotice();
 		const blob = new Blob([serializeDiagramExport(state)], { type: "application/json" });
 		download(event.currentTarget.ownerDocument, blob, EXPORT_JSON_FILENAME);
