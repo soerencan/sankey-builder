@@ -1,6 +1,6 @@
 # Browser verification
 
-Use this checklist to check behavior that the happy-dom tests do not exercise: visual layout, native dialogs and file pickers, operating-system themes, touch gestures, editing events, and image rasterization. For application changes, run the automated checks as well; they cover graph edits, validation, persistence, import repair, control wiring, and lifecycle cleanup.
+Use this checklist for behavior outside the automated coverage described in the README's [checks](README.md#checks) and [browser tests](README.md#browser-tests): other viewport sizes and UI states, operating-system themes, touch gestures, native editing events, and assistive technology. Playwright covers Chromium and WebKit; it does not replace installed Safari or physical iPhone checks.
 
 Run the sections relevant to the change. Record the revision, browser and version, operating system, viewport sizes, input method, and checks actually performed. Identify anything left untested.
 
@@ -19,16 +19,15 @@ python3 -m http.server 8000 --directory "$preview_root"
 
 Open [localhost:8000/sankey-builder/](http://localhost:8000/sankey-builder/). The build tests check relative asset URLs; a browser run checks that those assets load and render together.
 
-- [ ] Load with no saved state, then reload with saved state. Confirm the diagram renders without console errors, warnings, or failed asset requests.
-- [ ] In the built site, open Third-party licenses from the footer. Confirm package notices are readable, follow the OS color scheme, and link back to the app under the same subpath.
+- [ ] In the built site, confirm Third-party licenses notices are readable and follow the OS color scheme.
 
 ## Layout and theme
 
-The two layout breakpoints are 41.25rem and 60rem (660px and 960px at the default font size). Compact layouts are below 41.25rem, medium layouts are from 41.25rem to below 60rem, and wide layouts are 60rem and above. Check 659px, 660px, 661px, 959px, 960px, and 961px around the transitions, plus 1440px, 1024px, 768px, 600px, 390px, 360px, 320px, and 280px. Use both light and dark themes.
+The two layout breakpoints are 41.25rem and 60rem (660px and 960px at the default font size). Compact layouts are below 41.25rem, medium layouts are from 41.25rem to below 60rem, and wide layouts are 60rem and above. Default layouts at 390px, 768px, and 1280px are screenshot-tested in both themes. Check 659px, 660px, 661px, 959px, 960px, and 961px around the transitions, plus 1440px, 1024px, 600px, 360px, 320px, and 280px. Use both light and dark themes.
 
-- [ ] Visual order and keyboard and screen-reader navigation follow the document order: header and notices, diagram, Data actions, Nodes, Links, footer.
+- [ ] Keyboard and screen-reader navigation follow the document order: header and notices, diagram, Data actions, Nodes, Links, footer.
 - [ ] The diagram panel spans the available content width above the Data card. In wide layouts, Nodes takes one third and Links takes two thirds of the Data card width. They stack in that order in medium and compact layouts. Check both transitions for overlap or unusably narrow controls.
-- [ ] The 24px page title, 18px Data heading, and 16px subsection headings form a clear hierarchy alongside 16px input text. The diagram toolbar and Data header have matching vertical spacing, and the sizing controls have space above and below their buttons. Headings and actions remain legible without collisions, and there is no horizontal page scrollbar.
+- [ ] At the remaining widths, headings and actions stay legible without collisions or horizontal page overflow.
 - [ ] Compact link rows put source and target on separate rows, followed by value and Delete together, with the drag handle beside the source. Medium and wide link rows stay horizontal. Field errors remain readable.
 - [ ] In medium and wide link rows, `888888.8888` fits fully in the value input, and Source and Target share the remaining width equally after the handle, value, Delete, and gaps. Compact value inputs retain their alignment with Source and Target; at 280px, horizontal scrolling within the input for this value is an accepted limitation.
 - [ ] Add node and Add link sit below their lists as foreground-colored plus icons and text, with no persistent background or visible border. Their rounded hover backgrounds and keyboard focus outlines remain visible.
@@ -49,12 +48,12 @@ The three panels are Theme, Appearance, and Export diagram. Color saturation use
 - [ ] In wide and medium layouts, panels anchor near their trigger and stay within the viewport. Open one, then scroll or resize to check repositioning.
 - [ ] In compact layouts, panels become full-width bottom sheets with rounded top corners, a transparent backdrop, and scrollable content. Close remains reachable, and the page behind the panel cannot be used until dismissal.
 - [ ] Selected choices have a tint and checkmark distinct from the keyboard focus ring.
-- [ ] Tab and Shift+Tab stay within each panel. Escape dismisses it and visibly returns focus to its trigger. Outside clicks dismiss it without activating controls behind it.
+- [ ] Outside clicks dismiss panels without activating controls behind them.
 - [ ] Theme, Appearance, and Export diagram triggers keep the same gray background as their hover state while their panel is open, even after moving the pointer away or opening by keyboard or touch. The highlight follows the open panel rather than focus: edits in Appearance retain it, while Close, Escape, outside clicks, and selections that close a panel clear it. After dismissal, a hover-capable pointer still over the trigger may retain the ordinary hover background; move it away to confirm the open-state highlight has cleared. Add and JSON action buttons do not acquire a persistent selected highlight.
-- [ ] Color saturation shows eight segments per bar, with no visible option names. Tab and Shift+Tab move focus out of the dropdown. All levels remain reachable by scrolling in short viewports.
+- [ ] Color saturation shows eight segments per bar, with no visible option names. All levels remain reachable by scrolling in short viewports.
 - [ ] Preview all five saturation choices in both themes using a diagram that shows all eight color slots. Node colors, editor swatches, dropdown previews, and exported colors agree, including translucent links. Grayscale remains visible against both backgrounds.
 - [ ] Export diagram presents SVG and PNG without clipping at every screen size.
-- [ ] In wide and medium layouts, use the preview's smaller/larger buttons, drag its horizontal handle, and try Arrow Up, Arrow Down, Home, and End with that handle focused. Confirm the preview visibly resizes and stays within the panel when resizing the window or changing aspect ratios, including when the width leaves no adjustment range. With a screen reader, check the displayed height and current limits. In compact layouts, the controls hide and the preview fits the available width; returning to a larger window restores the saved height within its current limits.
+- [ ] The preview stays within the panel when resizing the window or changing aspect ratios, including when the width leaves no adjustment range. With a screen reader, check the displayed height and current limits. In compact layouts, the controls hide and the preview fits the available width; returning to a larger window restores the saved height within its current limits.
 
 ### Physical iPhone checks
 
@@ -65,14 +64,13 @@ The three panels are Theme, Appearance, and Export diagram. Color saturation use
 
 ## Row reordering
 
-SortableJS uses a floating clone on all platforms (`forceFallback`). Tests cover keyboard reordering and drag callbacks; check the actual gesture and visual feedback here.
+SortableJS uses a floating clone on all platforms (`forceFallback`). Playwright covers mouse-dragging node and link rows, the clone's field values, saved order, and cleanup after a successful drop. Check the remaining visual feedback and touch behavior here.
 
 - [ ] Focus a reorder handle. Its keyboard instructions appear without moving the row. With a screen reader, check move and boundary announcements, including repeated attempts at a boundary.
 - [ ] Drag a node and a link by their vertical grip handles. The floating row follows the pointer, its original slot becomes a dimmed placeholder, and neighboring rows animate into position.
-- [ ] Drop each row in a new position without a jump or a leftover clone. The floating clone shows the current input values and selected endpoints.
 - [ ] Drag between the Nodes and Links lists. No row crosses into the other list, and no placeholder or clone remains afterward.
 - [ ] Starting from a name field, value field, or select allows normal editing without initiating a drag.
-- [ ] Mouse dragging starts immediately. On touch, a brief hold of about 150ms lifts the row; a quick tap does not. Movement during the hold cancels the pending lift so a scroll gesture starting on a row can scroll.
+- [ ] On touch, a brief hold of about 150ms lifts the row; a quick tap does not. Movement during the hold cancels the pending lift so a scroll gesture starting on a row can scroll.
 - [ ] During dragging, neither the row nor surrounding page text becomes selected. On iOS, no text-selection callout appears.
 - [ ] Return the row to its original position and release to leave its order unchanged. Pointer/touch dragging has no Escape-to-cancel behavior.
 
@@ -86,11 +84,9 @@ The editor allows four decimal places. It intercepts `beforeinput` to block extr
 
 ## Import, export, and notices
 
-Use the built site for native file-picker, download, and canvas checks. Run exports on wide and narrow layouts, in light and dark themes.
+Playwright covers the JSON download/upload round trip and default-size SVG/PNG exports with gradients, transparency, and themed labels in both themes. Use the built site for the remaining export checks on wide and narrow layouts, in light and dark themes.
 
-- [ ] Use Export JSON in the Data header. `sankey.json` downloads without console errors about blob URLs. Import JSON opens the native file picker and accepts the downloaded file.
-- [ ] Use Export diagram, then SVG. `sankey.svg` opens standalone with a transparent background and labels matching the current theme: dark labels in Light, light labels in Dark.
-- [ ] Export PNG. `sankey.png` has a transparent background and matching label colors. With the default 16:9 aspect ratio, its size is 1706 by 960 pixels. Change the aspect ratio and confirm PNG dimensions are twice the SVG's logical dimensions. Resizing only the preview does not change them.
-- [ ] Check PNG output with single-color links and source-to-target gradients. Gradients rasterize as gradients, with no canvas or blob-URL errors. Repeat in Safari, where image loading and rasterization can differ.
+- [ ] Change the aspect ratio and confirm PNG dimensions are twice the SVG's logical dimensions. Resizing only the preview does not change them.
+- [ ] Check PNG output with single-color links. In installed Safari, also repeat gradient exports, where image loading and rasterization can differ from Playwright's WebKit build.
 - [ ] At 360px and 390px, notices and their Dismiss button remain readable without overlap or horizontal overflow.
 - [ ] With a screen reader, check polite notice announcements. Repeated invalid value drafts produce inline errors without repeated page-level announcements. An unrelated action does not reannounce unchanged notices.

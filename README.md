@@ -26,13 +26,25 @@ Open the URL printed by the development server. Bun bundles TypeScript and reloa
 | `make lint` | Check formatting and lint rules with Biome |
 | `make format` | Apply Biome formatting and lint fixes |
 | `make typecheck` | Check TypeScript without emitting files |
-| `make test` | Run all tests, including the production build smoke tests |
+| `make test` | Run Vitest tests, including the production build smoke tests |
 | `make test-unit` | Run tests without the production build smoke tests |
 | `make test-dist` | Build and test the production output |
+| `make test-browser` | Build and run Chromium and WebKit interaction and export tests locally |
+| `make test-browser-ui` | Build and open Playwright's interactive test runner |
+| `make test-browser-ci` | Test existing production output in the pinned Linux container |
+| `make test-browser-snapshots` | Build and update screenshot baselines in that container |
 
 Unit tests sit beside their modules in `src/` and `scripts/`. Integration tests in `tests/integration/` start the app against the real HTML, D3, and SortableJS using happy-dom, a simulated browser environment. The build tests in `tests/build/dist.test.ts` build the site, check relative asset URLs and license notices, and boot the emitted bundle.
 
 For manual browser checks, see [VERIFICATION.md](VERIFICATION.md).
+
+### Browser tests
+
+Install the browser binaries once with `bunx playwright install chromium webkit`, then run `make test-browser`. Tests serve the production build under `/sankey-builder/` and cover native keyboard navigation, real mouse dragging, file upload/download, and SVG/PNG rendering. They fail on browser errors, warnings, and failed requests. On macOS, WebKit keyboard tests use Option+Tab to include buttons without changing system preferences.
+
+Screenshot tests cover the default page at 390px, 768px, and 1280px in both themes, plus Appearance as a bottom sheet and desktop panel. They run in an x86-64 Linux container so fonts and browser rendering match CI; local runs skip them. With Docker running, use `make build && make test-browser-ci` to run the full browser suite in that environment. The container uses the installed Playwright package and `dist/` without installing dependencies or rebuilding the app.
+
+For an intentional visual change, run `make test-browser-snapshots`, inspect the changed PNGs in `tests/browser/visual.spec.ts-snapshots/`, and commit the approved baselines. Keep `PLAYWRIGHT_IMAGE` in the Makefile at the same version as `@playwright/test`. Browser upgrades can change rendering and require baseline review. Use `bunx playwright show-report` to inspect failures, including traces and screenshot differences. CI retains failure reports for seven days.
 
 ### Preview the production build
 
@@ -47,7 +59,7 @@ The footer's Third-party licenses link works in the built site; the page is not 
 
 ### Continuous integration and deployment
 
-Every pull request runs lint, type checks, tests, and a production build. Changes merged into `main` deploy automatically to GitHub Pages after those checks pass. See [the CI workflow](.github/workflows/ci.yml) for details.
+Every pull request runs lint, type checks, tests, and a production build. The build job runs Playwright in the pinned Linux container against the same output it uploads to GitHub Pages. Changes merged into `main` deploy automatically after those checks pass. See [the CI workflow](.github/workflows/ci.yml) for details.
 
 ## Codebase
 

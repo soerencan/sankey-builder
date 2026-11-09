@@ -66,6 +66,15 @@ jobs:
           bun-version-file: ".bun-version"
       - run: bun install --frozen-lockfile
       - run: make test-dist
+      - run: make test-browser-ci
+      - uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: browser-test-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
