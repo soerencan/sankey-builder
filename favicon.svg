@@ -4,8 +4,8 @@
     <path id="upper-edge" d="M144 136 C224 136 288 96 368 96" />
     <path id="lower-edge" d="M144 256 C224 256 288 296 368 296" />
   </defs>
-  <rect width="512" height="512" fill="#000" />
-  <g fill="none" stroke="#fff" stroke-width="16" stroke-linejoin="round">
+  <rect width="512" height="512" rx="96" fill="#fff" />
+  <g fill="none" stroke="#000" stroke-width="16" stroke-linejoin="round">
     <use href="#upper-edge" />
     <use href="#upper-edge" transform="translate(0 120)" />
     <use href="#lower-edge" />
