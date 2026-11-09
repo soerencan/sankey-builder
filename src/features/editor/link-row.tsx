@@ -1,4 +1,4 @@
-import type { JSX, Ref } from "preact";
+import type { Ref, TargetedEvent, TargetedInputEvent } from "preact";
 import { useState } from "preact/hooks";
 import type { Link } from "../../model/graph";
 import { MAX_LINK_VALUE } from "../../model/validation";
@@ -107,13 +107,13 @@ export function LinkRow({ link, index, nodes, actions, sourceRef }: LinkRowProps
 		}
 	}
 
-	function handleInput(event: JSX.TargetedEvent<HTMLInputElement>): void {
+	function handleInput(event: TargetedEvent<HTMLInputElement>): void {
 		commitDraft(event.currentTarget.value);
 	}
 
 	// The 4-decimal cap is enforced maxlength-style, at the keystroke, instead
 	// of through the aria-invalid path every other invalid input takes.
-	function handleBeforeInput(event: JSX.TargetedInputEvent<HTMLInputElement>): void {
+	function handleBeforeInput(event: TargetedInputEvent<HTMLInputElement>): void {
 		const target = event.currentTarget;
 		// Deletions carry no data and can only shrink the fractional part.
 		if (event.data == null) return;
@@ -137,7 +137,7 @@ export function LinkRow({ link, index, nodes, actions, sourceRef }: LinkRowProps
 		}
 	}
 
-	function handleChange(event: JSX.TargetedEvent<HTMLInputElement>): void {
+	function handleChange(event: TargetedEvent<HTMLInputElement>): void {
 		const parsed = parseLinkValue(event.currentTarget.value);
 		if (parsed.kind === "valid") return;
 		setDraft({ text: String(link.value), invalid: false, message: "" });

@@ -2,7 +2,7 @@ import type { RefObject } from "preact";
 import { useCallback, useLayoutEffect, useRef } from "preact/hooks";
 
 export interface DialogHandle {
-	ref: RefObject<HTMLDialogElement>;
+	ref: RefObject<HTMLDialogElement | null>;
 	/** `trigger` is refocused on close. */
 	open(trigger: HTMLElement): void;
 	close(): void;

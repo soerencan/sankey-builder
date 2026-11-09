@@ -24,7 +24,7 @@ const TOUCH_START_THRESHOLD_PX = 4;
  * that either.
  */
 export function useRowSortable(
-	containerRef: RefObject<HTMLElement>,
+	containerRef: RefObject<HTMLElement | null>,
 	{ rowClass, onMove, rowName }: UseRowSortableOptions,
 ) {
 	const onMoveRef = useRef(onMove);

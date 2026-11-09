@@ -1,4 +1,4 @@
-import type { JSX, RefObject } from "preact";
+import type { RefObject, TargetedKeyboardEvent, TargetedPointerEvent } from "preact";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "../../shared/icon";
 
@@ -34,7 +34,7 @@ function persistPreviewHeight(storage: Storage, value: number): void {
 
 export interface PreviewResizerProps {
 	/** The preview element exists only after commit: read it from effects and handlers, never during render. */
-	diagramRef: RefObject<HTMLElement>;
+	diagramRef: RefObject<HTMLElement | null>;
 	aspectRatio: number;
 }
 
@@ -144,7 +144,7 @@ export function PreviewResizer({ diagramRef, aspectRatio }: PreviewResizerProps)
 		};
 	}, []);
 
-	function onSplitterKeyDown(event: JSX.TargetedKeyboardEvent<HTMLDivElement>): void {
+	function onSplitterKeyDown(event: TargetedKeyboardEvent<HTMLDivElement>): void {
 		let next: number | undefined;
 		if (event.key === "ArrowUp") next = currentHeight() - PREVIEW_HEIGHT_STEP;
 		else if (event.key === "ArrowDown") next = currentHeight() + PREVIEW_HEIGHT_STEP;
@@ -155,7 +155,7 @@ export function PreviewResizer({ diagramRef, aspectRatio }: PreviewResizerProps)
 		apply(next);
 	}
 
-	function onSplitterPointerDown(event: JSX.TargetedPointerEvent<HTMLDivElement>): void {
+	function onSplitterPointerDown(event: TargetedPointerEvent<HTMLDivElement>): void {
 		if (!adjustable) return;
 		dragRef.current = {
 			startY: event.clientY,
