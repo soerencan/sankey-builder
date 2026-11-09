@@ -10,8 +10,8 @@
     <use href="#upper-edge" transform="translate(0 120)" />
     <use href="#lower-edge" />
     <use href="#lower-edge" transform="translate(0 120)" />
-    <rect x="96" y="136" width="48" height="240" rx="4" />
-    <rect x="368" y="96" width="48" height="120" rx="4" />
-    <rect x="368" y="296" width="48" height="120" rx="4" />
+    <rect fill="#000" x="96" y="136" width="48" height="240" rx="4" />
+    <rect fill="#000" x="368" y="96" width="48" height="120" rx="4" />
+    <rect fill="#000" x="368" y="296" width="48" height="120" rx="4" />
   </g>
 </svg>
