@@ -9,27 +9,27 @@ permissions:
   contents: read
 
 jobs:
-  # biome's bin is a thin Node launcher that immediately re-spawns the
-  # platform-native binary, so the Node version is immaterial for linting —
-  # no pin needed.
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: ".nvmrc"
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version-file: ".bun-version"
       - run: bun install --frozen-lockfile
       - run: make lint
 
   typecheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: ".nvmrc"
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version-file: ".bun-version"
       - run: bun install --frozen-lockfile
@@ -39,13 +39,13 @@ jobs:
   # avoid building dist/ twice in CI — that coverage lives in the build
   # job below.
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: ".nvmrc"
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version-file: ".bun-version"
       - run: bun install --frozen-lockfile
@@ -55,19 +55,19 @@ jobs:
   # Pages artifact ships exactly the bundle that was boot-tested and deploy
   # never builds a second time.
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: ".nvmrc"
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version-file: ".bun-version"
       - run: bun install --frozen-lockfile
       - run: make test-dist
       - run: make test-browser-ci
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v5.0.0
         if: failure()
         with:
           name: browser-test-report
@@ -75,7 +75,7 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: dist
 
@@ -83,7 +83,7 @@ jobs:
   deploy:
     needs: [lint, typecheck, test, build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     concurrency:
       group: pages
       cancel-in-progress: false
@@ -95,6 +95,6 @@ jobs:
       pages: write
       id-token: write
     steps:
-      - uses: actions/configure-pages@v6
+      - uses: actions/configure-pages@v6.0.0
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v5.0.1

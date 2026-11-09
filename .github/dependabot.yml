@@ -16,3 +16,11 @@ updates:
       separator: "-"
     cooldown:
       default-days: 14
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    pull-request-branch-name:
+      separator: "-"
+    cooldown:
+      default-days: 14

@@ -1,7 +1,6 @@
 .PHONY: dev build test test-unit test-dist test-browser test-browser-ui test-browser-ci test-browser-snapshots lint format typecheck
 
-PLAYWRIGHT_IMAGE = mcr.microsoft.com/playwright:v1.65.0-noble
-PLAYWRIGHT_DOCKER = docker run --rm --init --ipc=host --platform linux/amd64 -e CI=1 -e PLAYWRIGHT_VISUAL_TESTS=1 -v "$(CURDIR):/work" -w /work $(PLAYWRIGHT_IMAGE) node node_modules/@playwright/test/cli.js
+PLAYWRIGHT_DOCKER = docker compose run --rm playwright
 
 dev:
 	bun run dev

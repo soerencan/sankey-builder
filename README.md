@@ -56,7 +56,7 @@ bunx playwright install chromium webkit
 make test-browser
 ```
 
-Screenshot comparisons and updates require Docker and run in a pinned Linux container for consistent rendering.
+Screenshot comparisons and updates require Docker Compose and run in a pinned Linux container for consistent rendering.
 
 | Command | Purpose | Docker required |
 | --- | --- | --- |
@@ -92,7 +92,7 @@ For an unintended change, fix the code and rerun the tests. To accept an intenti
 2. Inspect the changed PNGs.
 3. Run `make test-browser-ci` against the updated baselines, then commit them with the code.
 
-Keep `PLAYWRIGHT_IMAGE` in the Makefile at the same version as `@playwright/test`. Browser upgrades can change rendering and require baseline review.
+Keep the Playwright image in [`compose.yaml`](compose.yaml) at the same version as `@playwright/test`, updating both its tag and digest. Browser upgrades can change rendering and require baseline review.
 
 ## Codebase
 
