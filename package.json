@@ -18,7 +18,7 @@
 		"test:browser:ui": "playwright test --ui"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.6.3",
+		"@biomejs/biome": "2.6.4",
 		"@playwright/test": "1.65.0",
 		"@types/culori": "4.0.1",
 		"@types/d3-sankey": "0.12.5",
